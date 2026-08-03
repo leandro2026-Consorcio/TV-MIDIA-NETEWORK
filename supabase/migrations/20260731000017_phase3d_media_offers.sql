@@ -78,13 +78,16 @@ ALTER TABLE public.company_ad_offers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ad_offer_orders ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - PLATFORM_REVENUE_SETTINGS
+DROP POLICY IF EXISTS "PlatformRevenueSettings - Leitura por todos os autenticados" ON public.platform_revenue_settings;
 CREATE POLICY "PlatformRevenueSettings - Leitura por todos os autenticados"
   ON public.platform_revenue_settings FOR SELECT TO authenticated USING (TRUE);
 
+DROP POLICY IF EXISTS "PlatformRevenueSettings - Gerenciamento por Master Admin" ON public.platform_revenue_settings;
 CREATE POLICY "PlatformRevenueSettings - Gerenciamento por Master Admin"
   ON public.platform_revenue_settings FOR ALL TO authenticated USING (is_master_admin());
 
 -- POLÍTICAS RLS - COMPANY_AD_OFFERS
+DROP POLICY IF EXISTS "CompanyAdOffers - Leitura por membros, ativas públicas ou Master Admin" ON public.company_ad_offers;
 CREATE POLICY "CompanyAdOffers - Leitura por membros, ativas públicas ou Master Admin"
   ON public.company_ad_offers FOR SELECT TO authenticated
   USING (
@@ -93,6 +96,7 @@ CREATE POLICY "CompanyAdOffers - Leitura por membros, ativas públicas ou Master
     (status = 'active' AND is_public = TRUE)
   );
 
+DROP POLICY IF EXISTS "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_ad_offers;
 CREATE POLICY "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_ad_offers FOR ALL TO authenticated
   USING (
@@ -101,6 +105,7 @@ CREATE POLICY "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master A
   );
 
 -- POLÍTICAS RLS - AD_OFFER_ORDERS
+DROP POLICY IF EXISTS "AdOfferOrders - Leitura por vendedor, comprador ou Master Admin" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Leitura por vendedor, comprador ou Master Admin"
   ON public.ad_offer_orders FOR SELECT TO authenticated
   USING (
@@ -109,10 +114,12 @@ CREATE POLICY "AdOfferOrders - Leitura por vendedor, comprador ou Master Admin"
     (buyer_company_id IS NOT NULL AND buyer_company_id IN (SELECT public.get_user_company_ids()))
   );
 
+DROP POLICY IF EXISTS "AdOfferOrders - Criação por usuários autenticados" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Criação por usuários autenticados"
   ON public.ad_offer_orders FOR INSERT TO authenticated
   WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "AdOfferOrders - Atualização por vendedor ou Master Admin" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Atualização por vendedor ou Master Admin"
   ON public.ad_offer_orders FOR UPDATE TO authenticated
   USING (

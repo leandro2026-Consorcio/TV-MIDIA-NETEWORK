@@ -58,6 +58,7 @@ CREATE INDEX IF NOT EXISTS idx_delivery_usage_campaign ON public.ad_order_delive
 ALTER TABLE public.ad_order_delivery_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ad_order_delivery_usage ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "DeliveryLedger - Leitura por comprador, vendedor ou Master" ON public.ad_order_delivery_ledger;
 CREATE POLICY "DeliveryLedger - Leitura por comprador, vendedor ou Master"
   ON public.ad_order_delivery_ledger FOR SELECT TO authenticated
   USING (
@@ -66,6 +67,7 @@ CREATE POLICY "DeliveryLedger - Leitura por comprador, vendedor ou Master"
     buyer_company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "DeliveryUsage - Leitura por comprador, vendedor ou Master" ON public.ad_order_delivery_usage;
 CREATE POLICY "DeliveryUsage - Leitura por comprador, vendedor ou Master"
   ON public.ad_order_delivery_usage FOR SELECT TO authenticated
   USING (

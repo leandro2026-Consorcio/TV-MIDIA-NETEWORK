@@ -173,15 +173,18 @@ ALTER TABLE public.credit_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.playback_credit_charges ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - CREDIT_PACKAGES
+DROP POLICY IF EXISTS "CreditPackages - Leitura por todos os usuários autenticados" ON public.credit_packages;
 CREATE POLICY "CreditPackages - Leitura por todos os usuários autenticados"
   ON public.credit_packages FOR SELECT TO authenticated
   USING (TRUE);
 
+DROP POLICY IF EXISTS "CreditPackages - Gerenciamento por Master Admin" ON public.credit_packages;
 CREATE POLICY "CreditPackages - Gerenciamento por Master Admin"
   ON public.credit_packages FOR ALL TO authenticated
   USING (is_master_admin());
 
 -- POLÍTICAS RLS - PLAYBACK_CREDIT_CHARGES
+DROP POLICY IF EXISTS "PlaybackCreditCharges - Leitura por membros da empresa ou Master Admin" ON public.playback_credit_charges;
 CREATE POLICY "PlaybackCreditCharges - Leitura por membros da empresa ou Master Admin"
   ON public.playback_credit_charges FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));

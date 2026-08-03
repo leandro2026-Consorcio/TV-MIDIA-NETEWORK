@@ -6,6 +6,7 @@
 -- 1. CORRIGIR POLICY DE INSERÇÃO EM AD_OFFER_ORDERS (REMOVER WITH CHECK TRUE)
 DROP POLICY IF EXISTS "AdOfferOrders - Criação por usuários autenticados" ON public.ad_offer_orders;
 
+DROP POLICY IF EXISTS "AdOfferOrders - Criação por membros da empresa compradora ou Master Admin" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Criação por membros da empresa compradora ou Master Admin"
   ON public.ad_offer_orders FOR INSERT TO authenticated
   WITH CHECK (

@@ -14,6 +14,7 @@ ALTER TABLE public.screen_pairing_codes ADD COLUMN IF NOT EXISTS pairing_secret_
 -- 3. REFORÇAR RLS EM SCREEN_PAIRING_CODES (NENHUM CLIENTE COMUM PODE LER OU INSERIR DIRETO)
 DROP POLICY IF EXISTS "PairingCodes - Leitura Master Admin" ON public.screen_pairing_codes;
 
+DROP POLICY IF EXISTS "PairingCodes - Leitura Master Admin" ON public.screen_pairing_codes;
 CREATE POLICY "PairingCodes - Leitura Master Admin"
   ON public.screen_pairing_codes FOR SELECT
   TO authenticated

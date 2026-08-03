@@ -56,21 +56,25 @@ ALTER TABLE public.seller_payout_eligibility ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_payout_simulations ENABLE ROW LEVEL SECURITY;
 
 -- Politicas seller_payout_eligibility
+DROP POLICY IF EXISTS "PayoutEligibility - Master Admin Full Access" ON public.seller_payout_eligibility;
 CREATE POLICY "PayoutEligibility - Master Admin Full Access"
   ON public.seller_payout_eligibility FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutEligibility - Seller Company Read" ON public.seller_payout_eligibility;
 CREATE POLICY "PayoutEligibility - Seller Company Read"
   ON public.seller_payout_eligibility FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));
 
 -- Politicas seller_payout_simulations
+DROP POLICY IF EXISTS "PayoutSimulations - Master Admin Full Access" ON public.seller_payout_simulations;
 CREATE POLICY "PayoutSimulations - Master Admin Full Access"
   ON public.seller_payout_simulations FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutSimulations - Seller Company Read" ON public.seller_payout_simulations;
 CREATE POLICY "PayoutSimulations - Seller Company Read"
   ON public.seller_payout_simulations FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));

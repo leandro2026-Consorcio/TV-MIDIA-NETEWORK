@@ -42,12 +42,15 @@ CREATE INDEX IF NOT EXISTS idx_acceptances_term ON public.company_term_acceptanc
 ALTER TABLE public.platform_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.company_term_acceptances ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "PlatformTerms - Leitura por usuários autenticados" ON public.platform_terms;
 CREATE POLICY "PlatformTerms - Leitura por usuários autenticados"
   ON public.platform_terms FOR SELECT TO authenticated USING (TRUE);
 
+DROP POLICY IF EXISTS "PlatformTerms - Gestão por Master Admin" ON public.platform_terms;
 CREATE POLICY "PlatformTerms - Gestão por Master Admin"
   ON public.platform_terms FOR ALL TO authenticated USING (is_master_admin());
 
+DROP POLICY IF EXISTS "CompanyTermAcceptances - Leitura por empresa ou Master Admin" ON public.company_term_acceptances;
 CREATE POLICY "CompanyTermAcceptances - Leitura por empresa ou Master Admin"
   ON public.company_term_acceptances FOR SELECT TO authenticated
   USING (

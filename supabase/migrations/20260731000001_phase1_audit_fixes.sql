@@ -145,6 +145,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 3. AJUSTE DE RLS EM AUDIT_LOGS (PERMITIR INSERÇÃO APENAS PARA AÇÕES PRÓPRIAS)
 DROP POLICY IF EXISTS "AuditLogs - Leitura para Master Admin ou Admins da empresa" ON public.audit_logs;
 
+DROP POLICY IF EXISTS "AuditLogs - Leitura para Master Admin ou Admins da empresa" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
   ON public.audit_logs FOR SELECT
   TO authenticated
@@ -153,6 +154,7 @@ CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "AuditLogs - Inserção de eventos autorizados" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Inserção de eventos autorizados"
   ON public.audit_logs FOR INSERT
   TO authenticated

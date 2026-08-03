@@ -98,15 +98,18 @@ ALTER TABLE public.company_trials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referral_invites ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - COMPANY_TRIALS
+DROP POLICY IF EXISTS "CompanyTrials - Leitura por membros da empresa ou Master Admin" ON public.company_trials;
 CREATE POLICY "CompanyTrials - Leitura por membros da empresa ou Master Admin"
   ON public.company_trials FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanyTrials - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_trials;
 CREATE POLICY "CompanyTrials - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_trials FOR ALL TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
 
 -- POLÍTICAS RLS - REFERRAL_INVITES
+DROP POLICY IF EXISTS "ReferralInvites - Leitura por empresa emissora ou Master Admin" ON public.referral_invites;
 CREATE POLICY "ReferralInvites - Leitura por empresa emissora ou Master Admin"
   ON public.referral_invites FOR SELECT TO authenticated
   USING (
@@ -115,6 +118,7 @@ CREATE POLICY "ReferralInvites - Leitura por empresa emissora ou Master Admin"
     converted_company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "ReferralInvites - Gerenciamento por Admins da Empresa ou Master Admin" ON public.referral_invites;
 CREATE POLICY "ReferralInvites - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.referral_invites FOR ALL TO authenticated
   USING (is_master_admin() OR inviter_company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));

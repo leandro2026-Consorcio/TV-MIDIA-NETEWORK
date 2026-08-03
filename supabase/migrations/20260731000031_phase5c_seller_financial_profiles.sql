@@ -87,17 +87,20 @@ ALTER TABLE public.seller_financial_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_financial_profile_logs ENABLE ROW LEVEL SECURITY;
 
 -- Politica: Master Admin Acesso Total
+DROP POLICY IF EXISTS "SellerProfiles - Master Admin Full Access" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Master Admin Full Access"
   ON public.seller_financial_profiles FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
 -- Politica: Membro da Empresa Leitura dos Próprios Dados
+DROP POLICY IF EXISTS "SellerProfiles - Company Member Read" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Company Member Read"
   ON public.seller_financial_profiles FOR SELECT TO authenticated
   USING (company_id IN (SELECT get_user_company_ids()));
 
 -- Politica: Admin da Empresa Criação do Próprio Perfil
+DROP POLICY IF EXISTS "SellerProfiles - Company Admin Insert" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Company Admin Insert"
   ON public.seller_financial_profiles FOR INSERT TO authenticated
   WITH CHECK (
@@ -108,6 +111,7 @@ CREATE POLICY "SellerProfiles - Company Admin Insert"
   );
 
 -- Politica: Admin da Empresa Edição do Próprio Perfil
+DROP POLICY IF EXISTS "SellerProfiles - Company Admin Update" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Company Admin Update"
   ON public.seller_financial_profiles FOR UPDATE TO authenticated
   USING (
@@ -118,6 +122,7 @@ CREATE POLICY "SellerProfiles - Company Admin Update"
   );
 
 -- Politica Logs: Master Admin e Membros da Própria Empresa
+DROP POLICY IF EXISTS "SellerProfileLogs - Master Admin & Company Read" ON public.seller_financial_profile_logs;
 CREATE POLICY "SellerProfileLogs - Master Admin & Company Read"
   ON public.seller_financial_profile_logs FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT get_user_company_ids()));

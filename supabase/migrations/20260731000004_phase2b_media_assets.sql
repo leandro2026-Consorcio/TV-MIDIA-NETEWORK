@@ -37,6 +37,7 @@ ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
 
 -- 3. POLÍTICAS RLS - MEDIA_ASSETS
 -- 3.1 LEITURA: Master Admin ou membros ativos (Admin e Operador) da mesma empresa
+DROP POLICY IF EXISTS "MediaAssets - Leitura para membros da empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Leitura para membros da empresa ou Master Admin"
   ON public.media_assets FOR SELECT
   TO authenticated
@@ -46,6 +47,7 @@ CREATE POLICY "MediaAssets - Leitura para membros da empresa ou Master Admin"
   );
 
 -- 3.2 INSERÇÃO: Admins e Operadores ativos da mesma empresa
+DROP POLICY IF EXISTS "MediaAssets - Inserção por membros da empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Inserção por membros da empresa ou Master Admin"
   ON public.media_assets FOR INSERT
   TO authenticated
@@ -57,6 +59,7 @@ CREATE POLICY "MediaAssets - Inserção por membros da empresa ou Master Admin"
 -- 3.3 EDIÇÃO/ATUALIZAÇÃO:
 -- Master Admin ou Admin da empresa podem editar tudo (inclusive aprovar/reprovar status).
 -- Operadores podem editar título/descrição de mídias de sua própria empresa.
+DROP POLICY IF EXISTS "MediaAssets - Edição para membros da empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Edição para membros da empresa ou Master Admin"
   ON public.media_assets FOR UPDATE
   TO authenticated
@@ -70,6 +73,7 @@ CREATE POLICY "MediaAssets - Edição para membros da empresa ou Master Admin"
   );
 
 -- 3.4 EXCLUSÃO / ARQUIVAMENTO FÍSICO: Restrito a Master Admin ou Admin da empresa
+DROP POLICY IF EXISTS "MediaAssets - Exclusão por Admins da Empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Exclusão por Admins da Empresa ou Master Admin"
   ON public.media_assets FOR DELETE
   TO authenticated
@@ -91,6 +95,7 @@ ON CONFLICT (id) DO NOTHING;
 -- O caminho do arquivo segue a estrutura: {company_id}/{media_id}/{filename}
 
 -- Leitura de arquivos do Storage: Autenticados da mesma empresa ou Master Admin
+DROP POLICY IF EXISTS "Storage - Leitura de mídias por empresa" ON storage.objects;
 CREATE POLICY "Storage - Leitura de mídias por empresa"
   ON storage.objects FOR SELECT
   TO authenticated
@@ -102,12 +107,14 @@ CREATE POLICY "Storage - Leitura de mídias por empresa"
   );
 
 -- Leitura pública para exibição de imagens/vídeos nos players e previews do dashboard
+DROP POLICY IF EXISTS "Storage - Leitura pública para renderização de mídias" ON storage.objects;
 CREATE POLICY "Storage - Leitura pública para renderização de mídias"
   ON storage.objects FOR SELECT
   TO public
   USING (bucket_id = 'media-assets');
 
 -- Upload de arquivos: Restrito a usuários autenticados da empresa pertencente ao caminho
+DROP POLICY IF EXISTS "Storage - Upload por membros da empresa" ON storage.objects;
 CREATE POLICY "Storage - Upload por membros da empresa"
   ON storage.objects FOR INSERT
   TO authenticated
@@ -119,6 +126,7 @@ CREATE POLICY "Storage - Upload por membros da empresa"
   );
 
 -- Remoção/Exclusão no Storage: Restrito a Admins da Empresa ou Master Admin
+DROP POLICY IF EXISTS "Storage - Remoção por Admins da Empresa ou Master Admin" ON storage.objects;
 CREATE POLICY "Storage - Remoção por Admins da Empresa ou Master Admin"
   ON storage.objects FOR DELETE
   TO authenticated

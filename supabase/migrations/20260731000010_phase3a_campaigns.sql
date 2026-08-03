@@ -142,35 +142,43 @@ ALTER TABLE public.campaign_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaign_screens ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - CAMPAIGNS
+DROP POLICY IF EXISTS "Campaigns - Leitura por membros da empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Leitura por membros da empresa ou Master Admin"
   ON public.campaigns FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Campaigns - Inserção por membros da empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Inserção por membros da empresa ou Master Admin"
   ON public.campaigns FOR INSERT TO authenticated
   WITH CHECK (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Campaigns - Edição por membros da empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Edição por membros da empresa ou Master Admin"
   ON public.campaigns FOR UPDATE TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Campaigns - Exclusão por Admins da Empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Exclusão por Admins da Empresa ou Master Admin"
   ON public.campaigns FOR DELETE TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
 
 -- POLÍTICAS RLS - CAMPAIGN_MEDIA & CAMPAIGN_SCREENS
+DROP POLICY IF EXISTS "CampaignMedia - Leitura por membros da empresa ou Master Admin" ON public.campaign_media;
 CREATE POLICY "CampaignMedia - Leitura por membros da empresa ou Master Admin"
   ON public.campaign_media FOR SELECT TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
 
+DROP POLICY IF EXISTS "CampaignMedia - Gerenciamento por membros da empresa ou Master Admin" ON public.campaign_media;
 CREATE POLICY "CampaignMedia - Gerenciamento por membros da empresa ou Master Admin"
   ON public.campaign_media FOR ALL TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
 
+DROP POLICY IF EXISTS "CampaignScreens - Leitura por membros da empresa ou Master Admin" ON public.campaign_screens;
 CREATE POLICY "CampaignScreens - Leitura por membros da empresa ou Master Admin"
   ON public.campaign_screens FOR SELECT TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
 
+DROP POLICY IF EXISTS "CampaignScreens - Gerenciamento por membros da empresa ou Master Admin" ON public.campaign_screens;
 CREATE POLICY "CampaignScreens - Gerenciamento por membros da empresa ou Master Admin"
   ON public.campaign_screens FOR ALL TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));

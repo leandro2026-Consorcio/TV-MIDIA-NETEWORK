@@ -23,6 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_reconcil_order_id ON public.asaas_reconciliation_
 -- 2. HABILITAR RLS COM ACESSO EXCLUSIVO PARA MASTER ADMIN
 ALTER TABLE public.asaas_reconciliation_reviews ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "AsaasReconciliationReviews - Acesso Exclusivo Master Admin" ON public.asaas_reconciliation_reviews;
 CREATE POLICY "AsaasReconciliationReviews - Acesso Exclusivo Master Admin"
   ON public.asaas_reconciliation_reviews FOR ALL TO authenticated
   USING (is_master_admin())

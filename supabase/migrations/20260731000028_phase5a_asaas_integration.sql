@@ -42,6 +42,7 @@ CREATE INDEX IF NOT EXISTS idx_asaas_events_order_id ON public.asaas_payment_eve
 -- Habilitar RLS em asaas_payment_events
 ALTER TABLE public.asaas_payment_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "AsaasPaymentEvents - Leitura por Master Admin" ON public.asaas_payment_events;
 CREATE POLICY "AsaasPaymentEvents - Leitura por Master Admin"
   ON public.asaas_payment_events FOR SELECT TO authenticated
   USING (is_master_admin());

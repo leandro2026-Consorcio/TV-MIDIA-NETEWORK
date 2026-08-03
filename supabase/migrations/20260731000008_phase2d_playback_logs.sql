@@ -39,6 +39,7 @@ ALTER TABLE public.playback_logs ENABLE ROW LEVEL SECURITY;
 
 -- 3. POLÍTICAS RLS - PLAYBACK_LOGS
 -- 3.1 LEITURA: Master Admin ou membros ativos (Admin e Operador) da mesma empresa
+DROP POLICY IF EXISTS "PlaybackLogs - Leitura por membros da empresa ou Master Admin" ON public.playback_logs;
 CREATE POLICY "PlaybackLogs - Leitura por membros da empresa ou Master Admin"
   ON public.playback_logs FOR SELECT
   TO authenticated
@@ -48,6 +49,7 @@ CREATE POLICY "PlaybackLogs - Leitura por membros da empresa ou Master Admin"
   );
 
 -- 3.2 INSERÇÃO: Permitida para membros da empresa ou via Server Actions (Security Definer)
+DROP POLICY IF EXISTS "PlaybackLogs - Inserção autenticada por empresa ou Master Admin" ON public.playback_logs;
 CREATE POLICY "PlaybackLogs - Inserção autenticada por empresa ou Master Admin"
   ON public.playback_logs FOR INSERT
   TO authenticated

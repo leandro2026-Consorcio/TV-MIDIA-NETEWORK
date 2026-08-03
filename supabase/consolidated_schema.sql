@@ -337,6 +337,7 @@ ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 5.1 RLS - PROFILES
+DROP POLICY IF EXISTS "Profiles - Master Admin tudo, Usuários lêem/editam próprio perfil" ON public.profiles;
 CREATE POLICY "Profiles - Master Admin tudo, Usuários lêem/editam próprio perfil"
   ON public.profiles FOR ALL
   TO authenticated
@@ -344,16 +345,19 @@ CREATE POLICY "Profiles - Master Admin tudo, Usuários lêem/editam próprio per
   WITH CHECK (is_master_admin() OR id = auth.uid());
 
 -- 5.2 RLS - COMPANIES
+DROP POLICY IF EXISTS "Companies - Master Admin vê todas, Usuários vêem vinculadas" ON public.companies;
 CREATE POLICY "Companies - Master Admin vê todas, Usuários vêem vinculadas"
   ON public.companies FOR SELECT
   TO authenticated
   USING (is_master_admin() OR id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Companies - Usuários autenticados criam empresas" ON public.companies;
 CREATE POLICY "Companies - Usuários autenticados criam empresas"
   ON public.companies FOR INSERT
   TO authenticated
   WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "Companies - Master Admin e Admins da empresa editam" ON public.companies;
 CREATE POLICY "Companies - Master Admin e Admins da empresa editam"
   ON public.companies FOR UPDATE
   TO authenticated
@@ -363,11 +367,13 @@ CREATE POLICY "Companies - Master Admin e Admins da empresa editam"
   );
 
 -- 5.3 RLS - COMPANY_USERS
+DROP POLICY IF EXISTS "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas"
   ON public.company_users FOR SELECT
   TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanyUsers - Master Admin e Admins gerenciam membros" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin e Admins gerenciam membros"
   ON public.company_users FOR ALL
   TO authenticated
@@ -377,22 +383,26 @@ CREATE POLICY "CompanyUsers - Master Admin e Admins gerenciam membros"
   );
 
 -- 5.4 RLS - SEGMENTS
+DROP POLICY IF EXISTS "Segments - Leitura pública para autenticados" ON public.segments;
 CREATE POLICY "Segments - Leitura pública para autenticados"
   ON public.segments FOR SELECT
   TO authenticated
   USING (TRUE);
 
+DROP POLICY IF EXISTS "Segments - Apenas Master Admin modifica" ON public.segments;
 CREATE POLICY "Segments - Apenas Master Admin modifica"
   ON public.segments FOR ALL
   TO authenticated
   USING (is_master_admin());
 
 -- 5.5 RLS - COMPANY_SEGMENTS
+DROP POLICY IF EXISTS "CompanySegments - Leitura para membros da empresa ou Master" ON public.company_segments;
 CREATE POLICY "CompanySegments - Leitura para membros da empresa ou Master"
   ON public.company_segments FOR SELECT
   TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanySegments - Edição por Admins da empresa ou Master" ON public.company_segments;
 CREATE POLICY "CompanySegments - Edição por Admins da empresa ou Master"
   ON public.company_segments FOR ALL
   TO authenticated
@@ -402,6 +412,7 @@ CREATE POLICY "CompanySegments - Edição por Admins da empresa ou Master"
   );
 
 -- 5.6 RLS - WALLETS (REGRA RÍGIDA: UPDATE BLOQUEADO PARA CLIENTES)
+DROP POLICY IF EXISTS "Wallets - Leitura para membros da empresa ou Master Admin" ON public.wallets;
 CREATE POLICY "Wallets - Leitura para membros da empresa ou Master Admin"
   ON public.wallets FOR SELECT
   TO authenticated
@@ -411,12 +422,14 @@ CREATE POLICY "Wallets - Leitura para membros da empresa ou Master Admin"
 -- Alteração de saldo só pode ocorrer via SECURITY DEFINER (process_credit_transaction RPC).
 
 -- 5.7 RLS - WALLET_TRANSACTIONS
+DROP POLICY IF EXISTS "WalletTransactions - Leitura para membros da empresa ou Master Admin" ON public.wallet_transactions;
 CREATE POLICY "WalletTransactions - Leitura para membros da empresa ou Master Admin"
   ON public.wallet_transactions FOR SELECT
   TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
 -- 5.8 RLS - AUDIT_LOGS
+DROP POLICY IF EXISTS "AuditLogs - Leitura para Master Admin ou Admins da empresa" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
   ON public.audit_logs FOR SELECT
   TO authenticated
@@ -425,6 +438,7 @@ CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "AuditLogs - Inserção de eventos autorizados" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Inserção de eventos autorizados"
   ON public.audit_logs FOR INSERT
   TO authenticated
@@ -592,6 +606,7 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 -- 3. AJUSTE DE RLS EM AUDIT_LOGS (PERMITIR INSERÇÃO APENAS PARA AÇÕES PRÓPRIAS)
 DROP POLICY IF EXISTS "AuditLogs - Leitura para Master Admin ou Admins da empresa" ON public.audit_logs;
 
+DROP POLICY IF EXISTS "AuditLogs - Leitura para Master Admin ou Admins da empresa" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
   ON public.audit_logs FOR SELECT
   TO authenticated
@@ -600,6 +615,7 @@ CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "AuditLogs - Inserção de eventos autorizados" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Inserção de eventos autorizados"
   ON public.audit_logs FOR INSERT
   TO authenticated
@@ -654,6 +670,7 @@ ALTER TABLE public.screens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screen_pairing_codes ENABLE ROW LEVEL SECURITY;
 
 -- 4. POLÍTICAS RLS - SCREENS
+DROP POLICY IF EXISTS "Screens - Leitura para membros da empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Leitura para membros da empresa ou Master Admin"
   ON public.screens FOR SELECT
   TO authenticated
@@ -662,6 +679,7 @@ CREATE POLICY "Screens - Leitura para membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Screens - Inserção por Admins da Empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Inserção por Admins da Empresa ou Master Admin"
   ON public.screens FOR INSERT
   TO authenticated
@@ -670,6 +688,7 @@ CREATE POLICY "Screens - Inserção por Admins da Empresa ou Master Admin"
     company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
   );
 
+DROP POLICY IF EXISTS "Screens - Edição por Admins da Empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Edição por Admins da Empresa ou Master Admin"
   ON public.screens FOR UPDATE
   TO authenticated
@@ -678,6 +697,7 @@ CREATE POLICY "Screens - Edição por Admins da Empresa ou Master Admin"
     company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
   );
 
+DROP POLICY IF EXISTS "Screens - Exclusão restrita a Admins da Empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Exclusão restrita a Admins da Empresa ou Master Admin"
   ON public.screens FOR DELETE
   TO authenticated
@@ -687,6 +707,7 @@ CREATE POLICY "Screens - Exclusão restrita a Admins da Empresa ou Master Admin"
   );
 
 -- 5. POLÍTICAS RLS - SCREEN_PAIRING_CODES
+DROP POLICY IF EXISTS "PairingCodes - Leitura Master Admin" ON public.screen_pairing_codes;
 CREATE POLICY "PairingCodes - Leitura Master Admin"
   ON public.screen_pairing_codes FOR SELECT
   TO authenticated
@@ -707,6 +728,7 @@ ALTER TABLE public.screen_pairing_codes ADD COLUMN IF NOT EXISTS pairing_secret_
 -- 3. REFORÇAR RLS EM SCREEN_PAIRING_CODES (NENHUM CLIENTE COMUM PODE LER OU INSERIR DIRETO)
 DROP POLICY IF EXISTS "PairingCodes - Leitura Master Admin" ON public.screen_pairing_codes;
 
+DROP POLICY IF EXISTS "PairingCodes - Leitura Master Admin" ON public.screen_pairing_codes;
 CREATE POLICY "PairingCodes - Leitura Master Admin"
   ON public.screen_pairing_codes FOR SELECT
   TO authenticated
@@ -752,6 +774,7 @@ ALTER TABLE public.media_assets ENABLE ROW LEVEL SECURITY;
 
 -- 3. POLÍTICAS RLS - MEDIA_ASSETS
 -- 3.1 LEITURA: Master Admin ou membros ativos (Admin e Operador) da mesma empresa
+DROP POLICY IF EXISTS "MediaAssets - Leitura para membros da empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Leitura para membros da empresa ou Master Admin"
   ON public.media_assets FOR SELECT
   TO authenticated
@@ -761,6 +784,7 @@ CREATE POLICY "MediaAssets - Leitura para membros da empresa ou Master Admin"
   );
 
 -- 3.2 INSERÇÃO: Admins e Operadores ativos da mesma empresa
+DROP POLICY IF EXISTS "MediaAssets - Inserção por membros da empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Inserção por membros da empresa ou Master Admin"
   ON public.media_assets FOR INSERT
   TO authenticated
@@ -772,6 +796,7 @@ CREATE POLICY "MediaAssets - Inserção por membros da empresa ou Master Admin"
 -- 3.3 EDIÇÃO/ATUALIZAÇÃO:
 -- Master Admin ou Admin da empresa podem editar tudo (inclusive aprovar/reprovar status).
 -- Operadores podem editar título/descrição de mídias de sua própria empresa.
+DROP POLICY IF EXISTS "MediaAssets - Edição para membros da empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Edição para membros da empresa ou Master Admin"
   ON public.media_assets FOR UPDATE
   TO authenticated
@@ -785,6 +810,7 @@ CREATE POLICY "MediaAssets - Edição para membros da empresa ou Master Admin"
   );
 
 -- 3.4 EXCLUSÃO / ARQUIVAMENTO FÍSICO: Restrito a Master Admin ou Admin da empresa
+DROP POLICY IF EXISTS "MediaAssets - Exclusão por Admins da Empresa ou Master Admin" ON public.media_assets;
 CREATE POLICY "MediaAssets - Exclusão por Admins da Empresa ou Master Admin"
   ON public.media_assets FOR DELETE
   TO authenticated
@@ -806,6 +832,7 @@ ON CONFLICT (id) DO NOTHING;
 -- O caminho do arquivo segue a estrutura: {company_id}/{media_id}/{filename}
 
 -- Leitura de arquivos do Storage: Autenticados da mesma empresa ou Master Admin
+DROP POLICY IF EXISTS "Storage - Leitura de mídias por empresa" ON storage.objects;
 CREATE POLICY "Storage - Leitura de mídias por empresa"
   ON storage.objects FOR SELECT
   TO authenticated
@@ -817,12 +844,14 @@ CREATE POLICY "Storage - Leitura de mídias por empresa"
   );
 
 -- Leitura pública para exibição de imagens/vídeos nos players e previews do dashboard
+DROP POLICY IF EXISTS "Storage - Leitura pública para renderização de mídias" ON storage.objects;
 CREATE POLICY "Storage - Leitura pública para renderização de mídias"
   ON storage.objects FOR SELECT
   TO public
   USING (bucket_id = 'media-assets');
 
 -- Upload de arquivos: Restrito a usuários autenticados da empresa pertencente ao caminho
+DROP POLICY IF EXISTS "Storage - Upload por membros da empresa" ON storage.objects;
 CREATE POLICY "Storage - Upload por membros da empresa"
   ON storage.objects FOR INSERT
   TO authenticated
@@ -834,6 +863,7 @@ CREATE POLICY "Storage - Upload por membros da empresa"
   );
 
 -- Remoção/Exclusão no Storage: Restrito a Admins da Empresa ou Master Admin
+DROP POLICY IF EXISTS "Storage - Remoção por Admins da Empresa ou Master Admin" ON storage.objects;
 CREATE POLICY "Storage - Remoção por Admins da Empresa ou Master Admin"
   ON storage.objects FOR DELETE
   TO authenticated
@@ -859,6 +889,7 @@ DROP POLICY IF EXISTS "Storage - Leitura de mídias por empresa" ON storage.obje
 DROP POLICY IF EXISTS "Storage - Leitura estrita de mídias por empresa" ON storage.objects;
 
 -- Recriar política estrita de leitura no Storage para usuários autenticados da mesma empresa ou Master Admin
+DROP POLICY IF EXISTS "Storage - Leitura estrita de mídias por empresa" ON storage.objects;
 CREATE POLICY "Storage - Leitura estrita de mídias por empresa"
   ON storage.objects FOR SELECT
   TO authenticated
@@ -1110,6 +1141,7 @@ ALTER TABLE public.playlist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screen_playlists ENABLE ROW LEVEL SECURITY;
 
 -- 5. POLÍTICAS RLS - PLAYLISTS
+DROP POLICY IF EXISTS "Playlists - Leitura por membros da empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Leitura por membros da empresa ou Master Admin"
   ON public.playlists FOR SELECT TO authenticated
   USING (
@@ -1117,6 +1149,7 @@ CREATE POLICY "Playlists - Leitura por membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Playlists - Inserção por membros da empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Inserção por membros da empresa ou Master Admin"
   ON public.playlists FOR INSERT TO authenticated
   WITH CHECK (
@@ -1124,6 +1157,7 @@ CREATE POLICY "Playlists - Inserção por membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Playlists - Edição por membros da empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Edição por membros da empresa ou Master Admin"
   ON public.playlists FOR UPDATE TO authenticated
   USING (
@@ -1131,6 +1165,7 @@ CREATE POLICY "Playlists - Edição por membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Playlists - Exclusão por Admins da Empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Exclusão por Admins da Empresa ou Master Admin"
   ON public.playlists FOR DELETE TO authenticated
   USING (
@@ -1139,6 +1174,7 @@ CREATE POLICY "Playlists - Exclusão por Admins da Empresa ou Master Admin"
   );
 
 -- 6. POLÍTICAS RLS - PLAYLIST_ITEMS
+DROP POLICY IF EXISTS "PlaylistItems - Leitura por membros da empresa ou Master Admin" ON public.playlist_items;
 CREATE POLICY "PlaylistItems - Leitura por membros da empresa ou Master Admin"
   ON public.playlist_items FOR SELECT TO authenticated
   USING (
@@ -1146,6 +1182,7 @@ CREATE POLICY "PlaylistItems - Leitura por membros da empresa ou Master Admin"
     playlist_id IN (SELECT id FROM public.playlists WHERE company_id IN (SELECT public.get_user_company_ids()))
   );
 
+DROP POLICY IF EXISTS "PlaylistItems - Gerenciamento por membros da empresa ou Master Admin" ON public.playlist_items;
 CREATE POLICY "PlaylistItems - Gerenciamento por membros da empresa ou Master Admin"
   ON public.playlist_items FOR ALL TO authenticated
   USING (
@@ -1154,6 +1191,7 @@ CREATE POLICY "PlaylistItems - Gerenciamento por membros da empresa ou Master Ad
   );
 
 -- 7. POLÍTICAS RLS - SCREEN_PLAYLISTS
+DROP POLICY IF EXISTS "ScreenPlaylists - Leitura por membros da empresa ou Master Admin" ON public.screen_playlists;
 CREATE POLICY "ScreenPlaylists - Leitura por membros da empresa ou Master Admin"
   ON public.screen_playlists FOR SELECT TO authenticated
   USING (
@@ -1161,6 +1199,7 @@ CREATE POLICY "ScreenPlaylists - Leitura por membros da empresa ou Master Admin"
     screen_id IN (SELECT id FROM public.screens WHERE company_id IN (SELECT public.get_user_company_ids()))
   );
 
+DROP POLICY IF EXISTS "ScreenPlaylists - Atribuição por Admins da Empresa ou Master Admin" ON public.screen_playlists;
 CREATE POLICY "ScreenPlaylists - Atribuição por Admins da Empresa ou Master Admin"
   ON public.screen_playlists FOR ALL TO authenticated
   USING (
@@ -1344,6 +1383,7 @@ ALTER TABLE public.playback_logs ENABLE ROW LEVEL SECURITY;
 
 -- 3. POLÍTICAS RLS - PLAYBACK_LOGS
 -- 3.1 LEITURA: Master Admin ou membros ativos (Admin e Operador) da mesma empresa
+DROP POLICY IF EXISTS "PlaybackLogs - Leitura por membros da empresa ou Master Admin" ON public.playback_logs;
 CREATE POLICY "PlaybackLogs - Leitura por membros da empresa ou Master Admin"
   ON public.playback_logs FOR SELECT
   TO authenticated
@@ -1353,6 +1393,7 @@ CREATE POLICY "PlaybackLogs - Leitura por membros da empresa ou Master Admin"
   );
 
 -- 3.2 INSERÇÃO: Permitida para membros da empresa ou via Server Actions (Security Definer)
+DROP POLICY IF EXISTS "PlaybackLogs - Inserção autenticada por empresa ou Master Admin" ON public.playback_logs;
 CREATE POLICY "PlaybackLogs - Inserção autenticada por empresa ou Master Admin"
   ON public.playback_logs FOR INSERT
   TO authenticated
@@ -1712,35 +1753,43 @@ ALTER TABLE public.campaign_media ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.campaign_screens ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - CAMPAIGNS
+DROP POLICY IF EXISTS "Campaigns - Leitura por membros da empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Leitura por membros da empresa ou Master Admin"
   ON public.campaigns FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Campaigns - Inserção por membros da empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Inserção por membros da empresa ou Master Admin"
   ON public.campaigns FOR INSERT TO authenticated
   WITH CHECK (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Campaigns - Edição por membros da empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Edição por membros da empresa ou Master Admin"
   ON public.campaigns FOR UPDATE TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Campaigns - Exclusão por Admins da Empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Exclusão por Admins da Empresa ou Master Admin"
   ON public.campaigns FOR DELETE TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
 
 -- POLÍTICAS RLS - CAMPAIGN_MEDIA & CAMPAIGN_SCREENS
+DROP POLICY IF EXISTS "CampaignMedia - Leitura por membros da empresa ou Master Admin" ON public.campaign_media;
 CREATE POLICY "CampaignMedia - Leitura por membros da empresa ou Master Admin"
   ON public.campaign_media FOR SELECT TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
 
+DROP POLICY IF EXISTS "CampaignMedia - Gerenciamento por membros da empresa ou Master Admin" ON public.campaign_media;
 CREATE POLICY "CampaignMedia - Gerenciamento por membros da empresa ou Master Admin"
   ON public.campaign_media FOR ALL TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
 
+DROP POLICY IF EXISTS "CampaignScreens - Leitura por membros da empresa ou Master Admin" ON public.campaign_screens;
 CREATE POLICY "CampaignScreens - Leitura por membros da empresa ou Master Admin"
   ON public.campaign_screens FOR SELECT TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
 
+DROP POLICY IF EXISTS "CampaignScreens - Gerenciamento por membros da empresa ou Master Admin" ON public.campaign_screens;
 CREATE POLICY "CampaignScreens - Gerenciamento por membros da empresa ou Master Admin"
   ON public.campaign_screens FOR ALL TO authenticated
   USING (is_master_admin() OR campaign_id IN (SELECT id FROM public.campaigns WHERE company_id IN (SELECT public.get_user_company_ids())));
@@ -1962,15 +2011,18 @@ ALTER TABLE public.company_trials ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.referral_invites ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - COMPANY_TRIALS
+DROP POLICY IF EXISTS "CompanyTrials - Leitura por membros da empresa ou Master Admin" ON public.company_trials;
 CREATE POLICY "CompanyTrials - Leitura por membros da empresa ou Master Admin"
   ON public.company_trials FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanyTrials - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_trials;
 CREATE POLICY "CompanyTrials - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_trials FOR ALL TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
 
 -- POLÍTICAS RLS - REFERRAL_INVITES
+DROP POLICY IF EXISTS "ReferralInvites - Leitura por empresa emissora ou Master Admin" ON public.referral_invites;
 CREATE POLICY "ReferralInvites - Leitura por empresa emissora ou Master Admin"
   ON public.referral_invites FOR SELECT TO authenticated
   USING (
@@ -1979,6 +2031,7 @@ CREATE POLICY "ReferralInvites - Leitura por empresa emissora ou Master Admin"
     converted_company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "ReferralInvites - Gerenciamento por Admins da Empresa ou Master Admin" ON public.referral_invites;
 CREATE POLICY "ReferralInvites - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.referral_invites FOR ALL TO authenticated
   USING (is_master_admin() OR inviter_company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
@@ -2157,15 +2210,18 @@ ALTER TABLE public.credit_packages ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.playback_credit_charges ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - CREDIT_PACKAGES
+DROP POLICY IF EXISTS "CreditPackages - Leitura por todos os usuários autenticados" ON public.credit_packages;
 CREATE POLICY "CreditPackages - Leitura por todos os usuários autenticados"
   ON public.credit_packages FOR SELECT TO authenticated
   USING (TRUE);
 
+DROP POLICY IF EXISTS "CreditPackages - Gerenciamento por Master Admin" ON public.credit_packages;
 CREATE POLICY "CreditPackages - Gerenciamento por Master Admin"
   ON public.credit_packages FOR ALL TO authenticated
   USING (is_master_admin());
 
 -- POLÍTICAS RLS - PLAYBACK_CREDIT_CHARGES
+DROP POLICY IF EXISTS "PlaybackCreditCharges - Leitura por membros da empresa ou Master Admin" ON public.playback_credit_charges;
 CREATE POLICY "PlaybackCreditCharges - Leitura por membros da empresa ou Master Admin"
   ON public.playback_credit_charges FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
@@ -2599,27 +2655,33 @@ ALTER TABLE public.network_inventory_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.network_inventory_usage ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - CREDIT_POLICY_RULES
+DROP POLICY IF EXISTS "CreditPolicyRules - Leitura por todos os usuários autenticados" ON public.credit_policy_rules;
 CREATE POLICY "CreditPolicyRules - Leitura por todos os usuários autenticados"
   ON public.credit_policy_rules FOR SELECT TO authenticated USING (TRUE);
 
+DROP POLICY IF EXISTS "CreditPolicyRules - Gerenciamento por Master Admin" ON public.credit_policy_rules;
 CREATE POLICY "CreditPolicyRules - Gerenciamento por Master Admin"
   ON public.credit_policy_rules FOR ALL TO authenticated USING (is_master_admin());
 
 -- POLÍTICAS RLS - COMPANY_NETWORK_PREFERENCES
+DROP POLICY IF EXISTS "CompanyNetworkPreferences - Leitura por membros ou Master Admin" ON public.company_network_preferences;
 CREATE POLICY "CompanyNetworkPreferences - Leitura por membros ou Master Admin"
   ON public.company_network_preferences FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanyNetworkPreferences - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_network_preferences;
 CREATE POLICY "CompanyNetworkPreferences - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_network_preferences FOR ALL TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
 
 -- POLÍTICAS RLS - NETWORK_INVENTORY_LEDGER
+DROP POLICY IF EXISTS "NetworkInventoryLedger - Leitura por membros ou Master Admin" ON public.network_inventory_ledger;
 CREATE POLICY "NetworkInventoryLedger - Leitura por membros ou Master Admin"
   ON public.network_inventory_ledger FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
 -- POLÍTICAS RLS - NETWORK_INVENTORY_USAGE
+DROP POLICY IF EXISTS "NetworkInventoryUsage - Leitura por exibidora, anunciante ou Master Admin" ON public.network_inventory_usage;
 CREATE POLICY "NetworkInventoryUsage - Leitura por exibidora, anunciante ou Master Admin"
   ON public.network_inventory_usage FOR SELECT TO authenticated
   USING (
@@ -2917,13 +2979,16 @@ ALTER TABLE public.company_ad_offers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ad_offer_orders ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - PLATFORM_REVENUE_SETTINGS
+DROP POLICY IF EXISTS "PlatformRevenueSettings - Leitura por todos os autenticados" ON public.platform_revenue_settings;
 CREATE POLICY "PlatformRevenueSettings - Leitura por todos os autenticados"
   ON public.platform_revenue_settings FOR SELECT TO authenticated USING (TRUE);
 
+DROP POLICY IF EXISTS "PlatformRevenueSettings - Gerenciamento por Master Admin" ON public.platform_revenue_settings;
 CREATE POLICY "PlatformRevenueSettings - Gerenciamento por Master Admin"
   ON public.platform_revenue_settings FOR ALL TO authenticated USING (is_master_admin());
 
 -- POLÍTICAS RLS - COMPANY_AD_OFFERS
+DROP POLICY IF EXISTS "CompanyAdOffers - Leitura por membros, ativas públicas ou Master Admin" ON public.company_ad_offers;
 CREATE POLICY "CompanyAdOffers - Leitura por membros, ativas públicas ou Master Admin"
   ON public.company_ad_offers FOR SELECT TO authenticated
   USING (
@@ -2932,6 +2997,7 @@ CREATE POLICY "CompanyAdOffers - Leitura por membros, ativas públicas ou Master
     (status = 'active' AND is_public = TRUE)
   );
 
+DROP POLICY IF EXISTS "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_ad_offers;
 CREATE POLICY "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_ad_offers FOR ALL TO authenticated
   USING (
@@ -2940,6 +3006,7 @@ CREATE POLICY "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master A
   );
 
 -- POLÍTICAS RLS - AD_OFFER_ORDERS
+DROP POLICY IF EXISTS "AdOfferOrders - Leitura por vendedor, comprador ou Master Admin" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Leitura por vendedor, comprador ou Master Admin"
   ON public.ad_offer_orders FOR SELECT TO authenticated
   USING (
@@ -2948,10 +3015,12 @@ CREATE POLICY "AdOfferOrders - Leitura por vendedor, comprador ou Master Admin"
     (buyer_company_id IS NOT NULL AND buyer_company_id IN (SELECT public.get_user_company_ids()))
   );
 
+DROP POLICY IF EXISTS "AdOfferOrders - Criação por usuários autenticados" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Criação por usuários autenticados"
   ON public.ad_offer_orders FOR INSERT TO authenticated
   WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "AdOfferOrders - Atualização por vendedor ou Master Admin" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Atualização por vendedor ou Master Admin"
   ON public.ad_offer_orders FOR UPDATE TO authenticated
   USING (
@@ -2966,6 +3035,7 @@ CREATE POLICY "AdOfferOrders - Atualização por vendedor ou Master Admin"
 -- 1. CORRIGIR POLICY DE INSERÇÃO EM AD_OFFER_ORDERS (REMOVER WITH CHECK TRUE)
 DROP POLICY IF EXISTS "AdOfferOrders - Criação por usuários autenticados" ON public.ad_offer_orders;
 
+DROP POLICY IF EXISTS "AdOfferOrders - Criação por membros da empresa compradora ou Master Admin" ON public.ad_offer_orders;
 CREATE POLICY "AdOfferOrders - Criação por membros da empresa compradora ou Master Admin"
   ON public.ad_offer_orders FOR INSERT TO authenticated
   WITH CHECK (
@@ -3823,6 +3893,7 @@ CREATE INDEX IF NOT EXISTS idx_delivery_usage_campaign ON public.ad_order_delive
 ALTER TABLE public.ad_order_delivery_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.ad_order_delivery_usage ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "DeliveryLedger - Leitura por comprador, vendedor ou Master" ON public.ad_order_delivery_ledger;
 CREATE POLICY "DeliveryLedger - Leitura por comprador, vendedor ou Master"
   ON public.ad_order_delivery_ledger FOR SELECT TO authenticated
   USING (
@@ -3831,6 +3902,7 @@ CREATE POLICY "DeliveryLedger - Leitura por comprador, vendedor ou Master"
     buyer_company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "DeliveryUsage - Leitura por comprador, vendedor ou Master" ON public.ad_order_delivery_usage;
 CREATE POLICY "DeliveryUsage - Leitura por comprador, vendedor ou Master"
   ON public.ad_order_delivery_usage FOR SELECT TO authenticated
   USING (
@@ -4569,6 +4641,7 @@ CREATE INDEX IF NOT EXISTS idx_discounts_seller ON public.monthly_fee_discounts(
 ALTER TABLE public.seller_financial_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.monthly_fee_discounts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "SellerFinancialLedger - Leitura por exibidora ou Master Admin" ON public.seller_financial_ledger;
 CREATE POLICY "SellerFinancialLedger - Leitura por exibidora ou Master Admin"
   ON public.seller_financial_ledger FOR SELECT TO authenticated
   USING (
@@ -4576,6 +4649,7 @@ CREATE POLICY "SellerFinancialLedger - Leitura por exibidora ou Master Admin"
     seller_company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "MonthlyFeeDiscounts - Leitura por exibidora ou Master Admin" ON public.monthly_fee_discounts;
 CREATE POLICY "MonthlyFeeDiscounts - Leitura por exibidora ou Master Admin"
   ON public.monthly_fee_discounts FOR SELECT TO authenticated
   USING (
@@ -5301,12 +5375,15 @@ CREATE INDEX IF NOT EXISTS idx_acceptances_term ON public.company_term_acceptanc
 ALTER TABLE public.platform_terms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.company_term_acceptances ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "PlatformTerms - Leitura por usuários autenticados" ON public.platform_terms;
 CREATE POLICY "PlatformTerms - Leitura por usuários autenticados"
   ON public.platform_terms FOR SELECT TO authenticated USING (TRUE);
 
+DROP POLICY IF EXISTS "PlatformTerms - Gestão por Master Admin" ON public.platform_terms;
 CREATE POLICY "PlatformTerms - Gestão por Master Admin"
   ON public.platform_terms FOR ALL TO authenticated USING (is_master_admin());
 
+DROP POLICY IF EXISTS "CompanyTermAcceptances - Leitura por empresa ou Master Admin" ON public.company_term_acceptances;
 CREATE POLICY "CompanyTermAcceptances - Leitura por empresa ou Master Admin"
   ON public.company_term_acceptances FOR SELECT TO authenticated
   USING (
@@ -5923,6 +6000,7 @@ CREATE INDEX IF NOT EXISTS idx_asaas_events_order_id ON public.asaas_payment_eve
 -- Habilitar RLS em asaas_payment_events
 ALTER TABLE public.asaas_payment_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "AsaasPaymentEvents - Leitura por Master Admin" ON public.asaas_payment_events;
 CREATE POLICY "AsaasPaymentEvents - Leitura por Master Admin"
   ON public.asaas_payment_events FOR SELECT TO authenticated
   USING (is_master_admin());
@@ -6198,6 +6276,7 @@ CREATE INDEX IF NOT EXISTS idx_reconcil_order_id ON public.asaas_reconciliation_
 -- 2. HABILITAR RLS COM ACESSO EXCLUSIVO PARA MASTER ADMIN
 ALTER TABLE public.asaas_reconciliation_reviews ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "AsaasReconciliationReviews - Acesso Exclusivo Master Admin" ON public.asaas_reconciliation_reviews;
 CREATE POLICY "AsaasReconciliationReviews - Acesso Exclusivo Master Admin"
   ON public.asaas_reconciliation_reviews FOR ALL TO authenticated
   USING (is_master_admin())
@@ -6291,17 +6370,20 @@ ALTER TABLE public.seller_financial_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_financial_profile_logs ENABLE ROW LEVEL SECURITY;
 
 -- Politica: Master Admin Acesso Total
+DROP POLICY IF EXISTS "SellerProfiles - Master Admin Full Access" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Master Admin Full Access"
   ON public.seller_financial_profiles FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
 -- Politica: Membro da Empresa Leitura dos Próprios Dados
+DROP POLICY IF EXISTS "SellerProfiles - Company Member Read" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Company Member Read"
   ON public.seller_financial_profiles FOR SELECT TO authenticated
   USING (company_id IN (SELECT get_user_company_ids()));
 
 -- Politica: Admin da Empresa Criação do Próprio Perfil
+DROP POLICY IF EXISTS "SellerProfiles - Company Admin Insert" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Company Admin Insert"
   ON public.seller_financial_profiles FOR INSERT TO authenticated
   WITH CHECK (
@@ -6312,6 +6394,7 @@ CREATE POLICY "SellerProfiles - Company Admin Insert"
   );
 
 -- Politica: Admin da Empresa Edição do Próprio Perfil
+DROP POLICY IF EXISTS "SellerProfiles - Company Admin Update" ON public.seller_financial_profiles;
 CREATE POLICY "SellerProfiles - Company Admin Update"
   ON public.seller_financial_profiles FOR UPDATE TO authenticated
   USING (
@@ -6322,6 +6405,7 @@ CREATE POLICY "SellerProfiles - Company Admin Update"
   );
 
 -- Politica Logs: Master Admin e Membros da Própria Empresa
+DROP POLICY IF EXISTS "SellerProfileLogs - Master Admin & Company Read" ON public.seller_financial_profile_logs;
 CREATE POLICY "SellerProfileLogs - Master Admin & Company Read"
   ON public.seller_financial_profile_logs FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT get_user_company_ids()));
@@ -6426,21 +6510,25 @@ ALTER TABLE public.seller_payout_eligibility ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_payout_simulations ENABLE ROW LEVEL SECURITY;
 
 -- Politicas seller_payout_eligibility
+DROP POLICY IF EXISTS "PayoutEligibility - Master Admin Full Access" ON public.seller_payout_eligibility;
 CREATE POLICY "PayoutEligibility - Master Admin Full Access"
   ON public.seller_payout_eligibility FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutEligibility - Seller Company Read" ON public.seller_payout_eligibility;
 CREATE POLICY "PayoutEligibility - Seller Company Read"
   ON public.seller_payout_eligibility FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));
 
 -- Politicas seller_payout_simulations
+DROP POLICY IF EXISTS "PayoutSimulations - Master Admin Full Access" ON public.seller_payout_simulations;
 CREATE POLICY "PayoutSimulations - Master Admin Full Access"
   ON public.seller_payout_simulations FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutSimulations - Seller Company Read" ON public.seller_payout_simulations;
 CREATE POLICY "PayoutSimulations - Seller Company Read"
   ON public.seller_payout_simulations FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));
@@ -6532,11 +6620,13 @@ ALTER TABLE public.seller_payout_batch_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_payout_transfers ENABLE ROW LEVEL SECURITY;
 
 -- Politicas seller_payout_batches
+DROP POLICY IF EXISTS "PayoutBatches - Master Admin Full Access" ON public.seller_payout_batches;
 CREATE POLICY "PayoutBatches - Master Admin Full Access"
   ON public.seller_payout_batches FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutBatches - Company Member Read" ON public.seller_payout_batches;
 CREATE POLICY "PayoutBatches - Company Member Read"
   ON public.seller_payout_batches FOR SELECT TO authenticated
   USING (EXISTS (
@@ -6545,21 +6635,25 @@ CREATE POLICY "PayoutBatches - Company Member Read"
   ));
 
 -- Politicas seller_payout_batch_items
+DROP POLICY IF EXISTS "PayoutBatchItems - Master Admin Full Access" ON public.seller_payout_batch_items;
 CREATE POLICY "PayoutBatchItems - Master Admin Full Access"
   ON public.seller_payout_batch_items FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutBatchItems - Seller Company Read" ON public.seller_payout_batch_items;
 CREATE POLICY "PayoutBatchItems - Seller Company Read"
   ON public.seller_payout_batch_items FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));
 
 -- Politicas seller_payout_transfers
+DROP POLICY IF EXISTS "PayoutTransfers - Master Admin Full Access" ON public.seller_payout_transfers;
 CREATE POLICY "PayoutTransfers - Master Admin Full Access"
   ON public.seller_payout_transfers FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutTransfers - Seller Company Read" ON public.seller_payout_transfers;
 CREATE POLICY "PayoutTransfers - Seller Company Read"
   ON public.seller_payout_transfers FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));

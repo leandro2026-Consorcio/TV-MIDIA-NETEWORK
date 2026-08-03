@@ -14,6 +14,7 @@ DROP POLICY IF EXISTS "Storage - Leitura de mídias por empresa" ON storage.obje
 DROP POLICY IF EXISTS "Storage - Leitura estrita de mídias por empresa" ON storage.objects;
 
 -- Recriar política estrita de leitura no Storage para usuários autenticados da mesma empresa ou Master Admin
+DROP POLICY IF EXISTS "Storage - Leitura estrita de mídias por empresa" ON storage.objects;
 CREATE POLICY "Storage - Leitura estrita de mídias por empresa"
   ON storage.objects FOR SELECT
   TO authenticated

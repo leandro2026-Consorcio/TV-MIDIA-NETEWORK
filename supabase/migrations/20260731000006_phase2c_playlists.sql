@@ -55,6 +55,7 @@ ALTER TABLE public.playlist_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screen_playlists ENABLE ROW LEVEL SECURITY;
 
 -- 5. POLÍTICAS RLS - PLAYLISTS
+DROP POLICY IF EXISTS "Playlists - Leitura por membros da empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Leitura por membros da empresa ou Master Admin"
   ON public.playlists FOR SELECT TO authenticated
   USING (
@@ -62,6 +63,7 @@ CREATE POLICY "Playlists - Leitura por membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Playlists - Inserção por membros da empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Inserção por membros da empresa ou Master Admin"
   ON public.playlists FOR INSERT TO authenticated
   WITH CHECK (
@@ -69,6 +71,7 @@ CREATE POLICY "Playlists - Inserção por membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Playlists - Edição por membros da empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Edição por membros da empresa ou Master Admin"
   ON public.playlists FOR UPDATE TO authenticated
   USING (
@@ -76,6 +79,7 @@ CREATE POLICY "Playlists - Edição por membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Playlists - Exclusão por Admins da Empresa ou Master Admin" ON public.playlists;
 CREATE POLICY "Playlists - Exclusão por Admins da Empresa ou Master Admin"
   ON public.playlists FOR DELETE TO authenticated
   USING (
@@ -84,6 +88,7 @@ CREATE POLICY "Playlists - Exclusão por Admins da Empresa ou Master Admin"
   );
 
 -- 6. POLÍTICAS RLS - PLAYLIST_ITEMS
+DROP POLICY IF EXISTS "PlaylistItems - Leitura por membros da empresa ou Master Admin" ON public.playlist_items;
 CREATE POLICY "PlaylistItems - Leitura por membros da empresa ou Master Admin"
   ON public.playlist_items FOR SELECT TO authenticated
   USING (
@@ -91,6 +96,7 @@ CREATE POLICY "PlaylistItems - Leitura por membros da empresa ou Master Admin"
     playlist_id IN (SELECT id FROM public.playlists WHERE company_id IN (SELECT public.get_user_company_ids()))
   );
 
+DROP POLICY IF EXISTS "PlaylistItems - Gerenciamento por membros da empresa ou Master Admin" ON public.playlist_items;
 CREATE POLICY "PlaylistItems - Gerenciamento por membros da empresa ou Master Admin"
   ON public.playlist_items FOR ALL TO authenticated
   USING (
@@ -99,6 +105,7 @@ CREATE POLICY "PlaylistItems - Gerenciamento por membros da empresa ou Master Ad
   );
 
 -- 7. POLÍTICAS RLS - SCREEN_PLAYLISTS
+DROP POLICY IF EXISTS "ScreenPlaylists - Leitura por membros da empresa ou Master Admin" ON public.screen_playlists;
 CREATE POLICY "ScreenPlaylists - Leitura por membros da empresa ou Master Admin"
   ON public.screen_playlists FOR SELECT TO authenticated
   USING (
@@ -106,6 +113,7 @@ CREATE POLICY "ScreenPlaylists - Leitura por membros da empresa ou Master Admin"
     screen_id IN (SELECT id FROM public.screens WHERE company_id IN (SELECT public.get_user_company_ids()))
   );
 
+DROP POLICY IF EXISTS "ScreenPlaylists - Atribuição por Admins da Empresa ou Master Admin" ON public.screen_playlists;
 CREATE POLICY "ScreenPlaylists - Atribuição por Admins da Empresa ou Master Admin"
   ON public.screen_playlists FOR ALL TO authenticated
   USING (

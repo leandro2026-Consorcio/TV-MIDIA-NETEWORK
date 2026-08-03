@@ -46,6 +46,7 @@ ALTER TABLE public.screens ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.screen_pairing_codes ENABLE ROW LEVEL SECURITY;
 
 -- 4. POLÍTICAS RLS - SCREENS
+DROP POLICY IF EXISTS "Screens - Leitura para membros da empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Leitura para membros da empresa ou Master Admin"
   ON public.screens FOR SELECT
   TO authenticated
@@ -54,6 +55,7 @@ CREATE POLICY "Screens - Leitura para membros da empresa ou Master Admin"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "Screens - Inserção por Admins da Empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Inserção por Admins da Empresa ou Master Admin"
   ON public.screens FOR INSERT
   TO authenticated
@@ -62,6 +64,7 @@ CREATE POLICY "Screens - Inserção por Admins da Empresa ou Master Admin"
     company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
   );
 
+DROP POLICY IF EXISTS "Screens - Edição por Admins da Empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Edição por Admins da Empresa ou Master Admin"
   ON public.screens FOR UPDATE
   TO authenticated
@@ -70,6 +73,7 @@ CREATE POLICY "Screens - Edição por Admins da Empresa ou Master Admin"
     company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
   );
 
+DROP POLICY IF EXISTS "Screens - Exclusão restrita a Admins da Empresa ou Master Admin" ON public.screens;
 CREATE POLICY "Screens - Exclusão restrita a Admins da Empresa ou Master Admin"
   ON public.screens FOR DELETE
   TO authenticated
@@ -79,6 +83,7 @@ CREATE POLICY "Screens - Exclusão restrita a Admins da Empresa ou Master Admin"
   );
 
 -- 5. POLÍTICAS RLS - SCREEN_PAIRING_CODES
+DROP POLICY IF EXISTS "PairingCodes - Leitura Master Admin" ON public.screen_pairing_codes;
 CREATE POLICY "PairingCodes - Leitura Master Admin"
   ON public.screen_pairing_codes FOR SELECT
   TO authenticated

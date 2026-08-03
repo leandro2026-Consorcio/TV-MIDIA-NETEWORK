@@ -210,27 +210,33 @@ ALTER TABLE public.network_inventory_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.network_inventory_usage ENABLE ROW LEVEL SECURITY;
 
 -- POLÍTICAS RLS - CREDIT_POLICY_RULES
+DROP POLICY IF EXISTS "CreditPolicyRules - Leitura por todos os usuários autenticados" ON public.credit_policy_rules;
 CREATE POLICY "CreditPolicyRules - Leitura por todos os usuários autenticados"
   ON public.credit_policy_rules FOR SELECT TO authenticated USING (TRUE);
 
+DROP POLICY IF EXISTS "CreditPolicyRules - Gerenciamento por Master Admin" ON public.credit_policy_rules;
 CREATE POLICY "CreditPolicyRules - Gerenciamento por Master Admin"
   ON public.credit_policy_rules FOR ALL TO authenticated USING (is_master_admin());
 
 -- POLÍTICAS RLS - COMPANY_NETWORK_PREFERENCES
+DROP POLICY IF EXISTS "CompanyNetworkPreferences - Leitura por membros ou Master Admin" ON public.company_network_preferences;
 CREATE POLICY "CompanyNetworkPreferences - Leitura por membros ou Master Admin"
   ON public.company_network_preferences FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanyNetworkPreferences - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_network_preferences;
 CREATE POLICY "CompanyNetworkPreferences - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_network_preferences FOR ALL TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
 
 -- POLÍTICAS RLS - NETWORK_INVENTORY_LEDGER
+DROP POLICY IF EXISTS "NetworkInventoryLedger - Leitura por membros ou Master Admin" ON public.network_inventory_ledger;
 CREATE POLICY "NetworkInventoryLedger - Leitura por membros ou Master Admin"
   ON public.network_inventory_ledger FOR SELECT TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
 -- POLÍTICAS RLS - NETWORK_INVENTORY_USAGE
+DROP POLICY IF EXISTS "NetworkInventoryUsage - Leitura por exibidora, anunciante ou Master Admin" ON public.network_inventory_usage;
 CREATE POLICY "NetworkInventoryUsage - Leitura por exibidora, anunciante ou Master Admin"
   ON public.network_inventory_usage FOR SELECT TO authenticated
   USING (

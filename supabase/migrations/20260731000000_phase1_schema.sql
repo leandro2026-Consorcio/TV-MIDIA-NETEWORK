@@ -337,6 +337,7 @@ ALTER TABLE public.wallet_transactions ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.audit_logs ENABLE ROW LEVEL SECURITY;
 
 -- 5.1 RLS - PROFILES
+DROP POLICY IF EXISTS "Profiles - Master Admin tudo, Usuários lêem/editam próprio perfil" ON public.profiles;
 CREATE POLICY "Profiles - Master Admin tudo, Usuários lêem/editam próprio perfil"
   ON public.profiles FOR ALL
   TO authenticated
@@ -344,16 +345,19 @@ CREATE POLICY "Profiles - Master Admin tudo, Usuários lêem/editam próprio per
   WITH CHECK (is_master_admin() OR id = auth.uid());
 
 -- 5.2 RLS - COMPANIES
+DROP POLICY IF EXISTS "Companies - Master Admin vê todas, Usuários vêem vinculadas" ON public.companies;
 CREATE POLICY "Companies - Master Admin vê todas, Usuários vêem vinculadas"
   ON public.companies FOR SELECT
   TO authenticated
   USING (is_master_admin() OR id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "Companies - Usuários autenticados criam empresas" ON public.companies;
 CREATE POLICY "Companies - Usuários autenticados criam empresas"
   ON public.companies FOR INSERT
   TO authenticated
   WITH CHECK (TRUE);
 
+DROP POLICY IF EXISTS "Companies - Master Admin e Admins da empresa editam" ON public.companies;
 CREATE POLICY "Companies - Master Admin e Admins da empresa editam"
   ON public.companies FOR UPDATE
   TO authenticated
@@ -363,11 +367,13 @@ CREATE POLICY "Companies - Master Admin e Admins da empresa editam"
   );
 
 -- 5.3 RLS - COMPANY_USERS
+DROP POLICY IF EXISTS "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas"
   ON public.company_users FOR SELECT
   TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanyUsers - Master Admin e Admins gerenciam membros" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin e Admins gerenciam membros"
   ON public.company_users FOR ALL
   TO authenticated
@@ -377,22 +383,26 @@ CREATE POLICY "CompanyUsers - Master Admin e Admins gerenciam membros"
   );
 
 -- 5.4 RLS - SEGMENTS
+DROP POLICY IF EXISTS "Segments - Leitura pública para autenticados" ON public.segments;
 CREATE POLICY "Segments - Leitura pública para autenticados"
   ON public.segments FOR SELECT
   TO authenticated
   USING (TRUE);
 
+DROP POLICY IF EXISTS "Segments - Apenas Master Admin modifica" ON public.segments;
 CREATE POLICY "Segments - Apenas Master Admin modifica"
   ON public.segments FOR ALL
   TO authenticated
   USING (is_master_admin());
 
 -- 5.5 RLS - COMPANY_SEGMENTS
+DROP POLICY IF EXISTS "CompanySegments - Leitura para membros da empresa ou Master" ON public.company_segments;
 CREATE POLICY "CompanySegments - Leitura para membros da empresa ou Master"
   ON public.company_segments FOR SELECT
   TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
+DROP POLICY IF EXISTS "CompanySegments - Edição por Admins da empresa ou Master" ON public.company_segments;
 CREATE POLICY "CompanySegments - Edição por Admins da empresa ou Master"
   ON public.company_segments FOR ALL
   TO authenticated
@@ -402,6 +412,7 @@ CREATE POLICY "CompanySegments - Edição por Admins da empresa ou Master"
   );
 
 -- 5.6 RLS - WALLETS (REGRA RÍGIDA: UPDATE BLOQUEADO PARA CLIENTES)
+DROP POLICY IF EXISTS "Wallets - Leitura para membros da empresa ou Master Admin" ON public.wallets;
 CREATE POLICY "Wallets - Leitura para membros da empresa ou Master Admin"
   ON public.wallets FOR SELECT
   TO authenticated
@@ -411,12 +422,14 @@ CREATE POLICY "Wallets - Leitura para membros da empresa ou Master Admin"
 -- Alteração de saldo só pode ocorrer via SECURITY DEFINER (process_credit_transaction RPC).
 
 -- 5.7 RLS - WALLET_TRANSACTIONS
+DROP POLICY IF EXISTS "WalletTransactions - Leitura para membros da empresa ou Master Admin" ON public.wallet_transactions;
 CREATE POLICY "WalletTransactions - Leitura para membros da empresa ou Master Admin"
   ON public.wallet_transactions FOR SELECT
   TO authenticated
   USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
 
 -- 5.8 RLS - AUDIT_LOGS
+DROP POLICY IF EXISTS "AuditLogs - Leitura para Master Admin ou Admins da empresa" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
   ON public.audit_logs FOR SELECT
   TO authenticated
@@ -425,6 +438,7 @@ CREATE POLICY "AuditLogs - Leitura para Master Admin ou Admins da empresa"
     company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "AuditLogs - Inserção de eventos autorizados" ON public.audit_logs;
 CREATE POLICY "AuditLogs - Inserção de eventos autorizados"
   ON public.audit_logs FOR INSERT
   TO authenticated

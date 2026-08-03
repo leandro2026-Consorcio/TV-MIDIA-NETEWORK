@@ -86,11 +86,13 @@ ALTER TABLE public.seller_payout_batch_items ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.seller_payout_transfers ENABLE ROW LEVEL SECURITY;
 
 -- Politicas seller_payout_batches
+DROP POLICY IF EXISTS "PayoutBatches - Master Admin Full Access" ON public.seller_payout_batches;
 CREATE POLICY "PayoutBatches - Master Admin Full Access"
   ON public.seller_payout_batches FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutBatches - Company Member Read" ON public.seller_payout_batches;
 CREATE POLICY "PayoutBatches - Company Member Read"
   ON public.seller_payout_batches FOR SELECT TO authenticated
   USING (EXISTS (
@@ -99,21 +101,25 @@ CREATE POLICY "PayoutBatches - Company Member Read"
   ));
 
 -- Politicas seller_payout_batch_items
+DROP POLICY IF EXISTS "PayoutBatchItems - Master Admin Full Access" ON public.seller_payout_batch_items;
 CREATE POLICY "PayoutBatchItems - Master Admin Full Access"
   ON public.seller_payout_batch_items FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutBatchItems - Seller Company Read" ON public.seller_payout_batch_items;
 CREATE POLICY "PayoutBatchItems - Seller Company Read"
   ON public.seller_payout_batch_items FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));
 
 -- Politicas seller_payout_transfers
+DROP POLICY IF EXISTS "PayoutTransfers - Master Admin Full Access" ON public.seller_payout_transfers;
 CREATE POLICY "PayoutTransfers - Master Admin Full Access"
   ON public.seller_payout_transfers FOR ALL TO authenticated
   USING (is_master_admin())
   WITH CHECK (is_master_admin());
 
+DROP POLICY IF EXISTS "PayoutTransfers - Seller Company Read" ON public.seller_payout_transfers;
 CREATE POLICY "PayoutTransfers - Seller Company Read"
   ON public.seller_payout_transfers FOR SELECT TO authenticated
   USING (seller_company_id IN (SELECT get_user_company_ids()));

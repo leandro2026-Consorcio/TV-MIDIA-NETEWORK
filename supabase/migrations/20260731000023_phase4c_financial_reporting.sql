@@ -45,6 +45,7 @@ CREATE INDEX IF NOT EXISTS idx_discounts_seller ON public.monthly_fee_discounts(
 ALTER TABLE public.seller_financial_ledger ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.monthly_fee_discounts ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "SellerFinancialLedger - Leitura por exibidora ou Master Admin" ON public.seller_financial_ledger;
 CREATE POLICY "SellerFinancialLedger - Leitura por exibidora ou Master Admin"
   ON public.seller_financial_ledger FOR SELECT TO authenticated
   USING (
@@ -52,6 +53,7 @@ CREATE POLICY "SellerFinancialLedger - Leitura por exibidora ou Master Admin"
     seller_company_id IN (SELECT public.get_user_company_ids())
   );
 
+DROP POLICY IF EXISTS "MonthlyFeeDiscounts - Leitura por exibidora ou Master Admin" ON public.monthly_fee_discounts;
 CREATE POLICY "MonthlyFeeDiscounts - Leitura por exibidora ou Master Admin"
   ON public.monthly_fee_discounts FOR SELECT TO authenticated
   USING (
