@@ -36,6 +36,9 @@ export async function updateSession(request: NextRequest) {
   const isPublicRoute =
     request.nextUrl.pathname === '/login' ||
     request.nextUrl.pathname === '/register' ||
+    request.nextUrl.pathname === '/player' ||
+    request.nextUrl.pathname === '/tv' ||
+    request.nextUrl.pathname.startsWith('/api/') ||
     request.nextUrl.pathname === '/';
 
   // Se o usuário não está autenticado e tenta acessar rota protegida, redireciona para /login
