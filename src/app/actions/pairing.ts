@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
 
 // Helper: Hash SHA-256
@@ -56,7 +57,13 @@ export async function requestPairingCodeAction(pairingSecret: string, fingerprin
     return { success: false, error: 'Segredo de pareamento do cliente inválido.' };
   }
 
-  const supabase = createClient();
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    console.error('Erro de configuração ao gerar código de pareamento:', error);
+    return { success: false, error: 'Serviço de pareamento indisponível. Verifique a configuração do servidor.' };
+  }
 
   // Proteção básica contra spam de códigos
   const { count } = await (supabase.from('screen_pairing_codes') as any)
@@ -103,7 +110,13 @@ export async function checkPairingStatusAction(code: string, pairingSecret: stri
     return { status: 'invalid_request' };
   }
 
-  const supabase = createClient();
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    console.error('Erro de configuração ao consultar pareamento:', error);
+    return { status: 'server_error' };
+  }
   const upperCode = code.toUpperCase();
 
   const { data, error } = await (supabase.from('screen_pairing_codes') as any)
@@ -113,6 +126,11 @@ export async function checkPairingStatusAction(code: string, pairingSecret: stri
 
   if (error || !data) {
     return { status: 'not_found' };
+  }
+
+  // O código público sozinho não autoriza a retirada do token do dispositivo.
+  if (!data.pairing_secret_hash || data.pairing_secret_hash !== hashToken(pairingSecret)) {
+    return { status: 'invalid_secret' };
   }
 
   // Verificar se o código expirou
@@ -125,8 +143,10 @@ export async function checkPairingStatusAction(code: string, pairingSecret: stri
 
   // Se já foi pareado pelo Admin e possui o payload criptografado
   if (data.status === 'paired' && data.encrypted_device_token) {
-    // Tenta descriptografar usando o pairingSecret mantido na RAM do player
-    const rawDeviceToken = decryptToken(data.encrypted_device_token, pairingSecret);
+    // Tenta descriptografar somente depois de validar o segredo mantido na RAM do player.
+    // O painel possui somente o hash do segredo. A mesma representação precisa
+    // ser usada nos dois lados para derivar a chave AES.
+    const rawDeviceToken = decryptToken(data.encrypted_device_token, data.pairing_secret_hash);
 
     if (!rawDeviceToken) {
       return { status: 'decryption_failed' };
@@ -199,9 +219,17 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
     }
   }
 
+  let supabaseAdmin;
+  try {
+    supabaseAdmin = createAdminClient();
+  } catch (error) {
+    console.error('Erro de configuração ao parear tela:', error);
+    return { success: false, error: 'Serviço de pareamento indisponível. Verifique a configuração do servidor.' };
+  }
+
   // 4. Buscar e validar o código de pareamento
   const cleanCode = pairingCode.trim().toUpperCase();
-  const { data: codeRow, error: codeErr } = await (supabase.from('screen_pairing_codes') as any)
+  const { data: codeRow, error: codeErr } = await (supabaseAdmin.from('screen_pairing_codes') as any)
     .select('*')
     .eq('code', cleanCode)
     .single();
@@ -227,7 +255,7 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
   }
 
   if (new Date(codeRow.expires_at) < new Date()) {
-    await (supabase.from('screen_pairing_codes') as any)
+    await (supabaseAdmin.from('screen_pairing_codes') as any)
       .update({ status: 'expired' })
       .eq('id', codeRow.id);
 
@@ -247,10 +275,13 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
 
   // 6. Criptografar o token para a tabela temporária de entrega usando o segredo do cliente
   const pairingSecretHash = codeRow.pairing_secret_hash;
+  if (!pairingSecretHash) {
+    return { success: false, error: 'Código de pareamento incompatível. Gere um novo código na TV.' };
+  }
   const encryptedPayload = encryptToken(rawDeviceToken, pairingSecretHash);
 
   // 7. Atualizar a Tabela Screens (Salva APENAS o HASH SHA-256 do token)
-  const { error: screenUpdateErr } = await (supabase.from('screens') as any)
+  const { error: screenUpdateErr } = await (supabaseAdmin.from('screens') as any)
     .update({
       device_token_hash: tokenHash,
       status: 'online',
@@ -265,7 +296,7 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
   }
 
   // 8. Atualizar screen_pairing_codes (Armazena APENAS o payload CRIPTOGRAFADO em AES-256-GCM)
-  await (supabase.from('screen_pairing_codes') as any)
+  await (supabaseAdmin.from('screen_pairing_codes') as any)
     .update({
       status: 'paired',
       screen_id: screenId,
@@ -299,7 +330,13 @@ export async function heartbeatAction(deviceToken: string) {
     return { success: false, error: 'Token de dispositivo inválido ou malformado.' };
   }
 
-  const supabase = createClient();
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    console.error('Erro de configuração no heartbeat do player:', error);
+    return { success: false, error: 'Serviço do player indisponível.' };
+  }
   const tokenHash = hashToken(deviceToken);
   const now = new Date().toISOString();
 

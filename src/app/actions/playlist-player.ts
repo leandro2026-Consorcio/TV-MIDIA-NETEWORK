@@ -1,6 +1,6 @@
 'use server';
 
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
 
 function hashToken(token: string): string {
@@ -27,7 +27,13 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     return { success: false, error: 'Token de dispositivo inválido ou malformado.' };
   }
 
-  const supabase = createClient();
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    console.error('Erro de configuração ao carregar playlist do player:', error);
+    return { success: false, error: 'Serviço do player indisponível.' };
+  }
   const tokenHash = hashToken(deviceToken);
   const now = new Date().toISOString();
 
