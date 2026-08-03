@@ -84,7 +84,7 @@ CREATE POLICY "Playlists - Exclusão por Admins da Empresa ou Master Admin"
   ON public.playlists FOR DELETE TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 6. POLÍTICAS RLS - PLAYLIST_ITEMS
@@ -118,5 +118,5 @@ CREATE POLICY "ScreenPlaylists - Atribuição por Admins da Empresa ou Master Ad
   ON public.screen_playlists FOR ALL TO authenticated
   USING (
     is_master_admin() OR 
-    screen_id IN (SELECT id FROM public.screens WHERE company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE))
+    screen_id IN (SELECT id FROM public.screens WHERE company_id IN (SELECT public.get_user_admin_company_ids()))
   );

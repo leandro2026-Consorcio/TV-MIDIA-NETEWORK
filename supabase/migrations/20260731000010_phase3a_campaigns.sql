@@ -160,7 +160,7 @@ CREATE POLICY "Campaigns - Edição por membros da empresa ou Master Admin"
 DROP POLICY IF EXISTS "Campaigns - Exclusão por Admins da Empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Exclusão por Admins da Empresa ou Master Admin"
   ON public.campaigns FOR DELETE TO authenticated
-  USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
+  USING (is_master_admin() OR company_id IN (SELECT public.get_user_admin_company_ids()));
 
 -- POLÍTICAS RLS - CAMPAIGN_MEDIA & CAMPAIGN_SCREENS
 DROP POLICY IF EXISTS "CampaignMedia - Leitura por membros da empresa ou Master Admin" ON public.campaign_media;

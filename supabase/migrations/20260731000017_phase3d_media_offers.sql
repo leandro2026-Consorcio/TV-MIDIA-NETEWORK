@@ -101,7 +101,7 @@ CREATE POLICY "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master A
   ON public.company_ad_offers FOR ALL TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- POLÍTICAS RLS - AD_OFFER_ORDERS
@@ -124,5 +124,5 @@ CREATE POLICY "AdOfferOrders - Atualização por vendedor ou Master Admin"
   ON public.ad_offer_orders FOR UPDATE TO authenticated
   USING (
     is_master_admin() OR 
-    seller_company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    seller_company_id IN (SELECT public.get_user_admin_company_ids())
   );

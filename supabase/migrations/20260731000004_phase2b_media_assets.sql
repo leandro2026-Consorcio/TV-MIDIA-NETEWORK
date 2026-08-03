@@ -79,7 +79,7 @@ CREATE POLICY "MediaAssets - Exclusão por Admins da Empresa ou Master Admin"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- ============================================================================

@@ -126,6 +126,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
+
+-- 3.2.1 Retorna os IDs das empresas onde o usuário é Admin ativo (SECURITY DEFINER sem recursão)
+CREATE OR REPLACE FUNCTION public.get_user_admin_company_ids()
+RETURNS SETOF UUID AS $
+BEGIN
+  RETURN QUERY
+  SELECT company_id 
+  FROM public.company_users 
+  WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE;
+END;
+$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
+
 -- 3.3 Logger de Auditoria Helper
 CREATE OR REPLACE FUNCTION public.log_audit_event(
   p_user_id UUID,
@@ -366,20 +378,19 @@ CREATE POLICY "Companies - Master Admin e Admins da empresa editam"
     id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin')
   );
 
--- 5.3 RLS - COMPANY_USERS
+-- 5.3 RLS - COMPANY_USERS (SEM RECURSÃO VIA SECURITY DEFINER)
 DROP POLICY IF EXISTS "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas"
   ON public.company_users FOR SELECT
   TO authenticated
-  USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
+  USING (is_master_admin() OR user_id = auth.uid() OR company_id IN (SELECT public.get_user_company_ids()));
 
 DROP POLICY IF EXISTS "CompanyUsers - Master Admin e Admins gerenciam membros" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin e Admins gerenciam membros"
   ON public.company_users FOR ALL
   TO authenticated
   USING (
-    is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin')
+    is_master_admin() OR company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 5.4 RLS - SEGMENTS
@@ -408,7 +419,7 @@ CREATE POLICY "CompanySegments - Edição por Admins da empresa ou Master"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin')
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 5.6 RLS - WALLETS (REGRA RÍGIDA: UPDATE BLOQUEADO PARA CLIENTES)

@@ -126,6 +126,18 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
+
+-- 3.2.1 Retorna os IDs das empresas onde o usuário é Admin ativo (SECURITY DEFINER sem recursão)
+CREATE OR REPLACE FUNCTION public.get_user_admin_company_ids()
+RETURNS SETOF UUID AS $
+BEGIN
+  RETURN QUERY
+  SELECT company_id 
+  FROM public.company_users 
+  WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE;
+END;
+$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
+
 -- 3.3 Logger de Auditoria Helper
 CREATE OR REPLACE FUNCTION public.log_audit_event(
   p_user_id UUID,
@@ -366,20 +378,19 @@ CREATE POLICY "Companies - Master Admin e Admins da empresa editam"
     id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin')
   );
 
--- 5.3 RLS - COMPANY_USERS
+-- 5.3 RLS - COMPANY_USERS (SEM RECURSÃO VIA SECURITY DEFINER)
 DROP POLICY IF EXISTS "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin vê todos, Usuários vêem de suas empresas"
   ON public.company_users FOR SELECT
   TO authenticated
-  USING (is_master_admin() OR company_id IN (SELECT public.get_user_company_ids()));
+  USING (is_master_admin() OR user_id = auth.uid() OR company_id IN (SELECT public.get_user_company_ids()));
 
 DROP POLICY IF EXISTS "CompanyUsers - Master Admin e Admins gerenciam membros" ON public.company_users;
 CREATE POLICY "CompanyUsers - Master Admin e Admins gerenciam membros"
   ON public.company_users FOR ALL
   TO authenticated
   USING (
-    is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin')
+    is_master_admin() OR company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 5.4 RLS - SEGMENTS
@@ -408,7 +419,7 @@ CREATE POLICY "CompanySegments - Edição por Admins da empresa ou Master"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin')
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 5.6 RLS - WALLETS (REGRA RÍGIDA: UPDATE BLOQUEADO PARA CLIENTES)
@@ -685,7 +696,7 @@ CREATE POLICY "Screens - Inserção por Admins da Empresa ou Master Admin"
   TO authenticated
   WITH CHECK (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 DROP POLICY IF EXISTS "Screens - Edição por Admins da Empresa ou Master Admin" ON public.screens;
@@ -694,7 +705,7 @@ CREATE POLICY "Screens - Edição por Admins da Empresa ou Master Admin"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 DROP POLICY IF EXISTS "Screens - Exclusão restrita a Admins da Empresa ou Master Admin" ON public.screens;
@@ -703,7 +714,7 @@ CREATE POLICY "Screens - Exclusão restrita a Admins da Empresa ou Master Admin"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 5. POLÍTICAS RLS - SCREEN_PAIRING_CODES
@@ -816,7 +827,7 @@ CREATE POLICY "MediaAssets - Exclusão por Admins da Empresa ou Master Admin"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- ============================================================================
@@ -1170,7 +1181,7 @@ CREATE POLICY "Playlists - Exclusão por Admins da Empresa ou Master Admin"
   ON public.playlists FOR DELETE TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 6. POLÍTICAS RLS - PLAYLIST_ITEMS
@@ -1204,7 +1215,7 @@ CREATE POLICY "ScreenPlaylists - Atribuição por Admins da Empresa ou Master Ad
   ON public.screen_playlists FOR ALL TO authenticated
   USING (
     is_master_admin() OR 
-    screen_id IN (SELECT id FROM public.screens WHERE company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE))
+    screen_id IN (SELECT id FROM public.screens WHERE company_id IN (SELECT public.get_user_admin_company_ids()))
   );
 -- ============================================================================
 -- REDE INDOOR LOCAL - MIGRAÇÃO MVP 2C: HARDENING DE BANCO, TRIGGERS E INTEGRIDADE
@@ -1771,7 +1782,7 @@ CREATE POLICY "Campaigns - Edição por membros da empresa ou Master Admin"
 DROP POLICY IF EXISTS "Campaigns - Exclusão por Admins da Empresa ou Master Admin" ON public.campaigns;
 CREATE POLICY "Campaigns - Exclusão por Admins da Empresa ou Master Admin"
   ON public.campaigns FOR DELETE TO authenticated
-  USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
+  USING (is_master_admin() OR company_id IN (SELECT public.get_user_admin_company_ids()));
 
 -- POLÍTICAS RLS - CAMPAIGN_MEDIA & CAMPAIGN_SCREENS
 DROP POLICY IF EXISTS "CampaignMedia - Leitura por membros da empresa ou Master Admin" ON public.campaign_media;
@@ -2019,7 +2030,7 @@ CREATE POLICY "CompanyTrials - Leitura por membros da empresa ou Master Admin"
 DROP POLICY IF EXISTS "CompanyTrials - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_trials;
 CREATE POLICY "CompanyTrials - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_trials FOR ALL TO authenticated
-  USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
+  USING (is_master_admin() OR company_id IN (SELECT public.get_user_admin_company_ids()));
 
 -- POLÍTICAS RLS - REFERRAL_INVITES
 DROP POLICY IF EXISTS "ReferralInvites - Leitura por empresa emissora ou Master Admin" ON public.referral_invites;
@@ -2034,7 +2045,7 @@ CREATE POLICY "ReferralInvites - Leitura por empresa emissora ou Master Admin"
 DROP POLICY IF EXISTS "ReferralInvites - Gerenciamento por Admins da Empresa ou Master Admin" ON public.referral_invites;
 CREATE POLICY "ReferralInvites - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.referral_invites FOR ALL TO authenticated
-  USING (is_master_admin() OR inviter_company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
+  USING (is_master_admin() OR inviter_company_id IN (SELECT public.get_user_admin_company_ids()));
 -- ============================================================================
 -- REDE INDOOR LOCAL - MIGRAÇÃO MVP 3B: CRÉDITOS, DÉBITO POR INSERÇÃO E CARTEIRA
 -- Data: 2026-07-31
@@ -2672,7 +2683,7 @@ CREATE POLICY "CompanyNetworkPreferences - Leitura por membros ou Master Admin"
 DROP POLICY IF EXISTS "CompanyNetworkPreferences - Gerenciamento por Admins da Empresa ou Master Admin" ON public.company_network_preferences;
 CREATE POLICY "CompanyNetworkPreferences - Gerenciamento por Admins da Empresa ou Master Admin"
   ON public.company_network_preferences FOR ALL TO authenticated
-  USING (is_master_admin() OR company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE));
+  USING (is_master_admin() OR company_id IN (SELECT public.get_user_admin_company_ids()));
 
 -- POLÍTICAS RLS - NETWORK_INVENTORY_LEDGER
 DROP POLICY IF EXISTS "NetworkInventoryLedger - Leitura por membros ou Master Admin" ON public.network_inventory_ledger;
@@ -3002,7 +3013,7 @@ CREATE POLICY "CompanyAdOffers - Gerenciamento por Admins da Empresa ou Master A
   ON public.company_ad_offers FOR ALL TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- POLÍTICAS RLS - AD_OFFER_ORDERS
@@ -3025,7 +3036,7 @@ CREATE POLICY "AdOfferOrders - Atualização por vendedor ou Master Admin"
   ON public.ad_offer_orders FOR UPDATE TO authenticated
   USING (
     is_master_admin() OR 
-    seller_company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    seller_company_id IN (SELECT public.get_user_admin_company_ids())
   );
 -- ============================================================================
 -- REDE INDOOR LOCAL - MIGRAÇÃO MVP 3D: HARDENING E SEGURANÇA DE OFERTAS E PEDIDOS

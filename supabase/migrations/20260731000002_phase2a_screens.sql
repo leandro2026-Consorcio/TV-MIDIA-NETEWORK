@@ -61,7 +61,7 @@ CREATE POLICY "Screens - Inserção por Admins da Empresa ou Master Admin"
   TO authenticated
   WITH CHECK (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 DROP POLICY IF EXISTS "Screens - Edição por Admins da Empresa ou Master Admin" ON public.screens;
@@ -70,7 +70,7 @@ CREATE POLICY "Screens - Edição por Admins da Empresa ou Master Admin"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 DROP POLICY IF EXISTS "Screens - Exclusão restrita a Admins da Empresa ou Master Admin" ON public.screens;
@@ -79,7 +79,7 @@ CREATE POLICY "Screens - Exclusão restrita a Admins da Empresa ou Master Admin"
   TO authenticated
   USING (
     is_master_admin() OR 
-    company_id IN (SELECT company_id FROM public.company_users WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE)
+    company_id IN (SELECT public.get_user_admin_company_ids())
   );
 
 -- 5. POLÍTICAS RLS - SCREEN_PAIRING_CODES
