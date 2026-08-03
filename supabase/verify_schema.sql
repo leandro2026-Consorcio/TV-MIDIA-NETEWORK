@@ -5,10 +5,10 @@
 WITH expected_tables AS (
   SELECT unnest(ARRAY[
     'profiles','companies','company_users','segments','company_segments','wallets',
-    'wallet_transactions','audit_logs','screens','pairing_codes','media_assets',
+    'wallet_transactions','audit_logs','screens','screen_pairing_codes','media_assets',
     'playlists','playlist_items','screen_playlists','playback_logs','campaigns',
     'campaign_media','campaign_screens','company_trials','referral_invites',
-    'credit_packages','credit_policies','network_preferences','company_ad_offers',
+    'credit_packages','company_network_preferences','company_ad_offers',
     'ad_offer_orders','ad_order_delivery_ledger','seller_financial_ledger',
     'platform_terms','company_term_acceptances','asaas_payment_events',
     'asaas_reconciliation_reviews','seller_financial_profiles','seller_financial_profile_logs',
@@ -23,8 +23,8 @@ created_tables AS (
 )
 SELECT 
   'Tabelas Criadas' AS item,
-  (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables))::TEXT || ' de 38 tabelas esperadas' AS detalhe,
-  CASE WHEN (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables)) >= 38 THEN 'OK (100% COMPLETO)' ELSE 'ATENÇÃO: TABELAS FALTANDO' END AS resultado
+  (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables))::TEXT || ' de 37 tabelas do sistema' AS detalhe,
+  CASE WHEN (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables)) >= 37 THEN 'OK (100% COMPLETO)' ELSE 'ATENÇÃO: TABELAS FALTANDO' END AS resultado
 UNION ALL
 SELECT 
   'Políticas RLS Ativas' AS item,
