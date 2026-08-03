@@ -129,14 +129,14 @@ $$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
 
 -- 3.2.1 Retorna os IDs das empresas onde o usuário é Admin ativo (SECURITY DEFINER sem recursão)
 CREATE OR REPLACE FUNCTION public.get_user_admin_company_ids()
-RETURNS SETOF UUID AS $
+RETURNS SETOF UUID AS $$
 BEGIN
   RETURN QUERY
   SELECT company_id 
   FROM public.company_users 
   WHERE user_id = auth.uid() AND role = 'admin' AND is_active = TRUE;
 END;
-$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
+$$ LANGUAGE plpgsql SECURITY DEFINER STABLE SET search_path = public;
 
 -- 3.3 Logger de Auditoria Helper
 CREATE OR REPLACE FUNCTION public.log_audit_event(
