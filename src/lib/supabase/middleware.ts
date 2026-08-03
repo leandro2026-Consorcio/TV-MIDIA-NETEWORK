@@ -2,6 +2,22 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // 1. Definição de Rotas Públicas (Livre Acesso)
+  const isPublicRoute =
+    pathname === '/' ||
+    pathname.startsWith('/login') ||
+    pathname.startsWith('/register') ||
+    pathname.startsWith('/player') ||
+    pathname.startsWith('/tv') ||
+    pathname.startsWith('/api/');
+
+  // 2. Se for rota de player (/tv ou /player) ou API pública, libera o acesso imediatamente sem verificar login
+  if (pathname.startsWith('/tv') || pathname.startsWith('/player') || pathname === '/' || pathname.startsWith('/api/')) {
+    return NextResponse.next();
+  }
+
   let supabaseResponse = NextResponse.next({
     request,
   });
@@ -33,23 +49,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isPublicRoute =
-    request.nextUrl.pathname === '/login' ||
-    request.nextUrl.pathname === '/register' ||
-    request.nextUrl.pathname === '/player' ||
-    request.nextUrl.pathname === '/tv' ||
-    request.nextUrl.pathname.startsWith('/api/') ||
-    request.nextUrl.pathname === '/';
-
-  // Se o usuário não está autenticado e tenta acessar rota protegida, redireciona para /login
+  // 3. Se o usuário NÃO está autenticado e tenta acessar área interna protegida, redireciona para /login
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
     return NextResponse.redirect(url);
   }
 
-  // Se o usuário já está logado e tenta ir para /login ou /register, redireciona para /dashboard
-  if (user && (request.nextUrl.pathname === '/login' || request.nextUrl.pathname === '/register')) {
+  // 4. Se o usuário já está logado e acessa /login ou /register, redireciona para /dashboard
+  if (user && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
     const url = request.nextUrl.clone();
     url.pathname = '/dashboard';
     return NextResponse.redirect(url);
