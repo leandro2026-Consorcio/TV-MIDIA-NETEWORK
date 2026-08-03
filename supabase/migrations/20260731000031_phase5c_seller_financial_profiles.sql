@@ -106,7 +106,7 @@ CREATE POLICY "SellerProfiles - Company Admin Insert"
   WITH CHECK (
     EXISTS (
       SELECT 1 FROM public.company_users
-      WHERE company_id = NEW.company_id AND user_id = auth.uid() AND role = 'admin' AND is_active = TRUE
+      WHERE company_id = seller_financial_profiles.company_id AND user_id = auth.uid() AND role = 'admin' AND is_active = TRUE
     )
   );
 
