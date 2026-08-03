@@ -70,8 +70,8 @@ export interface Database {
         Relationships: [];
       };
       media_assets: {
-        Row: { id: string; company_id: string; uploaded_by: string | null; title: string; description: string | null; file_path: string; file_url: string | null; file_name: string | null; file_size_bytes: number | null; mime_type: string; media_type: 'image' | 'video'; orientation: string; width: number | null; height: number | null; duration_seconds: number | null; playback_duration_seconds: 5 | 10 | 15 | 30; status: string; rejection_reason: string | null; is_external: boolean; created_at: string; updated_at: string; };
-        Insert: { id?: string; company_id: string; uploaded_by?: string | null; title: string; description?: string | null; file_path: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type: string; media_type: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds: 5 | 10 | 15 | 30; status?: string; rejection_reason?: string | null; is_external?: boolean; created_at?: string; updated_at?: string; };
+        Row: { id: string; company_id: string; uploaded_by: string | null; title: string; description: string | null; file_path: string; file_url: string | null; file_name: string | null; file_size_bytes: number | null; mime_type: string; media_type: 'image' | 'video'; orientation: string; width: number | null; height: number | null; duration_seconds: number | null; playback_duration_seconds: number; status: string; rejection_reason: string | null; is_external: boolean; created_at: string; updated_at: string; };
+        Insert: { id?: string; company_id: string; uploaded_by?: string | null; title: string; description?: string | null; file_path: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type: string; media_type: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds: number; status?: string; rejection_reason?: string | null; is_external?: boolean; created_at?: string; updated_at?: string; };
         Update: { id?: string; company_id?: string; uploaded_by?: string | null; title?: string; description?: string | null; file_path?: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type?: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds?: 5 | 10 | 15 | 30; status?: string; rejection_reason?: string | null; is_external?: boolean; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
@@ -82,8 +82,8 @@ export interface Database {
         Relationships: [];
       };
       playlist_items: {
-        Row: { id: string; playlist_id: string; media_asset_id: string; sort_order: number; playback_duration_seconds: 5 | 10 | 15 | 30; is_active: boolean; created_at: string; updated_at: string; };
-        Insert: { id?: string; playlist_id: string; media_asset_id: string; sort_order?: number; playback_duration_seconds: 5 | 10 | 15 | 30; is_active?: boolean; created_at?: string; updated_at?: string; };
+        Row: { id: string; playlist_id: string; media_asset_id: string; sort_order: number; playback_duration_seconds: number; is_active: boolean; created_at: string; updated_at: string; };
+        Insert: { id?: string; playlist_id: string; media_asset_id: string; sort_order?: number; playback_duration_seconds: number; is_active?: boolean; created_at?: string; updated_at?: string; };
         Update: { id?: string; playlist_id?: string; media_asset_id?: string; sort_order?: number; playback_duration_seconds?: 5 | 10 | 15 | 30; is_active?: boolean; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
@@ -106,8 +106,8 @@ export interface Database {
         Relationships: [];
       };
       campaign_media: {
-        Row: { id: string; campaign_id: string; media_asset_id: string; playback_duration_seconds: 5 | 10 | 15 | 30; is_active: boolean; created_at: string; };
-        Insert: { id?: string; campaign_id: string; media_asset_id: string; playback_duration_seconds: 5 | 10 | 15 | 30; is_active?: boolean; created_at?: string; };
+        Row: { id: string; campaign_id: string; media_asset_id: string; playback_duration_seconds: number; is_active: boolean; created_at: string; };
+        Insert: { id?: string; campaign_id: string; media_asset_id: string; playback_duration_seconds: number; is_active?: boolean; created_at?: string; };
         Update: { id?: string; campaign_id?: string; media_asset_id?: string; playback_duration_seconds?: 5 | 10 | 15 | 30; is_active?: boolean; created_at?: string; };
         Relationships: [];
       };

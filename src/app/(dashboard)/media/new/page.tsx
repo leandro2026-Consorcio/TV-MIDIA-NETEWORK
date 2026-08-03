@@ -13,7 +13,11 @@ export default function NewMediaPage() {
   const [file, setFile] = useState<File | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [playbackDuration, setPlaybackDuration] = useState<5 | 10 | 15 | 30>(10);
+  const [playbackDuration, setPlaybackDuration] = useState<number>(10);
+
+  const durationOptions = Array.from(
+    new Set([5, 10, 15, 30, playbackDuration].filter((d) => d > 0))
+  ).sort((a, b) => a - b);
   const [companyId, setCompanyId] = useState('');
 
   const [companies, setCompanies] = useState<Company[]>([]);
@@ -264,7 +268,7 @@ export default function NewMediaPage() {
                     {file ? file.name : 'Clique ou arraste um arquivo de imagem ou vídeo'}
                   </p>
                   <p className="text-xs text-slate-500 mt-1">
-                    Formatos aceitos: <strong>JPG, PNG, WEBP, MP4, WEBM</strong> (Vídeos com duração máxima de 30s)
+                    Formatos aceitos: <strong>JPG, PNG, WEBP, MP4, WEBM</strong> (Vídeos com duração livre — Faturamento arredondado para blocos de 5s)
                   </p>
                 </div>
               </div>
@@ -279,10 +283,17 @@ export default function NewMediaPage() {
           )}
 
           {metaPreview && (
-            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2 text-xs">
-              <div className="flex items-center gap-2 text-emerald-400 font-bold">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>Arquivo Validado com Sucesso!</span>
+            <div className="p-4 bg-slate-950 border border-slate-800 rounded-xl space-y-3 text-xs">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-emerald-400 font-bold">
+                  <CheckCircle2 className="w-4 h-4" />
+                  <span>Arquivo Validado com Sucesso!</span>
+                </div>
+                {metaPreview.mediaType === 'video' && metaPreview.durationSeconds && (
+                  <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold px-2.5 py-1 rounded-lg">
+                    Faturamento: {playbackDuration}s (Arredondado de {metaPreview.durationSeconds}s)
+                  </span>
+                )}
               </div>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-slate-300 pt-2 border-t border-slate-800">
                 <div>
@@ -298,7 +309,7 @@ export default function NewMediaPage() {
                   <strong>{metaPreview.width} x {metaPreview.height}px</strong>
                 </div>
                 <div>
-                  <span className="text-slate-500 block">Duração Real:</span>
+                  <span className="text-slate-500 block">Duração do Arquivo:</span>
                   <strong>{metaPreview.durationSeconds ? `${metaPreview.durationSeconds}s` : 'N/A (Imagem)'}</strong>
                 </div>
               </div>
@@ -318,20 +329,25 @@ export default function NewMediaPage() {
           </div>
 
           <div>
-            <label className="block font-medium text-slate-300 mb-1">Duração de Exibição na TV (Segundos) *</label>
-            <div className="grid grid-cols-4 gap-3">
-              {[5, 10, 15, 30].map((dur) => (
+            <div className="flex items-center justify-between mb-2">
+              <label className="block font-medium text-slate-300">Duração do Slot de Exibição / Cobrança (Segundos) *</label>
+              <span className="text-xs text-slate-400">
+                Arredondado para múltiplos de 5s
+              </span>
+            </div>
+            <div className="flex flex-wrap gap-3">
+              {durationOptions.map((dur) => (
                 <button
                   key={dur}
                   type="button"
-                  onClick={() => setPlaybackDuration(dur as any)}
-                  className={`py-3 rounded-xl font-bold border transition ${
+                  onClick={() => setPlaybackDuration(dur)}
+                  className={`px-4 py-2.5 rounded-xl font-bold border transition ${
                     playbackDuration === dur
                       ? 'bg-amber-500/10 border-amber-500/40 text-amber-400 shadow-md shadow-amber-500/10'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:text-white'
                   }`}
                 >
-                  {dur} Segundos
+                  {dur} Segundos {metaPreview?.durationSeconds && Math.max(5, Math.ceil(metaPreview.durationSeconds / 5) * 5) === dur ? '(Calculado)' : ''}
                 </button>
               ))}
             </div>

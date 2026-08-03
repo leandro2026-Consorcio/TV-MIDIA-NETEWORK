@@ -5,7 +5,7 @@ export const ALLOWED_MIME_TYPES = {
 
 export const ALLOWED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.mp4', '.webm'];
 
-export const ALLOWED_PLAYBACK_DURATIONS = [5, 10, 15, 30] as const;
+export const STANDARD_PLAYBACK_DURATIONS = [5, 10, 15, 30];
 
 export interface MediaValidationResult {
   isValid: boolean;
@@ -15,7 +15,7 @@ export interface MediaValidationResult {
   width?: number;
   height?: number;
   durationSeconds?: number;
-  suggestedPlaybackDuration?: 5 | 10 | 15 | 30;
+  suggestedPlaybackDuration?: number;
 }
 
 /**
@@ -43,7 +43,7 @@ export function validateFileType(file: File): { isValid: boolean; error?: string
 }
 
 /**
- * Extrai metadados técnicos (largura, altura, orientação, duração) e aplica regras de tolerância (±0.5s)
+ * Extrai metadados técnicos (largura, altura, orientação, duração) e calcula o slot de exibição (arredondado para múltiplos de 5s)
  */
 export async function extractMediaMetadata(file: File): Promise<MediaValidationResult> {
   const typeCheck = validateFileType(file);
@@ -76,6 +76,7 @@ export async function extractMediaMetadata(file: File): Promise<MediaValidationR
           width,
           height,
           orientation,
+          suggestedPlaybackDuration: 10,
         });
       };
 
@@ -91,7 +92,7 @@ export async function extractMediaMetadata(file: File): Promise<MediaValidationR
     });
   }
 
-  // Validação de Vídeo
+  // Validação de Vídeo com Duração Livre e Arredondamento Automático para múltiplos de 5s
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
@@ -110,32 +111,9 @@ export async function extractMediaMetadata(file: File): Promise<MediaValidationR
         orientation = 'square';
       }
 
-      // Regra 1: Bloquear vídeos com mais de 30.5 segundos
-      if (durationSeconds > 30.5) {
-        resolve({
-          isValid: false,
-          error: `O vídeo ultrapassa a duração máxima permitida de 30 segundos (Duração do arquivo: ${durationSeconds}s).`,
-        });
-        return;
-      }
-
-      // Regra 2: Encontrar duração padrão mais próxima (5, 10, 15, 30) com tolerância de ±0.5s
-      let matchedPlaybackDuration: 5 | 10 | 15 | 30 | null = null;
-
-      for (const target of ALLOWED_PLAYBACK_DURATIONS) {
-        if (Math.abs(durationSeconds - target) <= 0.5) {
-          matchedPlaybackDuration = target;
-          break;
-        }
-      }
-
-      if (!matchedPlaybackDuration) {
-        resolve({
-          isValid: false,
-          error: `Duração do vídeo (${durationSeconds}s) fora do padrão aceito. O vídeo deve ter exatamente 5s, 10s, 15s ou 30s (tolerância de ±0.5s).`,
-        });
-        return;
-      }
+      // Cálculo do slot de cobrança / exibição: Arredonda para cima em múltiplos de 5 segundos
+      // Exemplo: 4.2s -> 5s | 31.4s -> 35s | 42s -> 45s
+      const calculatedSlotDuration = Math.max(5, Math.ceil(durationSeconds / 5) * 5);
 
       resolve({
         isValid: true,
@@ -143,7 +121,7 @@ export async function extractMediaMetadata(file: File): Promise<MediaValidationR
         width,
         height,
         durationSeconds,
-        suggestedPlaybackDuration: matchedPlaybackDuration,
+        suggestedPlaybackDuration: calculatedSlotDuration,
         orientation,
       });
     };
@@ -159,3 +137,4 @@ export async function extractMediaMetadata(file: File): Promise<MediaValidationR
     video.src = objectUrl;
   });
 }
+

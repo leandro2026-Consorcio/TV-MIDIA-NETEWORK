@@ -28,7 +28,7 @@ export interface CreateMediaPayload {
   width?: number | null;
   height?: number | null;
   duration_seconds?: number | null;
-  playback_duration_seconds: 5 | 10 | 15 | 30;
+  playback_duration_seconds: number;
 }
 
 /**
@@ -80,8 +80,8 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
   }
 
   // 5. Validação Server-Side de Duração de Exibição
-  if (!ALLOWED_PLAYBACK_DURATIONS.includes(payload.playback_duration_seconds)) {
-    return { success: false, error: 'Duração de exibição inválida. Escolha 5, 10, 15 ou 30 segundos.' };
+  if (!payload.playback_duration_seconds || payload.playback_duration_seconds <= 0) {
+    return { success: false, error: 'Duração de exibição inválida. Informe um valor em segundos maior que zero.' };
   }
 
   // 6. Definir Status Inicial (Admin/Master = approved, Operador = pending_review)

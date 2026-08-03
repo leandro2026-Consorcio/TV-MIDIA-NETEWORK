@@ -61,7 +61,7 @@ export type ScreenStatus = 'pending_pairing' | 'online' | 'offline' | 'inactive'
 
 export type MediaType = 'image' | 'video';
 export type MediaOrientation = 'horizontal' | 'vertical' | 'square' | 'unknown';
-export type PlaybackDurationSeconds = 5 | 10 | 15 | 30;
+export type PlaybackDurationSeconds = number;
 export type MediaStatus = 'draft' | 'pending_review' | 'approved' | 'rejected' | 'archived';
 
 export type PlaylistOrientation = 'horizontal' | 'vertical' | 'mixed';
