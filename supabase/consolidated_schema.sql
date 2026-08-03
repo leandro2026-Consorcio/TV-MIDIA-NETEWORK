@@ -5624,7 +5624,6 @@ DROP TRIGGER IF EXISTS trg_single_active_term_version ON public.platform_terms;
 CREATE TRIGGER trg_single_active_term_version
   BEFORE INSERT OR UPDATE OF is_active ON public.platform_terms
   FOR EACH ROW
-  WHEN (NEW.is_active = TRUE)
   EXECUTE FUNCTION public.trg_enforce_single_active_term_version();
 
 -- 3. TRIGGER DE IMUTABILIDADE REAL EM COMPANY_TERM_ACCEPTANCES (BLOQUEIA UPDATE E DELETE)
