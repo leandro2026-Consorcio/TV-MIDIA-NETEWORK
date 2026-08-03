@@ -9,7 +9,7 @@ import {
 } from '@/app/actions/pairing';
 import { getPlayerPlaylistAction, PlayerPlaylistItem } from '@/app/actions/playlist-player';
 import { recordPlaybackLogAction, PlaybackLogIngestPayload } from '@/app/actions/playback-logs';
-import { Tv, CheckCircle2, Clock, RefreshCw, AlertCircle, ListVideo } from 'lucide-react';
+import { Tv, Clock, RefreshCw, AlertCircle, ListVideo, Maximize2 } from 'lucide-react';
 
 interface ScreenInfo {
   id: string;
@@ -29,6 +29,26 @@ interface PendingPairing {
   secret: string;
   expiresAt: string;
 }
+
+interface PendingEmptyState {
+  status: 'no_playlist' | 'no_items';
+  message: string;
+}
+
+interface SlideLogContext {
+  item: PlayerPlaylistItem;
+  startedAt: string;
+  idempotencyKey: Promise<string>;
+}
+
+type FullscreenDocument = Document & {
+  webkitFullscreenElement?: Element | null;
+  webkitExitFullscreen?: () => Promise<void>;
+};
+
+type FullscreenElement = HTMLElement & {
+  webkitRequestFullscreen?: () => Promise<void>;
+};
 
 const DEVICE_TOKEN_KEY = 'rede_indoor_device_token';
 const PENDING_PAIRING_KEY = 'rede_indoor_pending_pairing';
@@ -128,18 +148,26 @@ export default function PlayerPage() {
   const [playlistInfo, setPlaylistInfo] = useState<PlaylistInfo | null>(null);
   const [items, setItems] = useState<PlayerPlaylistItem[]>([]);
   const [currentIndex, setCurrentIndex] = useState<number>(0);
+  const [playbackCycle, setPlaybackCycle] = useState<number>(0);
 
   const [pairingCode, setPairingCode] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(600);
   const [status, setStatus] = useState<'loading' | 'unpaired' | 'no_playlist' | 'no_items' | 'playing' | 'expired' | 'error'>('loading');
   const [message, setMessage] = useState<string>('');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [presentationNotice, setPresentationNotice] = useState<string>('');
 
   const pairingPollInFlightRef = useRef(false);
   const sessionIdRef = useRef<string>('');
 
-  // Refs de Estado da Mídia em Exibição
-  const slideStartedAtRef = useRef<string | null>(null);
-  const slideIdempotencyKeyRef = useRef<string | null>(null);
+  const statusRef = useRef(status);
+  const itemsRef = useRef<PlayerPlaylistItem[]>([]);
+  const currentIndexRef = useRef(0);
+  const pendingItemsRef = useRef<PlayerPlaylistItem[] | null>(null);
+  const pendingEmptyStateRef = useRef<PendingEmptyState | null>(null);
+  const slideLogContextRef = useRef<SlideLogContext | null>(null);
+  const slideCompletionRef = useRef(false);
+  const flushInFlightRef = useRef(false);
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
@@ -148,6 +176,56 @@ export default function PlayerPage() {
   const flushQueueRef = useRef<NodeJS.Timeout | null>(null);
   const programmingRefreshRef = useRef<NodeJS.Timeout | null>(null);
 
+  const enterPresentationMode = async () => {
+    const root = document.documentElement as FullscreenElement;
+    const requestFullscreen = root.requestFullscreen?.bind(root) || root.webkitRequestFullscreen?.bind(root);
+
+    if (!requestFullscreen) {
+      setPresentationNotice('Esta TV pode não permitir ocultar completamente a barra do navegador. O player continuará funcionando normalmente.');
+      return;
+    }
+
+    try {
+      await requestFullscreen();
+      setPresentationNotice('');
+    } catch {
+      setPresentationNotice('Esta TV pode não permitir ocultar completamente a barra do navegador. O player continuará funcionando normalmente.');
+    }
+  };
+
+  useEffect(() => {
+    statusRef.current = status;
+  }, [status]);
+
+  useEffect(() => {
+    document.documentElement.classList.add('tv-presentation-root');
+    document.body.classList.add('tv-presentation-root');
+
+    const syncFullscreenState = () => {
+      const fullscreenDocument = document as FullscreenDocument;
+      setIsFullscreen(!!(document.fullscreenElement || fullscreenDocument.webkitFullscreenElement));
+    };
+    const handlePresentationKey = (event: KeyboardEvent) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        void enterPresentationMode();
+      }
+    };
+
+    document.addEventListener('fullscreenchange', syncFullscreenState);
+    document.addEventListener('webkitfullscreenchange', syncFullscreenState as EventListener);
+    window.addEventListener('keydown', handlePresentationKey);
+    syncFullscreenState();
+
+    return () => {
+      document.documentElement.classList.remove('tv-presentation-root');
+      document.body.classList.remove('tv-presentation-root');
+      document.removeEventListener('fullscreenchange', syncFullscreenState);
+      document.removeEventListener('webkitfullscreenchange', syncFullscreenState as EventListener);
+      window.removeEventListener('keydown', handlePresentationKey);
+    };
+  }, []);
+
   // 1. Inicialização do Player e Session ID
   useEffect(() => {
     sessionIdRef.current = typeof window !== 'undefined' ? window.crypto.randomUUID() : 'sess_' + Date.now();
@@ -155,6 +233,7 @@ export default function PlayerPage() {
 
     if (savedToken) {
       setDeviceToken(savedToken);
+      startDeviceServices(savedToken);
       loadPlaylistAndStartPlayer(savedToken);
     } else {
       initNewPairing();
@@ -171,14 +250,7 @@ export default function PlayerPage() {
     if (timerRef.current) clearInterval(timerRef.current);
     if (slideTimerRef.current) clearTimeout(slideTimerRef.current);
     if (flushQueueRef.current) clearInterval(flushQueueRef.current);
-    if (programmingRefreshRef.current) clearTimeout(programmingRefreshRef.current);
-  };
-
-  const scheduleProgrammingRefresh = (token: string) => {
-    if (programmingRefreshRef.current) clearTimeout(programmingRefreshRef.current);
-    programmingRefreshRef.current = setTimeout(() => {
-      loadPlaylistAndStartPlayer(token);
-    }, 30000);
+    if (programmingRefreshRef.current) clearInterval(programmingRefreshRef.current);
   };
 
   // 2. Fila de Contingência de Logs no localStorage
@@ -194,34 +266,92 @@ export default function PlayerPage() {
   };
 
   const flushPendingLogsQueue = async (token: string) => {
+    if (flushInFlightRef.current) return;
+    flushInFlightRef.current = true;
     try {
       const queueRaw = localStorage.getItem('rede_indoor_pending_playback_logs');
       if (!queueRaw) return;
       const queue: PlaybackLogIngestPayload[] = JSON.parse(queueRaw);
       if (queue.length === 0) return;
 
-      const remainingQueue: PlaybackLogIngestPayload[] = [];
+      const deliveredKeys = new Set<string>();
 
       for (const log of queue) {
         const res = await recordPlaybackLogAction(token, log);
-        if (!res.success) {
+        if (res.success) {
+          deliveredKeys.add(log.idempotency_key);
+        } else {
           // Se o token for inválido, interromper reenvio
           if (res.error?.includes('inválido') || res.error?.includes('revogado')) {
             break;
           }
-          // Falha temporária de rede -> manter no localStorage com a mesma idempotency_key
-          remainingQueue.push(log);
         }
       }
 
+      // Releia a fila para preservar logs que chegaram enquanto o envio estava em andamento.
+      const latestRaw = localStorage.getItem('rede_indoor_pending_playback_logs');
+      const latestQueue: PlaybackLogIngestPayload[] = latestRaw ? JSON.parse(latestRaw) : [];
+      const remainingQueue = latestQueue.filter((log) => !deliveredKeys.has(log.idempotency_key));
       localStorage.setItem('rede_indoor_pending_playback_logs', JSON.stringify(remainingQueue));
     } catch (e) {
       console.error('Erro ao processar fila de logs:', e);
+    } finally {
+      flushInFlightRef.current = false;
     }
   };
 
-  // 3. Carregar Playlist e Iniciar Player
-  const loadPlaylistAndStartPlayer = async (token: string) => {
+  const startDeviceServices = (token: string) => {
+    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+    heartbeatRef.current = setInterval(async () => {
+      const hb = await heartbeatAction(token);
+      if (!hb.success) {
+        if (isPermanentDeviceError(hb.error)) {
+          clearAllTimers();
+          clearStoredDeviceToken();
+          clearPendingPairing();
+          setDeviceToken(null);
+          initNewPairing(true);
+        } else {
+          console.warn('Heartbeat temporariamente indisponível:', hb.error);
+        }
+      }
+    }, 30000);
+
+    if (flushQueueRef.current) clearInterval(flushQueueRef.current);
+    flushQueueRef.current = setInterval(() => {
+      void flushPendingLogsQueue(token);
+    }, 15000);
+    void flushPendingLogsQueue(token);
+
+    if (programmingRefreshRef.current) clearInterval(programmingRefreshRef.current);
+    programmingRefreshRef.current = setInterval(() => {
+      void loadPlaylistAndStartPlayer(token, true);
+    }, 30000);
+  };
+
+  const applyProgrammingQueue = (
+    nextItems: PlayerPlaylistItem[],
+    emptyState: PendingEmptyState
+  ) => {
+    pendingItemsRef.current = null;
+    pendingEmptyStateRef.current = null;
+    itemsRef.current = nextItems;
+    currentIndexRef.current = 0;
+    setItems(nextItems);
+    setCurrentIndex(0);
+    setPlaybackCycle((cycle) => cycle + 1);
+
+    if (nextItems.length > 0) {
+      setStatus('playing');
+      setMessage('');
+    } else {
+      setStatus(emptyState.status);
+      setMessage(emptyState.message);
+    }
+  };
+
+  // 3. Carregar a programação sem interromper a mídia atualmente em exibição.
+  const loadPlaylistAndStartPlayer = async (token: string, background = false) => {
     const res = await getPlayerPlaylistAction(token);
 
     if (!res.success) {
@@ -230,6 +360,8 @@ export default function PlayerPage() {
         clearPendingPairing();
         setDeviceToken(null);
         initNewPairing(true);
+      } else if (background && statusRef.current === 'playing') {
+        console.warn('Atualização temporariamente indisponível:', res.error);
       } else {
         setStatus('error');
         setMessage(res.error || 'Falha temporária ao carregar a programação.');
@@ -241,103 +373,97 @@ export default function PlayerPage() {
       setScreenInfo(res.screen as ScreenInfo);
     }
 
-    // Loop de Heartbeat a cada 30s
-    if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    heartbeatRef.current = setInterval(async () => {
-      const hb = await heartbeatAction(token);
-      if (!hb.success) {
-        if (isPermanentDeviceError(hb.error)) {
-          clearStoredDeviceToken();
-          clearPendingPairing();
-          setDeviceToken(null);
-          initNewPairing(true);
-        } else {
-          console.warn('Heartbeat temporariamente indisponível:', hb.error);
-        }
-      }
-    }, 30000);
-
-    // Loop de Flush de Logs Pendentes a cada 15s
-    if (flushQueueRef.current) clearInterval(flushQueueRef.current);
-    flushQueueRef.current = setInterval(() => {
-      flushPendingLogsQueue(token);
-    }, 15000);
-
-    if (!res.hasPlaylist) {
-      setStatus('no_playlist');
-      setMessage(res.message || 'TV vinculada com sucesso. Aguardando playlist.');
-      setPlaylistInfo(null);
-      setItems([]);
-      scheduleProgrammingRefresh(token);
-      return;
-    }
-
     if (res.playlist) {
       setPlaylistInfo(res.playlist as PlaylistInfo);
     } else {
       setPlaylistInfo(null);
     }
 
-    if (!res.hasItems || !res.items || res.items.length === 0) {
-      setStatus('no_items');
-      setMessage(res.message || 'Playlist ativa sem mídias aprovadas.');
-      setItems([]);
-      scheduleProgrammingRefresh(token);
+    const nextItems = res.hasItems && res.items ? res.items : [];
+    const emptyState: PendingEmptyState = !res.hasPlaylist
+      ? {
+          status: 'no_playlist',
+          message: res.message || 'TV vinculada com sucesso. Aguardando playlist ou campanha.',
+        }
+      : {
+          status: 'no_items',
+          message: res.message || 'Programação ativa sem mídias aprovadas.',
+        };
+
+    if (background && statusRef.current === 'playing' && itemsRef.current.length > 0) {
+      pendingItemsRef.current = nextItems;
+      pendingEmptyStateRef.current = emptyState;
       return;
     }
 
-    if (programmingRefreshRef.current) clearTimeout(programmingRefreshRef.current);
-    setItems(res.items);
-    setCurrentIndex(0);
-    setStatus('playing');
+    applyProgrammingQueue(nextItems, emptyState);
   };
 
   // 4. Registrar Término da Mídia e Avançar Slide
-  const finishCurrentSlideAndLog = async (overrideStatus?: 'completed' | 'skipped' | 'failed', failureReason?: string) => {
-    if (!activeItem || !deviceToken || !slideStartedAtRef.current || !slideIdempotencyKeyRef.current) {
-      advanceIndexNext();
-      return;
+  const finishCurrentSlideAndLog = (overrideStatus?: 'completed' | 'skipped' | 'failed', failureReason?: string) => {
+    // onEnded, onError e o timer de segurança podem ocorrer quase juntos.
+    // Somente o primeiro evento finaliza e registra esta exibição.
+    if (slideCompletionRef.current) return;
+    slideCompletionRef.current = true;
+    if (slideTimerRef.current) clearTimeout(slideTimerRef.current);
+
+    const context = slideLogContextRef.current;
+    if (context && deviceToken) {
+      const endedAtISO = new Date().toISOString();
+      const startedTime = new Date(context.startedAt).getTime();
+      const endedTime = new Date(endedAtISO).getTime();
+      const actualDurationSeconds = Math.max(0, Math.round(((endedTime - startedTime) / 1000) * 100) / 100);
+
+      void context.idempotencyKey.then((idempotencyKey) => {
+        const logPayload: PlaybackLogIngestPayload = {
+          media_asset_id: context.item.media_id,
+          playlist_id: context.item.playlist_id,
+          playlist_item_id: context.item.playlist_item_id,
+          media_type: context.item.media_type,
+          planned_duration_seconds: context.item.playback_duration_seconds,
+          actual_duration_seconds: actualDurationSeconds,
+          started_at: context.startedAt,
+          ended_at: endedAtISO,
+          status: overrideStatus || 'completed',
+          failure_reason: failureReason || null,
+          idempotency_key: idempotencyKey,
+          player_session_id: sessionIdRef.current,
+        };
+
+        enqueueLogToLocalQueue(logPayload);
+        void flushPendingLogsQueue(deviceToken);
+      });
     }
 
-    const endedAtISO = new Date().toISOString();
-    const startedTime = new Date(slideStartedAtRef.current).getTime();
-    const endedTime = new Date(endedAtISO).getTime();
-    const actualDurationSeconds = Math.max(0, Math.round(((endedTime - startedTime) / 1000) * 100) / 100);
-
-    const logPayload: PlaybackLogIngestPayload = {
-      media_asset_id: activeItem.media_id,
-      playlist_id: activeItem.playlist_id,
-      playlist_item_id: activeItem.playlist_item_id,
-      media_type: activeItem.media_type,
-      planned_duration_seconds: activeItem.playback_duration_seconds,
-      actual_duration_seconds: actualDurationSeconds,
-      started_at: slideStartedAtRef.current,
-      ended_at: endedAtISO,
-      status: overrideStatus || 'completed',
-      failure_reason: failureReason || null,
-      idempotency_key: slideIdempotencyKeyRef.current,
-      player_session_id: sessionIdRef.current,
-    };
-
-    // 1. Salva de forma resiliente na fila local do localStorage
-    enqueueLogToLocalQueue(logPayload);
-
-    // 2. Tenta enviar imediatamente em segundo plano
-    flushPendingLogsQueue(deviceToken);
-
-    // 3. Avançar para o próximo slide sem travar a tela
     advanceIndexNext();
   };
 
   const advanceIndexNext = () => {
-    setCurrentIndex((prev) => {
-      const nextIdx = (prev + 1) % items.length;
-      if (nextIdx === 0 && deviceToken) {
-        // Recarregar playlist e assinar novas URLs ao terminar a volta no loop
-        loadPlaylistAndStartPlayer(deviceToken);
-      }
-      return nextIdx;
-    });
+    const currentQueue = itemsRef.current;
+    if (currentQueue.length === 0) return;
+
+    const nextIndex = currentIndexRef.current + 1;
+    if (nextIndex < currentQueue.length) {
+      currentIndexRef.current = nextIndex;
+      setCurrentIndex(nextIndex);
+      return;
+    }
+
+    // A fila nova só é aplicada na fronteira entre voltas, sem cortar a mídia atual.
+    if (pendingItemsRef.current !== null) {
+      const nextQueue = pendingItemsRef.current;
+      const emptyState = pendingEmptyStateRef.current || {
+        status: 'no_items' as const,
+        message: 'Aguardando conteúdo programado.',
+      };
+      applyProgrammingQueue(nextQueue, emptyState);
+      return;
+    }
+
+    // Fim da última mídia: reinicia deterministicamente na primeira.
+    currentIndexRef.current = 0;
+    setCurrentIndex(0);
+    setPlaybackCycle((cycle) => cycle + 1);
   };
 
   // 5. Início do Slide Atual (Geração de Idempotency Key)
@@ -347,12 +473,13 @@ export default function PlayerPage() {
     if (status !== 'playing' || !activeItem) return;
 
     const startedISO = new Date().toISOString();
-    slideStartedAtRef.current = startedISO;
-
     const seed = `${screenInfo?.id || 'scr'}_${activeItem.media_id}_${activeItem.id}_${startedISO}_${sessionIdRef.current}_${Math.random()}`;
-    generateIdempotencyKey(seed).then((key) => {
-      slideIdempotencyKeyRef.current = key;
-    });
+    slideCompletionRef.current = false;
+    slideLogContextRef.current = {
+      item: activeItem,
+      startedAt: startedISO,
+      idempotencyKey: generateIdempotencyKey(seed),
+    };
 
     const durationMs = (activeItem.playback_duration_seconds || 10) * 1000;
 
@@ -366,7 +493,7 @@ export default function PlayerPage() {
     return () => {
       if (slideTimerRef.current) clearTimeout(slideTimerRef.current);
     };
-  }, [currentIndex, status, activeItem]);
+  }, [currentIndex, playbackCycle, status, activeItem]);
 
   // 6. Fluxo de Pareamento Inicial
   const finishPairing = async (session: PendingPairing, token: string) => {
@@ -384,6 +511,7 @@ export default function PlayerPage() {
     } catch (error) {
       console.warn('Confirmação do pareamento será concluída posteriormente:', error);
     }
+    startDeviceServices(token);
     await loadPlaylistAndStartPlayer(token);
   };
 
@@ -479,6 +607,7 @@ export default function PlayerPage() {
     const storedToken = readStoredDeviceToken();
     if (storedToken) {
       setDeviceToken(storedToken);
+      startDeviceServices(storedToken);
       await loadPlaylistAndStartPlayer(storedToken);
     } else {
       await initNewPairing(false);
@@ -486,13 +615,36 @@ export default function PlayerPage() {
   };
 
   return (
-    <div className="fixed inset-0 bg-black text-white flex flex-col justify-between font-sans select-none overflow-hidden">
+    <div
+      data-tv-player
+      className="fixed inset-0 w-screen h-[100dvh] bg-black text-white flex flex-col justify-between font-sans select-none overflow-hidden"
+    >
+      {!isFullscreen && (
+        <div className="absolute left-3 bottom-3 z-50 flex max-w-[min(92vw,36rem)] flex-col items-start gap-2">
+          <button
+            type="button"
+            onClick={() => void enterPresentationMode()}
+            className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-black/70 px-4 py-2 text-xs font-semibold text-white/90 shadow-lg backdrop-blur transition hover:bg-black/90 focus:outline-none focus:ring-2 focus:ring-sky-400"
+            aria-label="Iniciar apresentação em tela cheia"
+          >
+            <Maximize2 className="h-4 w-4" />
+            <span>Iniciar apresentação</span>
+            <span className="hidden text-white/50 sm:inline">• OK ou Enter</span>
+          </button>
+          {presentationNotice && (
+            <p role="status" className="rounded-lg bg-black/75 px-3 py-2 text-[11px] leading-relaxed text-amber-200/90 backdrop-blur">
+              {presentationNotice}
+            </p>
+          )}
+        </div>
+      )}
+
       {/* MODO REPRODUÇÃO EM TELA CHEIA (PLAYING) */}
       {status === 'playing' && activeItem && (
         <div className="relative w-full h-full flex items-center justify-center bg-black">
           {activeItem.media_type === 'image' ? (
             <img
-              key={activeItem.id}
+              key={`${activeItem.id}:${playbackCycle}`}
               src={activeItem.signed_url}
               alt={activeItem.title}
               className="w-full h-full object-contain animate-in fade-in duration-500"
@@ -500,7 +652,7 @@ export default function PlayerPage() {
             />
           ) : (
             <video
-              key={activeItem.id}
+              key={`${activeItem.id}:${playbackCycle}`}
               src={activeItem.signed_url}
               autoPlay
               muted

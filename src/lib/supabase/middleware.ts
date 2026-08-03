@@ -11,10 +11,17 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/register') ||
     pathname.startsWith('/player') ||
     pathname.startsWith('/tv') ||
+    pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/api/');
 
   // 2. Se for rota de player (/tv ou /player) ou API pública, libera o acesso imediatamente sem verificar login
-  if (pathname.startsWith('/tv') || pathname.startsWith('/player') || pathname === '/' || pathname.startsWith('/api/')) {
+  if (
+    pathname.startsWith('/tv') ||
+    pathname.startsWith('/player') ||
+    pathname === '/manifest.webmanifest' ||
+    pathname === '/' ||
+    pathname.startsWith('/api/')
+  ) {
     return NextResponse.next();
   }
 

@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Mídia por Mídia TV">
+  <rect width="512" height="512" rx="112" fill="#000000"/>
+  <rect x="76" y="116" width="360" height="260" rx="42" fill="#0f172a" stroke="#38bdf8" stroke-width="20"/>
+  <path d="M220 190 330 246 220 310Z" fill="#38bdf8"/>
+  <path d="M184 416h144" stroke="#a855f7" stroke-width="24" stroke-linecap="round"/>
+</svg>
