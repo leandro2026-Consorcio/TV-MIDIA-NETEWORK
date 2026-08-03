@@ -154,11 +154,6 @@ export async function checkPairingStatusAction(code: string, pairingSecret: stri
 
     const screenId = data.screen_id;
 
-    // Destruição imediata do payload criptografado após a entrega única
-    await (supabase.from('screen_pairing_codes') as any)
-      .update({ encrypted_device_token: null })
-      .eq('id', data.id);
-
     return {
       status: 'paired',
       deviceToken: rawDeviceToken,
@@ -167,6 +162,43 @@ export async function checkPairingStatusAction(code: string, pairingSecret: stri
   }
 
   return { status: data.status };
+}
+
+/**
+ * Confirma que o player persistiu o token antes de remover o payload temporário.
+ * Evita perder o vínculo quando a página é recarregada durante a entrega.
+ */
+export async function acknowledgePairingAction(code: string, pairingSecret: string) {
+  if (!code || !pairingSecret) {
+    return { success: false };
+  }
+
+  let supabase;
+  try {
+    supabase = createAdminClient();
+  } catch (error) {
+    console.error('Erro de configuração ao confirmar pareamento:', error);
+    return { success: false };
+  }
+
+  const { data } = await (supabase.from('screen_pairing_codes') as any)
+    .select('id, pairing_secret_hash, status')
+    .eq('code', code.trim().toUpperCase())
+    .single();
+
+  if (
+    !data ||
+    data.status !== 'paired' ||
+    data.pairing_secret_hash !== hashToken(pairingSecret)
+  ) {
+    return { success: false };
+  }
+
+  const { error } = await (supabase.from('screen_pairing_codes') as any)
+    .update({ encrypted_device_token: null })
+    .eq('id', data.id);
+
+  return { success: !error };
 }
 
 /**

@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { createClient } from '@/lib/supabase/client';
+import InternalCampaignEditor from '@/components/internal-campaign-editor';
+import { getCampaignDetailsAction } from '@/app/actions/campaigns';
 import { 
   getCommercialCampaignDetailsAction, 
   processCommercialCampaignDeliveryAction 
@@ -25,11 +26,23 @@ export default function CampaignDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
 
-  const supabase = createClient();
-
   const loadCampaignData = async () => {
     try {
       setLoading(true);
+      setError(null);
+      const base = await getCampaignDetailsAction(campaignId);
+      if (!base.success || !base.campaign) {
+        setError(base.error || 'Campanha não encontrada.');
+        return;
+      }
+
+      if (base.campaign.campaign_type === 'internal') {
+        setCampaign(base.campaign);
+        setCampaignMedia(base.campaignMedia || []);
+        setCampaignScreens(base.campaignScreens || []);
+        return;
+      }
+
       const res = await getCommercialCampaignDetailsAction(campaignId);
       if (!res.success || !res.campaign) {
         setError(res.error || 'Campanha não encontrada.');
@@ -50,7 +63,7 @@ export default function CampaignDetailPage() {
 
   useEffect(() => {
     loadCampaignData();
-  }, [campaignId, supabase]);
+  }, [campaignId]);
 
   const handleProcessDelivery = async () => {
     setProcessing(true);
@@ -91,6 +104,10 @@ export default function CampaignDetailPage() {
         </Link>
       </div>
     );
+  }
+
+  if (campaign.campaign_type === 'internal') {
+    return <InternalCampaignEditor campaignId={campaignId} />;
   }
 
   const isCommercial = campaign.campaign_type === 'marketplace' || campaign.campaign_type === 'commercial';

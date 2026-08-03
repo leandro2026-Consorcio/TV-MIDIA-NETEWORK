@@ -13,8 +13,9 @@ flowchart LR
     A[1. Cadastro da Empresa] --> B[2. Cadastro & Pareamento de TV]
     B --> C[3. Envio & Aprovação de Mídias]
     C --> D[4. Montagem da Playlist & Atribuição]
-    D --> E[5. Configuração da Rede & Ofertas]
-    E --> F[6. Transação de Créditos / Planos]
+    D --> E[5. Campanha Interna Opcional]
+    E --> F[6. Configuração da Rede & Ofertas]
+    F --> G[7. Transação de Créditos / Planos]
 ```
 
 ### Passo 1: Cadastro da Empresa (Tenant)
@@ -26,8 +27,9 @@ flowchart LR
 
 ### Passo 2: Cadastrar Nova TV / Tela e Realizar Pareamento
 * **Onde:** `/screens/new`
-* **O que faz:** Informa o nome da TV (ex: "Recepção"), orientação (Horizontal 16:9 ou Vertical 9:16) e gera um código de 6 dígitos (ex: `A9X2K4`).
-* **Como parear:** Abra o player em qualquer Smart TV ou navegador no link `/player`. Digite o código de 6 dígitos gerado. A TV fica online e vinculada à empresa.
+* **O que faz:** Cadastra o nome da TV (ex: "Recepção") e sua orientação (Horizontal 16:9 ou Vertical 9:16).
+* **Como parear:** Abra `https://midiapormidia.com.br/tv` na Smart TV ou navegador. O endereço exibe um código de 6 caracteres. Abra a TV cadastrada no painel e informe esse código no campo de pareamento.
+* **Endereço de reprodução:** O mesmo `/tv` usado no pareamento permanece aberto para reproduzir playlists e campanhas. Não é necessário trocar de link depois do vínculo.
 
 ---
 
@@ -42,11 +44,19 @@ flowchart LR
 ### Passo 4: Criar Playlist & Vincular à TV
 * **Onde:** `/playlists/new`
 * **O que faz:** Cria a grade de programação, adiciona as mídias aprovadas e define a ordem de exibição.
-* **Vínculo:** Em `/playlists/[id]`, atribua a playlist à TV criada no Passo 2. O player na TV atualizará a grade automaticamente em tempo real.
+* **Vínculo:** Ative a playlist e, em `/screens/[id]`, atribua-a à TV criada no Passo 2. O player atualiza automaticamente a programação.
 
 ---
 
-### Passo 5: Inventário de Rede & Publicação de Ofertas no Marketplace
+### Passo 5: Criar Campanha Interna (Opcional)
+* **Onde:** `/campaigns/new`
+* **O que faz:** Programa uma ou mais mídias aprovadas para TVs específicas, com período e meta de inserções.
+* **Ordem obrigatória:** Crie o rascunho, abra a campanha, adicione ao menos uma mídia aprovada, adicione ao menos uma TV e clique em **Ativar Campanha**.
+* **Exibição:** Uma campanha `active`, dentro do período configurado, entra automaticamente no loop do mesmo player `/tv`, junto da playlist ativa quando houver.
+
+---
+
+### Passo 6: Inventário de Rede & Publicação de Ofertas no Marketplace
 * **Onde:** `/network-settings` e `/ad-offers/new`
 * **O que faz:** Define se a empresa aceita exibir mídias de parceiros externos ou permuta. Cria os Planos de Mídia (ex: "100 exibições/dia por R$ 150/mês").
 * **Aprovação Master:** O Master Admin homologa a oferta em `/admin/ad-offers` para aparecer no Marketplace público (`/marketplace`).

@@ -12,6 +12,61 @@ export interface CreateCampaignPayload {
 }
 
 /**
+ * Carrega uma campanha (interna ou comercial) sem depender dos relacionamentos
+ * comerciais opcionais. Também retorna os vínculos e os ativos disponíveis
+ * para o editor de campanhas internas.
+ */
+export async function getCampaignDetailsAction(campaignId: string) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Usuário não autenticado.' };
+  }
+
+  const { data: campaign, error } = await (supabase.from('campaigns') as any)
+    .select('*')
+    .eq('id', campaignId)
+    .single();
+
+  if (error || !campaign) {
+    return { success: false, error: 'Campanha não encontrada ou acesso negado.' };
+  }
+
+  const [mediaResult, screensResult, approvedMediaResult, availableScreensResult] = await Promise.all([
+    (supabase.from('campaign_media') as any)
+      .select('*, media_assets(*)')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: true }),
+    (supabase.from('campaign_screens') as any)
+      .select('*, screens(*)')
+      .eq('campaign_id', campaignId)
+      .order('created_at', { ascending: true }),
+    (supabase.from('media_assets') as any)
+      .select('*')
+      .eq('company_id', campaign.company_id)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false }),
+    (supabase.from('screens') as any)
+      .select('*')
+      .eq('company_id', campaign.company_id)
+      .neq('status', 'inactive')
+      .order('name', { ascending: true }),
+  ]);
+
+  return {
+    success: true,
+    campaign,
+    campaignMedia: mediaResult.data || [],
+    campaignScreens: screensResult.data || [],
+    approvedMedia: approvedMediaResult.data || [],
+    availableScreens: availableScreensResult.data || [],
+  };
+}
+
+/**
  * 1. Criar Campanha Interna
  */
 export async function createCampaignAction(payload: CreateCampaignPayload) {
