@@ -132,6 +132,25 @@ function isPermanentDeviceError(error?: string): boolean {
     normalized.includes('dispositivo inválido');
 }
 
+function programmingQueueSignature(items: PlayerPlaylistItem[]): string {
+  return JSON.stringify(items.map((item) => [
+    item.id,
+    item.item_type,
+    item.playlist_id,
+    item.playlist_item_id,
+    item.campaign_id,
+    item.content_id,
+    item.media_id,
+    item.title,
+    item.playback_duration_seconds,
+    item.summary,
+    item.category,
+    item.source_name,
+    item.original_url,
+    item.published_at,
+  ]));
+}
+
 // Helper: Gerar Hash SHA-256 no cliente para a chave de idempotência
 async function generateIdempotencyKey(seedText: string): Promise<string> {
   if (typeof window !== 'undefined' && window.crypto && window.crypto.subtle) {
@@ -333,14 +352,18 @@ export default function PlayerPage() {
 
   const applyProgrammingQueue = (
     nextItems: PlayerPlaylistItem[],
-    emptyState: PendingEmptyState
+    emptyState: PendingEmptyState,
+    startIndex = 0
   ) => {
+    const safeStartIndex = nextItems.length > 0
+      ? Math.min(Math.max(0, startIndex), nextItems.length - 1)
+      : 0;
     pendingItemsRef.current = null;
     pendingEmptyStateRef.current = null;
     itemsRef.current = nextItems;
-    currentIndexRef.current = 0;
+    currentIndexRef.current = safeStartIndex;
     setItems(nextItems);
-    setCurrentIndex(0);
+    setCurrentIndex(safeStartIndex);
     setPlaybackCycle((cycle) => cycle + 1);
 
     if (nextItems.length > 0) {
@@ -393,6 +416,11 @@ export default function PlayerPage() {
         };
 
     if (background && statusRef.current === 'playing' && itemsRef.current.length > 0) {
+      if (programmingQueueSignature(nextItems) === programmingQueueSignature(itemsRef.current)) {
+        pendingItemsRef.current = null;
+        pendingEmptyStateRef.current = null;
+        return;
+      }
       pendingItemsRef.current = nextItems;
       pendingEmptyStateRef.current = emptyState;
       return;
@@ -461,21 +489,29 @@ export default function PlayerPage() {
     const currentQueue = itemsRef.current;
     if (currentQueue.length === 0) return;
 
-    const nextIndex = currentIndexRef.current + 1;
-    if (nextIndex < currentQueue.length) {
-      currentIndexRef.current = nextIndex;
-      setCurrentIndex(nextIndex);
-      return;
-    }
-
-    // A fila nova só é aplicada na fronteira entre voltas, sem cortar a mídia atual.
+    // Uma programação alterada entra logo depois da mídia atual. Quando o item
+    // comercial ainda existe na fila nova, a sequência continua no próximo slot.
     if (pendingItemsRef.current !== null) {
       const nextQueue = pendingItemsRef.current;
       const emptyState = pendingEmptyStateRef.current || {
         status: 'no_items' as const,
         message: 'Aguardando conteúdo programado.',
       };
-      applyProgrammingQueue(nextQueue, emptyState);
+      const currentItem = currentQueue[currentIndexRef.current];
+      const currentItemIndex = currentItem
+        ? nextQueue.findIndex((item) => item.id === currentItem.id)
+        : -1;
+      const startIndex = currentItemIndex >= 0 && nextQueue.length > 0
+        ? (currentItemIndex + 1) % nextQueue.length
+        : 0;
+      applyProgrammingQueue(nextQueue, emptyState, startIndex);
+      return;
+    }
+
+    const nextIndex = currentIndexRef.current + 1;
+    if (nextIndex < currentQueue.length) {
+      currentIndexRef.current = nextIndex;
+      setCurrentIndex(nextIndex);
       return;
     }
 
