@@ -45,6 +45,23 @@ export function sanitizeRssText(value: unknown, maxLength: number): string {
     .slice(0, maxLength);
 }
 
+function truncateRssSummary(value: string, maxLength: number): string {
+  if (value.length <= maxLength) return value;
+
+  const candidate = value.slice(0, maxLength - 1).trimEnd();
+  const minimumNaturalCut = Math.floor(maxLength * 0.65);
+  const sentenceCuts = [candidate.lastIndexOf('. '), candidate.lastIndexOf('! '), candidate.lastIndexOf('? ')];
+  const sentenceCut = Math.max(...sentenceCuts);
+  const wordCut = candidate.lastIndexOf(' ');
+  const cutAt = sentenceCut >= minimumNaturalCut
+    ? sentenceCut + 1
+    : wordCut >= minimumNaturalCut
+      ? wordCut
+      : candidate.length;
+
+  return `${candidate.slice(0, cutAt).trimEnd()}…`;
+}
+
 function isPrivateAddress(address: string): boolean {
   if (net.isIPv4(address)) {
     const octets = address.split('.').map(Number);
@@ -203,10 +220,18 @@ export function normalizeRssItem(rawItem: Record<string, any>): NormalizedRssIte
   const title = sanitizeRssText(rawItem.title, 180);
   if (!title) return null;
 
-  const summary = sanitizeRssText(
-    rawItem.description ?? rawItem.summary ?? rawItem.content ?? rawItem['content:encoded'],
-    500
-  ) || null;
+  const summaryCandidates = [
+    rawItem.description,
+    rawItem.summary,
+    rawItem['content:encoded'],
+    rawItem.content,
+  ]
+    .map((value) => sanitizeRssText(value, 2000))
+    .filter(Boolean)
+    .sort((left, right) => right.length - left.length);
+  const summary = summaryCandidates[0]
+    ? truncateRssSummary(summaryCandidates[0], 500)
+    : null;
   const originalUrl = normalizeLink(rawItem);
   const imageUrl = normalizeImage(rawItem);
   const rawDate = textValue(rawItem.pubDate ?? rawItem.published ?? rawItem.updated ?? rawItem['dc:date']);

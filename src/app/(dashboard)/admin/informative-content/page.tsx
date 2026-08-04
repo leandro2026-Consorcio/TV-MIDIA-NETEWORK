@@ -110,7 +110,7 @@ export default function InformativeContentAdminPage() {
                 {item.content_origin === 'manual' && <button onClick={() => edit(item)} className="rounded-lg bg-slate-800 p-2 text-slate-300 hover:text-white"><Edit3 className="h-4 w-4" /></button>}
               </div>
               <SourceAttribution item={item} />
-              <p className="line-clamp-3 text-sm leading-relaxed text-slate-400">{item.summary || 'Sem resumo.'}</p>
+              <ExpandableSummary summary={item.summary} />
               <div className="flex flex-wrap gap-2 border-t border-slate-800 pt-3">
                 {item.status === 'pending_review' && <><button onClick={() => changeStatus(item.id, 'approved')} className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400">Aprovar</button><button onClick={() => changeStatus(item.id, 'rejected')} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-400">Rejeitar</button></>}
                 {item.status === 'paused' && <button onClick={() => changeStatus(item.id, 'active')} className="rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-400">Ativar</button>}
@@ -175,6 +175,30 @@ function SourceAttribution({ item }: { item: any }) {
           {hostname}
           <ExternalLink className="h-3.5 w-3.5" />
         </a>
+      )}
+    </div>
+  );
+}
+
+function ExpandableSummary({ summary }: { summary?: string | null }) {
+  const [expanded, setExpanded] = useState(false);
+  const text = summary || 'Sem resumo.';
+  const canExpand = !!summary && summary.length > 180;
+
+  return (
+    <div className="space-y-2">
+      <p className={`${expanded ? 'whitespace-pre-wrap' : 'line-clamp-3'} text-sm leading-relaxed text-slate-400`}>
+        {text}
+      </p>
+      {canExpand && (
+        <button
+          type="button"
+          aria-expanded={expanded}
+          onClick={() => setExpanded((value) => !value)}
+          className="text-xs font-bold text-sky-400 hover:text-sky-300"
+        >
+          {expanded ? 'Recolher resumo' : 'Ver resumo completo'}
+        </button>
       )}
     </div>
   );
