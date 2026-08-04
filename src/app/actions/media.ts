@@ -88,14 +88,16 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
   // Marketplace/comercial continua passando pelos fluxos específicos de revisão.
   let initialStatus = isMaster ? 'approved' : 'pending_review';
   let trialAutoApproved = false;
-  if (!isMaster && userRole === 'admin') {
-    const { data: activeTrial } = await (supabase.from('company_trials') as any)
-      .select('id')
+  if (!isMaster) {
+    const { data: companyTrial } = await (supabase.from('company_trials') as any)
+      .select('id, status, trial_end_date')
       .eq('company_id', payload.company_id)
-      .eq('status', 'active')
-      .gte('trial_end_date', new Date().toISOString().slice(0, 10))
+      .in('status', ['active', 'expired', 'cancelled'])
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
+    const activeTrial = companyTrial?.status === 'active' && companyTrial.trial_end_date >= new Date().toISOString().slice(0, 10);
     if (activeTrial) {
       const { data: setting } = await (supabase.from('platform_settings') as any)
         .select('value')
@@ -103,7 +105,9 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
         .maybeSingle();
       trialAutoApproved = setting?.value === true;
       initialStatus = trialAutoApproved ? 'approved' : 'pending_review';
-    } else {
+    } else if (companyTrial) {
+      initialStatus = 'pending_review';
+    } else if (userRole === 'admin') {
       initialStatus = 'approved';
     }
   }
@@ -128,6 +132,7 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
       duration_seconds: payload.duration_seconds || null,
       playback_duration_seconds: payload.playback_duration_seconds,
       status: initialStatus,
+      trial_internal_only: trialAutoApproved,
     })
     .select()
     .single();
@@ -153,7 +158,7 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
       user_id: user.id,
       company_id: payload.company_id,
       action: 'TRIAL_INTERNAL_MEDIA_AUTO_APPROVED',
-      details: { media_id: newMedia.id, setting: 'auto_approve_trial_internal_media' },
+      details: { media_id: newMedia.id, setting: 'auto_approve_trial_internal_media', scope: 'internal_only' },
     });
   }
 

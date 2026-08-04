@@ -10,9 +10,9 @@ export interface Database {
   public: {
     Tables: {
       profiles: {
-        Row: { id: string; email: string; full_name: string | null; avatar_url: string | null; phone: string | null; is_master_admin: boolean; created_at: string; updated_at: string; };
-        Insert: { id: string; email: string; full_name?: string | null; avatar_url?: string | null; phone?: string | null; is_master_admin?: boolean; created_at?: string; updated_at?: string; };
-        Update: { id?: string; email?: string; full_name?: string | null; avatar_url?: string | null; phone?: string | null; is_master_admin?: boolean; created_at?: string; updated_at?: string; };
+        Row: { id: string; email: string; full_name: string | null; avatar_url: string | null; phone: string | null; is_master_admin: boolean; public_onboarding_completed_at: string | null; created_at: string; updated_at: string; };
+        Insert: { id: string; email: string; full_name?: string | null; avatar_url?: string | null; phone?: string | null; is_master_admin?: boolean; public_onboarding_completed_at?: string | null; created_at?: string; updated_at?: string; };
+        Update: { id?: string; email?: string; full_name?: string | null; avatar_url?: string | null; phone?: string | null; is_master_admin?: boolean; public_onboarding_completed_at?: string | null; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
       companies: {
@@ -70,9 +70,9 @@ export interface Database {
         Relationships: [];
       };
       media_assets: {
-        Row: { id: string; company_id: string; uploaded_by: string | null; title: string; description: string | null; file_path: string; file_url: string | null; file_name: string | null; file_size_bytes: number | null; mime_type: string; media_type: 'image' | 'video'; orientation: string; width: number | null; height: number | null; duration_seconds: number | null; playback_duration_seconds: number; status: string; rejection_reason: string | null; is_external: boolean; created_at: string; updated_at: string; };
-        Insert: { id?: string; company_id: string; uploaded_by?: string | null; title: string; description?: string | null; file_path: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type: string; media_type: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds: number; status?: string; rejection_reason?: string | null; is_external?: boolean; created_at?: string; updated_at?: string; };
-        Update: { id?: string; company_id?: string; uploaded_by?: string | null; title?: string; description?: string | null; file_path?: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type?: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds?: 5 | 10 | 15 | 30; status?: string; rejection_reason?: string | null; is_external?: boolean; created_at?: string; updated_at?: string; };
+        Row: { id: string; company_id: string; uploaded_by: string | null; title: string; description: string | null; file_path: string; file_url: string | null; file_name: string | null; file_size_bytes: number | null; mime_type: string; media_type: 'image' | 'video'; orientation: string; width: number | null; height: number | null; duration_seconds: number | null; playback_duration_seconds: number; status: string; rejection_reason: string | null; is_external: boolean; trial_internal_only: boolean; created_at: string; updated_at: string; };
+        Insert: { id?: string; company_id: string; uploaded_by?: string | null; title: string; description?: string | null; file_path: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type: string; media_type: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds: number; status?: string; rejection_reason?: string | null; is_external?: boolean; trial_internal_only?: boolean; created_at?: string; updated_at?: string; };
+        Update: { id?: string; company_id?: string; uploaded_by?: string | null; title?: string; description?: string | null; file_path?: string; file_url?: string | null; file_name?: string | null; file_size_bytes?: number | null; mime_type?: 'image' | 'video'; orientation?: string; width?: number | null; height?: number | null; duration_seconds?: number | null; playback_duration_seconds?: 5 | 10 | 15 | 30; status?: string; rejection_reason?: string | null; is_external?: boolean; trial_internal_only?: boolean; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
       playlists: {

@@ -5,7 +5,8 @@ import { AlertTriangle, CalendarDays, CheckCircle2, Clock, Sparkles } from 'luci
 
 export function TrialStatusCard({ trial }: { trial: any }) {
   if (!trial) return null;
-  const expired = trial.status === 'expired';
+  if (trial.status === 'converted') return null;
+  const expired = trial.status === 'expired' || trial.status === 'cancelled';
   const warning = trial.status === 'active' && trial.daysRemaining <= 7;
   const tone = expired ? 'rose' : warning ? 'amber' : 'emerald';
   const colors: Record<string, string> = {
@@ -23,7 +24,7 @@ export function TrialStatusCard({ trial }: { trial: any }) {
           </div>
           <div>
             <h2 className="text-lg font-extrabold text-white">
-              {expired ? 'Seu período gratuito terminou' : 'Você está no período gratuito'}
+              {expired ? (trial.status === 'cancelled' ? 'Seu período gratuito foi encerrado' : 'Seu período gratuito terminou') : 'Você está no período gratuito'}
             </h2>
             <p className="text-sm mt-1">
               {expired

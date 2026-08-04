@@ -18,6 +18,9 @@ INSERT INTO public.platform_settings (key, value, description) VALUES
   ('public_signup_disabled_message', '"Novos cadastros estao temporariamente indisponiveis. Fale com nosso atendimento."'::jsonb, 'Mensagem exibida quando o cadastro publico estiver desativado.')
 ON CONFLICT (key) DO NOTHING;
 
+ALTER TABLE public.profiles
+  ADD COLUMN IF NOT EXISTS public_onboarding_completed_at TIMESTAMPTZ;
+
 ALTER TABLE public.platform_settings ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "PlatformSettings - Public read" ON public.platform_settings;
@@ -46,6 +49,79 @@ ALTER TABLE public.referral_invites
   ADD COLUMN IF NOT EXISTS invited_company_id UUID REFERENCES public.companies(id) ON DELETE SET NULL,
   ADD COLUMN IF NOT EXISTS trial_days_granted INTEGER NOT NULL DEFAULT 60,
   ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;
+
+ALTER TABLE public.media_assets
+  ADD COLUMN IF NOT EXISTS trial_internal_only BOOLEAN NOT NULL DEFAULT FALSE;
+
+CREATE OR REPLACE FUNCTION public.protect_public_onboarding_marker()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+BEGIN
+  IF OLD.public_onboarding_completed_at IS NOT NULL
+     AND NEW.public_onboarding_completed_at IS DISTINCT FROM OLD.public_onboarding_completed_at
+     AND auth.role() <> 'service_role'
+     AND NOT public.is_master_admin() THEN
+    RAISE EXCEPTION 'O marcador de onboarding público não pode ser removido.';
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_protect_public_onboarding_marker ON public.profiles;
+CREATE TRIGGER trg_protect_public_onboarding_marker
+  BEFORE UPDATE OF public_onboarding_completed_at ON public.profiles
+  FOR EACH ROW EXECUTE FUNCTION public.protect_public_onboarding_marker();
+
+CREATE OR REPLACE FUNCTION public.enforce_trial_media_approval()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth, pg_temp
+AS $$
+DECLARE
+  v_trial RECORD;
+  v_auto_approve BOOLEAN := FALSE;
+BEGIN
+  IF auth.role() = 'service_role' OR public.is_master_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  IF TG_OP = 'UPDATE' THEN
+    IF OLD.trial_internal_only AND NOT NEW.trial_internal_only THEN
+      RAISE EXCEPTION 'A restrição de uso interno da mídia só pode ser removida pelo Master Admin.';
+    END IF;
+  END IF;
+
+  SELECT status, trial_end_date INTO v_trial
+  FROM public.company_trials
+  WHERE company_id = NEW.company_id AND status IN ('active', 'expired', 'cancelled')
+  ORDER BY created_at DESC LIMIT 1;
+
+  IF NOT FOUND THEN
+    RETURN NEW;
+  END IF;
+
+  IF v_trial.status = 'active' AND v_trial.trial_end_date >= CURRENT_DATE AND NOT COALESCE(NEW.is_external, FALSE) THEN
+    SELECT COALESCE((value #>> '{}')::BOOLEAN, FALSE) INTO v_auto_approve
+    FROM public.platform_settings WHERE key = 'auto_approve_trial_internal_media';
+    NEW.status := CASE WHEN v_auto_approve THEN 'approved' ELSE 'pending_review' END;
+    NEW.trial_internal_only := v_auto_approve;
+  ELSE
+    NEW.status := 'pending_review';
+    NEW.trial_internal_only := FALSE;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_enforce_trial_media_approval ON public.media_assets;
+CREATE TRIGGER trg_enforce_trial_media_approval
+  BEFORE INSERT OR UPDATE ON public.media_assets
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_trial_media_approval();
 
 ALTER TABLE public.referral_invites ALTER COLUMN invited_company_name DROP NOT NULL;
 ALTER TABLE public.referral_invites DROP CONSTRAINT IF EXISTS referral_invites_status_check;
@@ -92,6 +168,48 @@ CREATE TRIGGER trg_check_referral_invite_limit
   BEFORE INSERT ON public.referral_invites
   FOR EACH ROW EXECUTE FUNCTION public.check_referral_invite_limit();
 
+-- Mídia autoaprovada no trial pode rodar em playlists e campanhas internas,
+-- mas não pode ser promovida para pedidos comerciais, marketplace ou rede.
+CREATE OR REPLACE FUNCTION public.enforce_trial_internal_media_scope()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_internal_only BOOLEAN;
+  v_campaign_type TEXT;
+BEGIN
+  IF TG_TABLE_NAME = 'ad_offer_orders' AND NEW.requested_media_asset_id IS NOT NULL THEN
+    SELECT trial_internal_only INTO v_internal_only
+    FROM public.media_assets WHERE id = NEW.requested_media_asset_id;
+    IF COALESCE(v_internal_only, FALSE) THEN
+      RAISE EXCEPTION 'Mídia autoaprovada para uso interno não pode ser usada no marketplace.';
+    END IF;
+  ELSIF TG_TABLE_NAME = 'campaign_media' THEN
+    SELECT m.trial_internal_only, c.campaign_type
+      INTO v_internal_only, v_campaign_type
+    FROM public.media_assets m
+    CROSS JOIN public.campaigns c
+    WHERE m.id = NEW.media_asset_id AND c.id = NEW.campaign_id;
+    IF COALESCE(v_internal_only, FALSE) AND COALESCE(v_campaign_type, '') <> 'internal' THEN
+      RAISE EXCEPTION 'Mídia autoaprovada no trial é exclusiva para campanhas internas.';
+    END IF;
+  END IF;
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS trg_block_trial_media_marketplace ON public.ad_offer_orders;
+CREATE TRIGGER trg_block_trial_media_marketplace
+  BEFORE INSERT OR UPDATE OF requested_media_asset_id ON public.ad_offer_orders
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_trial_internal_media_scope();
+
+DROP TRIGGER IF EXISTS trg_block_trial_media_commercial_campaign ON public.campaign_media;
+CREATE TRIGGER trg_block_trial_media_commercial_campaign
+  BEFORE INSERT OR UPDATE OF media_asset_id, campaign_id ON public.campaign_media
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_trial_internal_media_scope();
+
 CREATE OR REPLACE FUNCTION public.complete_public_company_onboarding(
   p_user_id UUID,
   p_full_name TEXT,
@@ -136,7 +254,12 @@ BEGIN
 
   PERFORM pg_advisory_xact_lock(hashtextextended(p_user_id::TEXT, 0));
 
-  IF EXISTS (SELECT 1 FROM public.company_users WHERE user_id = p_user_id AND is_active = TRUE) THEN
+  IF EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = p_user_id AND public_onboarding_completed_at IS NOT NULL
+  ) OR EXISTS (
+    SELECT 1 FROM public.company_users WHERE user_id = p_user_id
+  ) THEN
     INSERT INTO public.audit_logs (user_id, action, details)
     VALUES (p_user_id, 'PUBLIC_ONBOARDING_SECOND_COMPANY_BLOCKED', jsonb_build_object('origin', 'phase6c'));
     RAISE EXCEPTION 'USER_ALREADY_HAS_COMPANY';
@@ -169,7 +292,9 @@ BEGIN
   v_invite_limit := COALESCE(v_invite_limit, 3);
 
   UPDATE public.profiles
-  SET full_name = btrim(p_full_name), phone = btrim(p_phone), updated_at = NOW()
+  SET full_name = btrim(p_full_name), phone = btrim(p_phone),
+      public_onboarding_completed_at = COALESCE(public_onboarding_completed_at, NOW()),
+      updated_at = NOW()
   WHERE id = p_user_id;
 
   INSERT INTO public.companies (trade_name, corporate_name, cnpj, city, state)
@@ -266,3 +391,7 @@ CREATE POLICY "ReferralInvites - Master manage"
   ON public.referral_invites FOR ALL TO authenticated
   USING (public.is_master_admin())
   WITH CHECK (public.is_master_admin());
+
+REVOKE ALL ON FUNCTION public.enforce_trial_internal_media_scope() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.protect_public_onboarding_marker() FROM PUBLIC, anon, authenticated;
+REVOKE ALL ON FUNCTION public.enforce_trial_media_approval() FROM PUBLIC, anon, authenticated;

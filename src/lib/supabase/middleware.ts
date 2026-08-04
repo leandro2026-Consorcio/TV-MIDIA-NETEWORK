@@ -67,25 +67,31 @@ export async function updateSession(request: NextRequest) {
       .maybeSingle();
 
     if (!profile?.is_master_admin) {
-      const { data: link } = await (supabase.from('company_users') as any)
+      const { data: link, error: linkError } = await (supabase.from('company_users') as any)
         .select('company_id')
         .eq('user_id', user.id)
         .eq('is_active', true)
         .limit(1)
         .maybeSingle();
 
+      if (!link && !linkError) {
+        const url = request.nextUrl.clone();
+        url.pathname = '/empresa/cadastro';
+        return NextResponse.redirect(url);
+      }
+
       if (link) {
-        const { data: trial } = await (supabase.from('company_trials') as any)
+        const { data: trial, error: trialError } = await (supabase.from('company_trials') as any)
           .select('id')
           .eq('company_id', link.company_id)
-          .in('status', ['active', 'expired'])
+          .in('status', ['active', 'expired', 'cancelled'])
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
 
         const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans'];
         const isAllowedTrialRoute = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-        if (trial && !isAllowedTrialRoute) {
+        if ((trial || trialError) && !isAllowedTrialRoute) {
           const url = request.nextUrl.clone();
           url.pathname = '/dashboard';
           return NextResponse.redirect(url);

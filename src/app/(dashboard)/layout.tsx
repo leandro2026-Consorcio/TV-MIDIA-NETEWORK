@@ -74,7 +74,9 @@ export default function DashboardLayout({
               const { data: trial } = await (supabase.from('company_trials') as any)
                 .select('status')
                 .eq('company_id', companyList[0].id)
-                .eq('status', 'active')
+                .in('status', ['active', 'expired', 'cancelled'])
+                .order('created_at', { ascending: false })
+                .limit(1)
                 .maybeSingle();
               setIsTrial(!!trial);
             }

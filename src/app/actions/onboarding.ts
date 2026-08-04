@@ -176,7 +176,6 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
     const { data: existingLink } = await (admin.from('company_users') as any)
       .select('company_id')
       .eq('user_id', sessionUser.id)
-      .eq('is_active', true)
       .limit(1)
       .maybeSingle();
     if (existingLink) {
@@ -217,7 +216,18 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
   });
 
   if (error) {
-    if (createdAuthUser && userId) await admin.auth.admin.deleteUser(userId);
+    let rollbackError: string | null = null;
+    if (createdAuthUser && userId) {
+      const { error: deleteError } = await admin.auth.admin.deleteUser(userId);
+      rollbackError = deleteError?.message || null;
+      if (rollbackError) {
+        await (admin.from('audit_logs') as any).insert({
+          user_id: userId,
+          action: 'PUBLIC_AUTH_ROLLBACK_FAILED',
+          details: { reason: rollbackError, onboarding_error: error.message },
+        });
+      }
+    }
     const knownErrors: Record<string, string> = {
       USER_ALREADY_HAS_COMPANY: 'Sua conta já possui uma empresa.',
       INVALID_INVITE: 'Este convite é inválido ou já foi utilizado.',
@@ -225,7 +235,12 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
       PUBLIC_SIGNUP_DISABLED: settingsResult.settings.disabledMessage,
     };
     const key = Object.keys(knownErrors).find((item) => error.message?.includes(item));
-    return { success: false as const, error: key ? knownErrors[key] : error.message || 'Não foi possível concluir o cadastro.' };
+    return {
+      success: false as const,
+      error: rollbackError
+        ? 'O cadastro não foi concluído e a limpeza automática da conta requer revisão administrativa.'
+        : key ? knownErrors[key] : error.message || 'Não foi possível concluir o cadastro.',
+    };
   }
 
   return {
