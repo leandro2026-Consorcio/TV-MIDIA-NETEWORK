@@ -295,26 +295,12 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
   let finalItems = itemsWithSignedUrls;
   if (contentSettings?.enable_breathing_content && itemsWithSignedUrls.length > 0) {
     const { data: informativeItems } = await (supabase.from('informative_content_items') as any)
-      .select('id, company_id, content_source_id, content_origin, title, summary, category, image_url, media_asset_id, source_name, original_url, published_at, region, city, duration_seconds, start_date, end_date, status, is_active, expires_at, media_assets(id, file_path, media_type, status)')
+      .select('id, company_id, content_source_id, content_origin, title, summary, category, image_url, media_asset_id, source_name, original_url, published_at, region, city, duration_seconds, start_date, end_date, status, is_active, expires_at, content_sources(is_active), media_assets(id, file_path, media_type, status)')
       .or(`company_id.is.null,company_id.eq.${screen.company_id}`)
       .eq('is_active', true)
-      .eq('status', 'active')
+      .in('status', ['approved', 'active'])
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(50);
-
-    const rssSourceIds = Array.from(new Set(
-      (informativeItems || [])
-        .filter((item: any) => item.content_origin === 'rss' && item.content_source_id)
-        .map((item: any) => item.content_source_id as string)
-    ));
-    const activeRssSourceIds = new Set<string>();
-    if (rssSourceIds.length > 0) {
-      const { data: activeSources } = await (supabase.from('content_sources') as any)
-        .select('id')
-        .in('id', rssSourceIds)
-        .eq('is_active', true);
-      for (const source of activeSources || []) activeRssSourceIds.add(source.id);
-    }
 
     const today = currentBusinessDate();
     const nowMs = Date.now();
@@ -325,7 +311,10 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     const eligible = (informativeItems || []).filter((item: any) => {
       if (item.content_origin === 'manual' && !contentSettings.enable_manual_content) return false;
       if (item.content_origin === 'rss' && !contentSettings.enable_rss_content) return false;
-      if (item.content_origin === 'rss' && !activeRssSourceIds.has(item.content_source_id)) return false;
+      const contentSource = Array.isArray(item.content_sources)
+        ? item.content_sources[0]
+        : item.content_sources;
+      if (item.content_origin === 'rss' && contentSource?.is_active !== true) return false;
       if (item.start_date && item.start_date > today) return false;
       if (item.end_date && item.end_date < today) return false;
       if (item.expires_at && new Date(item.expires_at).getTime() <= nowMs) return false;

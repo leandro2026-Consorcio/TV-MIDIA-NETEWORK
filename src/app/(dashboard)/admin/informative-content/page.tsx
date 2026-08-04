@@ -111,8 +111,8 @@ export default function InformativeContentAdminPage() {
               <p className="line-clamp-3 text-sm leading-relaxed text-slate-400">{item.summary || 'Sem resumo.'}</p>
               <div className="flex flex-wrap gap-2 border-t border-slate-800 pt-3">
                 {item.status === 'pending_review' && <><button onClick={() => changeStatus(item.id, 'approved')} className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400">Aprovar</button><button onClick={() => changeStatus(item.id, 'rejected')} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-400">Rejeitar</button></>}
-                {['approved', 'paused'].includes(item.status) && <button onClick={() => changeStatus(item.id, 'active')} className="rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-400">Ativar</button>}
-                {item.status === 'active' && <button onClick={() => changeStatus(item.id, 'paused')} className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-400">Pausar</button>}
+                {item.status === 'paused' && <button onClick={() => changeStatus(item.id, 'active')} className="rounded-lg bg-sky-500/10 px-3 py-1.5 text-xs font-bold text-sky-400">Ativar</button>}
+                {['approved', 'active'].includes(item.status) && <button onClick={() => changeStatus(item.id, 'paused')} className="rounded-lg bg-amber-500/10 px-3 py-1.5 text-xs font-bold text-amber-400">Pausar</button>}
                 {item.status !== 'archived' && <button onClick={() => changeStatus(item.id, 'archived')} className="rounded-lg bg-slate-800 px-3 py-1.5 text-xs font-bold text-slate-400">Arquivar</button>}
               </div>
             </article>

@@ -4,6 +4,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
 
+const PLAYER_BUILD_VERSION = process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL || 'development';
+
 // Helper: Hash SHA-256
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -397,6 +399,7 @@ export async function heartbeatAction(deviceToken: string) {
 
   return {
     success: true,
+    buildVersion: PLAYER_BUILD_VERSION,
     screen: {
       id: screen.id,
       name: screen.name,

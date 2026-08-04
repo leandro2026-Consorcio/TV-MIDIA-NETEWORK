@@ -180,6 +180,7 @@ export default function PlayerPage() {
 
   const pairingPollInFlightRef = useRef(false);
   const sessionIdRef = useRef<string>('');
+  const buildVersionRef = useRef<string | null>(null);
 
   const statusRef = useRef(status);
   const itemsRef = useRef<PlayerPlaylistItem[]>([]);
@@ -335,6 +336,16 @@ export default function PlayerPage() {
         } else {
           console.warn('Heartbeat temporariamente indisponível:', hb.error);
         }
+        return;
+      }
+
+      const reportedBuildVersion = hb.buildVersion || null;
+      if (reportedBuildVersion) {
+        if (buildVersionRef.current && buildVersionRef.current !== reportedBuildVersion) {
+          window.location.reload();
+          return;
+        }
+        buildVersionRef.current = reportedBuildVersion;
       }
     }, 30000);
 
