@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { Check, Copy, Gift, Loader2 } from 'lucide-react';
-import { getOnboardingContextAction } from '@/app/actions/onboarding';
+import { getOnboardingContextAction, markOnboardingEventAction } from '@/app/actions/onboarding';
 
 export default function CompanyInvitesPage() {
   const [context, setContext] = useState<any>(null);
@@ -12,6 +12,7 @@ export default function CompanyInvitesPage() {
   async function copy(code: string) {
     const url = `${window.location.origin}/invite/${encodeURIComponent(code)}`;
     await navigator.clipboard.writeText(url);
+    await markOnboardingEventAction('invite_copied');
     setCopied(code);
     window.setTimeout(() => setCopied(null), 1800);
   }

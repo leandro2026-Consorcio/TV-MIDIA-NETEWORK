@@ -35,7 +35,8 @@ import {
   FileText,
   Newspaper,
   Rss,
-  KeyRound
+  KeyRound,
+  CircleHelp
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -175,6 +176,10 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
       { name: 'Guia de início', href: '/onboarding', icon: CheckSquare },
       { name: 'Planos & atendimento', href: '/plans', icon: CreditCard },
     );
+  }
+
+  if (hasCompany && !navItems.some((item) => item.href === '/help/getting-started')) {
+    navItems.push({ name: 'Ajuda / Primeiros passos', href: '/help/getting-started', icon: CircleHelp });
   }
 
   if (isMasterAdmin) {

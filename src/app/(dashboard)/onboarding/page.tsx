@@ -2,9 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Check, Image as ImageIcon, ListVideo, Loader2, Tv } from 'lucide-react';
+import { Loader2 } from 'lucide-react';
 import { getOnboardingContextAction } from '@/app/actions/onboarding';
 import { TrialStatusCard } from '@/components/trial-status-card';
+import { GettingStartedChecklist } from '@/components/getting-started-checklist';
+import { HelpButton } from '@/components/help-button';
+import { OnboardingTour } from '@/components/onboarding-tour';
 
 export default function OnboardingPage() {
   const [context, setContext] = useState<any>(null);
@@ -18,40 +21,24 @@ export default function OnboardingPage() {
     </div>
   );
 
-  const steps = [
-    { done: context.checklist.screen, title: 'Cadastrar minha primeira TV', text: 'Crie a tela e use o código exibido no player para parear.', href: '/screens/new', action: 'Adicionar TV', icon: Tv },
-    { done: context.checklist.media, title: 'Enviar minha primeira mídia', text: 'Envie uma imagem ou vídeo próprio para sua programação interna.', href: '/media/new', action: 'Enviar mídia', icon: ImageIcon },
-    { done: context.checklist.playlist, title: 'Rodar minha primeira programação', text: 'Monte uma playlist e atribua à TV cadastrada.', href: '/playlists/new', action: 'Criar programação', icon: ListVideo },
-  ];
-
   return (
     <div className="max-w-4xl mx-auto space-y-8">
+      <OnboardingTour autoOpen={
+        context.trial?.status === 'active' &&
+        !context.progress?.tour_completed_at &&
+        !context.progress?.dont_show_again &&
+        !context.progress?.tour_seen_at
+      } />
       <TrialStatusCard trial={context.trial} />
-      <div>
+      <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
+        <div>
         <p className="text-sky-400 text-xs font-bold uppercase tracking-wider">Boas-vindas, {context.companyName}</p>
-        <h1 className="text-3xl font-extrabold text-white mt-2">Comece em 3 passos</h1>
+        <h1 className="text-3xl font-extrabold text-white mt-2">Primeiros passos</h1>
         <p className="text-slate-400 text-sm mt-2">Prepare sua primeira programação para começar a exibir na TV.</p>
+        </div>
+        <HelpButton />
       </div>
-      <div className="grid md:grid-cols-3 gap-5">
-        {steps.map((step, index) => {
-          const Icon = step.icon;
-          return (
-            <article key={step.title} className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col">
-              <div className="flex items-center justify-between mb-5">
-                <span className="text-xs font-mono text-slate-500">PASSO {index + 1}</span>
-                <span className={`w-8 h-8 rounded-full flex items-center justify-center ${step.done ? 'bg-emerald-500 text-white' : 'bg-slate-800 text-sky-400'}`}>
-                  {step.done ? <Check className="w-4 h-4" /> : <Icon className="w-4 h-4" />}
-                </span>
-              </div>
-              <h2 className="font-bold text-white">{step.title}</h2>
-              <p className="text-xs text-slate-400 mt-2 leading-relaxed flex-1">{step.text}</p>
-              <Link href={step.href} className="mt-6 bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/20 text-sky-300 text-xs font-bold text-center py-2.5 rounded-xl">
-                {step.done ? 'Revisar' : step.action}
-              </Link>
-            </article>
-          );
-        })}
-      </div>
+      <GettingStartedChecklist context={context} />
     </div>
   );
 }

@@ -123,6 +123,12 @@ export interface Database {
         Update: { id?: string; company_id?: string; trial_start_date?: string; trial_end_date?: string; trial_days?: number; free_days?: number; trial_type?: string; status?: string; created_by?: string | null; metadata?: Json; created_at?: string; };
         Relationships: [];
       };
+      company_onboarding_progress: {
+        Row: { id: string; company_id: string; tour_seen_at: string | null; tour_started_at: string | null; tour_completed_at: string | null; tour_skipped_at: string | null; dont_show_again: boolean; first_screen_created_at: string | null; first_screen_paired_at: string | null; first_media_uploaded_at: string | null; first_playlist_created_at: string | null; first_campaign_started_at: string | null; first_playback_detected_at: string | null; first_invite_copied_at: string | null; metadata: Json; created_at: string; updated_at: string; };
+        Insert: { id?: string; company_id: string; tour_seen_at?: string | null; tour_started_at?: string | null; tour_completed_at?: string | null; tour_skipped_at?: string | null; dont_show_again?: boolean; first_screen_created_at?: string | null; first_screen_paired_at?: string | null; first_media_uploaded_at?: string | null; first_playlist_created_at?: string | null; first_campaign_started_at?: string | null; first_playback_detected_at?: string | null; first_invite_copied_at?: string | null; metadata?: Json; created_at?: string; updated_at?: string; };
+        Update: { id?: string; company_id?: string; tour_seen_at?: string | null; tour_started_at?: string | null; tour_completed_at?: string | null; tour_skipped_at?: string | null; dont_show_again?: boolean; first_screen_created_at?: string | null; first_screen_paired_at?: string | null; first_media_uploaded_at?: string | null; first_playlist_created_at?: string | null; first_campaign_started_at?: string | null; first_playback_detected_at?: string | null; first_invite_copied_at?: string | null; metadata?: Json; created_at?: string; updated_at?: string; };
+        Relationships: [];
+      };
       referral_invites: {
         Row: { id: string; inviter_company_id: string; invited_company_id?: string | null; invite_code: string; status: string; trial_days_granted: number; metadata: Json; created_at: string; invited_company_name?: string | null; invited_contact_name?: string | null; accepted_at?: string | null; expires_at?: string | null; };
         Insert: { id?: string; inviter_company_id: string; invited_company_id?: string | null; invite_code: string; status?: string; trial_days_granted?: number; metadata?: Json; created_at?: string; invited_company_name?: string | null; invited_contact_name?: string | null; accepted_at?: string | null; expires_at?: string | null; };
@@ -914,6 +920,7 @@ export interface Database {
     Functions: {
       is_master_admin: { Args: Record<PropertyKey, never>; Returns: boolean; };
       get_user_company_ids: { Args: Record<PropertyKey, never>; Returns: string[]; };
+      mark_company_onboarding_progress: { Args: { p_company_id: string; p_event: string; p_user_id?: string | null; p_metadata?: Json; }; Returns: Database['public']['Tables']['company_onboarding_progress']['Row']; };
       accept_platform_term: { Args: { p_company_id: string; p_term_id: string; p_acceptance_context?: string; p_ip_address?: string; p_user_agent?: string; }; Returns: Json; };
       check_company_required_terms: { Args: { p_company_id: string }; Returns: Json; };
     };

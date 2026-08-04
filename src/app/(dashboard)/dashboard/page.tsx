@@ -6,6 +6,9 @@ import { createClient } from '@/lib/supabase/client';
 import { Building2, Wallet, Tv, Image as ImageIcon, ListVideo, Megaphone, Gift, Clock, Play, AlertCircle, ArrowUpRight, Plus, Loader2 } from 'lucide-react';
 import { getOnboardingContextAction } from '@/app/actions/onboarding';
 import { TrialStatusCard } from '@/components/trial-status-card';
+import { GettingStartedChecklist } from '@/components/getting-started-checklist';
+import { HelpButton } from '@/components/help-button';
+import { OnboardingTour } from '@/components/onboarding-tour';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -125,7 +128,14 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {onboarding?.hasCompany && <OnboardingTour autoOpen={
+        onboarding.trial?.status === 'active' &&
+        !onboarding.progress?.tour_completed_at &&
+        !onboarding.progress?.dont_show_again &&
+        !onboarding.progress?.tour_seen_at
+      } />}
       {onboarding?.trial && <TrialStatusCard trial={onboarding.trial} />}
+      {onboarding?.hasCompany && <GettingStartedChecklist context={onboarding} />}
       {onboarding && !onboarding.hasCompany && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 flex flex-col sm:flex-row justify-between gap-4">
           <div><h2 className="font-bold text-white">Complete seu cadastro empresarial</h2><p className="text-sm text-amber-200/70 mt-1">Vincule sua empresa para liberar TVs, mídias e programações.</p></div>
@@ -147,6 +157,7 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+          {onboarding?.hasCompany && <HelpButton />}
           <Link
             href={onboarding?.trial ? '/onboarding' : '/marketplace'}
             className="bg-purple-500 hover:bg-purple-600 text-white font-bold px-5 py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 shrink-0"

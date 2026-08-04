@@ -26,6 +26,14 @@ export interface CompanySignupInput {
   inviteCode?: string;
 }
 
+export type OnboardingTourEvent =
+  | 'tour_seen'
+  | 'tour_started'
+  | 'tour_skipped'
+  | 'tour_completed'
+  | 'dont_show_again'
+  | 'invite_copied';
+
 const DEFAULT_SETTINGS: PublicSignupSettings = {
   enabled: false,
   trialDays: 60,
@@ -271,13 +279,39 @@ export async function getOnboardingContextAction() {
   if (!link) return { success: true as const, hasCompany: false, isMaster: !!profile?.is_master_admin };
 
   const companyId = link.company_id;
-  const [{ data: trial }, { data: invites }, screenResult, mediaResult, playlistResult] = await Promise.all([
+  const [{ data: trial }, { data: invites }, screenResult, pairedScreenResult, mediaResult, playlistResult, playbackResult] = await Promise.all([
     (supabase.from('company_trials') as any).select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
     (supabase.from('referral_invites') as any).select('*').eq('inviter_company_id', companyId).order('created_at'),
     (supabase.from('screens') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId),
+    (supabase.from('screens') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId).not('paired_at', 'is', null),
     (supabase.from('media_assets') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId),
     (supabase.from('playlists') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId),
+    (supabase.from('playback_logs') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId).in('status', ['started', 'completed']),
   ]);
+
+  const admin = createAdminClient();
+  await (admin.from('company_onboarding_progress') as any)
+    .upsert({ company_id: companyId }, { onConflict: 'company_id', ignoreDuplicates: true });
+
+  const existingEvents: Array<[boolean, string]> = [
+    [(screenResult.count || 0) > 0, 'screen_created'],
+    [(pairedScreenResult.count || 0) > 0, 'screen_paired'],
+    [(mediaResult.count || 0) > 0, 'media_uploaded'],
+    [(playlistResult.count || 0) > 0, 'playlist_created'],
+    [(playbackResult.count || 0) > 0, 'playback_detected'],
+  ];
+  await Promise.all(existingEvents.filter(([done]) => done).map(([, event]) =>
+    (admin.rpc as any)('mark_company_onboarding_progress', {
+      p_company_id: companyId,
+      p_event: event,
+      p_user_id: user.id,
+      p_metadata: { source: 'existing_data_sync' },
+    })
+  ));
+  const { data: progress } = await (admin.from('company_onboarding_progress') as any)
+    .select('*')
+    .eq('company_id', companyId)
+    .single();
 
   let daysRemaining = 0;
   let effectiveStatus = trial?.status || 'none';
@@ -296,12 +330,46 @@ export async function getOnboardingContextAction() {
     role: link.role,
     trial: trial ? { ...trial, status: effectiveStatus, daysRemaining } : null,
     invites: invites || [],
+    progress,
     checklist: {
       screen: (screenResult.count || 0) > 0,
+      pairedScreen: (pairedScreenResult.count || 0) > 0,
       media: (mediaResult.count || 0) > 0,
       playlist: (playlistResult.count || 0) > 0,
+      playback: (playbackResult.count || 0) > 0,
+      inviteCopied: !!progress?.first_invite_copied_at,
     },
   };
+}
+
+export async function markOnboardingEventAction(event: OnboardingTourEvent) {
+  const allowed: OnboardingTourEvent[] = [
+    'tour_seen', 'tour_started', 'tour_skipped', 'tour_completed',
+    'dont_show_again', 'invite_copied',
+  ];
+  if (!allowed.includes(event)) return { success: false as const, error: 'Evento inválido.' };
+
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false as const, error: 'Usuário não autenticado.' };
+
+  const { data: link } = await (supabase.from('company_users') as any)
+    .select('company_id')
+    .eq('user_id', user.id)
+    .eq('is_active', true)
+    .limit(1)
+    .maybeSingle();
+  if (!link) return { success: false as const, error: 'Empresa não vinculada.' };
+
+  const admin = createAdminClient();
+  const { data, error } = await (admin.rpc as any)('mark_company_onboarding_progress', {
+    p_company_id: link.company_id,
+    p_event: event,
+    p_user_id: user.id,
+    p_metadata: { source: 'guided_onboarding_action' },
+  });
+  if (error) return { success: false as const, error: error.message };
+  return { success: true as const, progress: data };
 }
 
 export async function updatePlatformTrialSettingsAction(settings: PublicSignupSettings) {
