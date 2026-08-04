@@ -32,7 +32,9 @@ import {
   Network,
   ShieldCheck,
   Crown,
-  FileText
+  FileText,
+  Newspaper,
+  Rss
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -157,6 +159,16 @@ export function Sidebar({ isMasterAdmin }: SidebarProps) {
 
   if (isMasterAdmin) {
     navItems.push(
+      {
+        name: 'Biblioteca Informativa',
+        href: '/admin/informative-content',
+        icon: Newspaper,
+      },
+      {
+        name: 'Fontes RSS',
+        href: '/admin/content-sources',
+        icon: Rss,
+      },
       {
         name: 'Transferências Payout (Master)',
         href: '/admin/seller-payout-transfers',

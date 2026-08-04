@@ -319,14 +319,19 @@ export default function ScreenDetailPage() {
         </div>
 
         {isAdminOrMaster && screen.status !== 'inactive' && (
-          <button
-            onClick={handleDeactivate}
-            disabled={deactivating}
-            className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2"
-          >
-            {deactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
-            Desativar Tela
-          </button>
+          <div className="flex items-center gap-2">
+            <Link href={`/screens/${screenId}/content-settings`} className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition">
+              Conteúdo de Respiro
+            </Link>
+            <button
+              onClick={handleDeactivate}
+              disabled={deactivating}
+              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2"
+            >
+              {deactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+              Desativar Tela
+            </button>
+          </div>
         )}
       </div>
 

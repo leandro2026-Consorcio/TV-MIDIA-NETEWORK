@@ -56,6 +56,16 @@ flowchart LR
 
 ---
 
+### Passo 5B: Intercalar Conteúdo de Respiro Manual e RSS (Opcional)
+* **Conteúdo manual (Master):** acesse `/admin/informative-content`, clique em **Novo conteúdo manual**, preencha título, resumo curto, categoria e período. Conteúdo global com status `active` pode ser selecionado pelas TVs.
+* **Fonte RSS (Master):** acesse `/admin/content-sources`, cadastre a URL do feed, configure intervalo, expiração e aprovação. Use **Testar busca** antes de salvar e **Importar** para buscar notícias no servidor.
+* **Aprovação de notícias:** fontes que exigem revisão criam itens `pending_review`. Em `/admin/informative-content`, use **Aprovar** ou **Rejeitar**. Somente itens `approved`/`active`, dentro da validade, entram na TV.
+* **Ativação por TV:** abra `/screens/[id]`, clique em **Conteúdo de Respiro**, ative a função, escolha 3, 4 ou 5 propagandas entre cards, habilite Manual/RSS e informe categorias opcionais.
+* **Importação automática:** configure `CRON_SECRET` no servidor e agende uma chamada `GET /api/cron/rss` com o cabeçalho `Authorization: Bearer <CRON_SECRET>`. Cada fonte só é processada quando vence seu intervalo.
+* **Separação comercial:** cards informativos usam `screen_content_logs`; não entram em `playback_logs`, não consomem créditos e não geram cobrança ou payout.
+
+---
+
 ### Passo 6: Inventário de Rede & Publicação de Ofertas no Marketplace
 * **Onde:** `/network-settings` e `/ad-offers/new`
 * **O que faz:** Define se a empresa aceita exibir mídias de parceiros externos ou permuta. Cria os Planos de Mídia (ex: "100 exibições/dia por R$ 150/mês").

@@ -9,6 +9,8 @@ import {
 } from '@/app/actions/pairing';
 import { getPlayerPlaylistAction, PlayerPlaylistItem } from '@/app/actions/playlist-player';
 import { recordPlaybackLogAction, PlaybackLogIngestPayload } from '@/app/actions/playback-logs';
+import { recordInformativeContentLogAction } from '@/app/actions/informative-playback-logs';
+import { InformativeContentCard } from '@/components/informative-content-card';
 import { Tv, Clock, RefreshCw, AlertCircle, ListVideo, Maximize2 } from 'lucide-react';
 
 interface ScreenInfo {
@@ -415,6 +417,23 @@ export default function PlayerPage() {
       const actualDurationSeconds = Math.max(0, Math.round(((endedTime - startedTime) / 1000) * 100) / 100);
 
       void context.idempotencyKey.then((idempotencyKey) => {
+        if (context.item.media_type === 'informative' && context.item.content_id && context.item.content_origin) {
+          void recordInformativeContentLogAction(deviceToken, {
+            content_id: context.item.content_id,
+            content_type: context.item.content_origin,
+            started_at: context.startedAt,
+            ended_at: endedAtISO,
+            status: overrideStatus || 'completed',
+            error_message: failureReason || null,
+            idempotency_key: idempotencyKey,
+            player_session_id: sessionIdRef.current,
+          }).then((result) => {
+            if (!result.success) console.warn('Log operacional informativo não enviado:', result.error);
+          });
+          return;
+        }
+
+        if (!context.item.media_id || context.item.media_type === 'informative') return;
         const logPayload: PlaybackLogIngestPayload = {
           media_asset_id: context.item.media_id,
           playlist_id: context.item.playlist_id,
@@ -473,7 +492,7 @@ export default function PlayerPage() {
     if (status !== 'playing' || !activeItem) return;
 
     const startedISO = new Date().toISOString();
-    const seed = `${screenInfo?.id || 'scr'}_${activeItem.media_id}_${activeItem.id}_${startedISO}_${sessionIdRef.current}_${Math.random()}`;
+    const seed = `${screenInfo?.id || 'scr'}_${activeItem.media_id || activeItem.content_id}_${activeItem.id}_${startedISO}_${sessionIdRef.current}_${Math.random()}`;
     slideCompletionRef.current = false;
     slideLogContextRef.current = {
       item: activeItem,
@@ -642,10 +661,12 @@ export default function PlayerPage() {
       {/* MODO REPRODUÇÃO EM TELA CHEIA (PLAYING) */}
       {status === 'playing' && activeItem && (
         <div className="relative w-full h-full flex items-center justify-center bg-black">
-          {activeItem.media_type === 'image' ? (
+          {activeItem.media_type === 'informative' ? (
+            <InformativeContentCard key={`${activeItem.id}:${playbackCycle}`} item={activeItem} />
+          ) : activeItem.media_type === 'image' ? (
             <img
               key={`${activeItem.id}:${playbackCycle}`}
-              src={activeItem.signed_url}
+              src={activeItem.signed_url || undefined}
               alt={activeItem.title}
               className="w-full h-full object-contain animate-in fade-in duration-500"
               onError={() => finishCurrentSlideAndLog('failed', 'Erro ao carregar URL da imagem')}
@@ -653,7 +674,7 @@ export default function PlayerPage() {
           ) : (
             <video
               key={`${activeItem.id}:${playbackCycle}`}
-              src={activeItem.signed_url}
+              src={activeItem.signed_url || undefined}
               autoPlay
               muted
               playsInline
