@@ -173,13 +173,13 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
     navItems = navItems.filter((item) => trialRoutes.has(item.href));
     navItems.push(
       { name: 'Convites VIP', href: '/company/invites', icon: Gift },
-      { name: 'Guia de início', href: '/onboarding', icon: CheckSquare },
+      { name: 'Primeiros passos', href: '/onboarding', icon: CheckSquare },
       { name: 'Planos & atendimento', href: '/plans', icon: CreditCard },
     );
   }
 
   if (hasCompany && !navItems.some((item) => item.href === '/help/getting-started')) {
-    navItems.push({ name: 'Ajuda / Primeiros passos', href: '/help/getting-started', icon: CircleHelp });
+    navItems.push({ name: 'Central de Ajuda', href: '/help/getting-started', icon: CircleHelp });
   }
 
   if (isMasterAdmin) {

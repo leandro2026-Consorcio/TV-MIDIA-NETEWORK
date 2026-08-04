@@ -3,14 +3,17 @@ import { createClient } from '@supabase/supabase-js';
 import { ASAAS_WEBHOOK_TOKEN } from '@/lib/asaas';
 import crypto from 'crypto';
 
-// Cliente Supabase com Service Role para gravação segura de webhooks
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL || '',
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || ''
-);
+export const dynamic = 'force-dynamic';
+
+function getSupabaseAdmin() {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 'placeholder-key';
+  return createClient(url, key);
+}
 
 export async function POST(req: NextRequest) {
   try {
+    const supabaseAdmin = getSupabaseAdmin();
     // 1. Validar Header asaas-access-token
     const accessTokenHeader = req.headers.get('asaas-access-token');
     if (ASAAS_WEBHOOK_TOKEN && accessTokenHeader !== ASAAS_WEBHOOK_TOKEN) {

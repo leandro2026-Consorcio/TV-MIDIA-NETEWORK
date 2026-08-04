@@ -17,7 +17,7 @@ const topics = [
 export default function GettingStartedHelpPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-7">
-      <OnboardingTour autoOpen />
+      <OnboardingTour autoOpen={false} />
       <header className="flex flex-col justify-between gap-4 border-b border-slate-800 pb-6 sm:flex-row sm:items-end">
         <div><p className="text-xs font-bold uppercase tracking-wider text-sky-400">Central de ajuda</p><h1 className="mt-2 text-3xl font-extrabold text-white">Primeiros passos</h1><p className="mt-2 text-sm text-slate-400">Da primeira TV à primeira propaganda em exibição.</p></div>
         <HelpButton />

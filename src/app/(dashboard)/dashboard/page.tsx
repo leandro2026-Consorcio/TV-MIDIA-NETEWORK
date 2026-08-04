@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Building2, Wallet, Tv, Image as ImageIcon, ListVideo, Megaphone, Gift, Clock, Play, AlertCircle, ArrowUpRight, Plus, Loader2 } from 'lucide-react';
 import { getOnboardingContextAction } from '@/app/actions/onboarding';
 import { TrialStatusCard } from '@/components/trial-status-card';
-import { GettingStartedChecklist } from '@/components/getting-started-checklist';
+import { CompactOnboardingCard } from '@/components/compact-onboarding-card';
 import { HelpButton } from '@/components/help-button';
 import { OnboardingTour } from '@/components/onboarding-tour';
 
@@ -135,7 +135,7 @@ export default function DashboardPage() {
         !onboarding.progress?.tour_seen_at
       } />}
       {onboarding?.trial && <TrialStatusCard trial={onboarding.trial} />}
-      {onboarding?.hasCompany && <GettingStartedChecklist context={onboarding} />}
+      {onboarding?.hasCompany && <CompactOnboardingCard context={onboarding} />}
       {onboarding && !onboarding.hasCompany && (
         <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 flex flex-col sm:flex-row justify-between gap-4">
           <div><h2 className="font-bold text-white">Complete seu cadastro empresarial</h2><p className="text-sm text-amber-200/70 mt-1">Vincule sua empresa para liberar TVs, mídias e programações.</p></div>
