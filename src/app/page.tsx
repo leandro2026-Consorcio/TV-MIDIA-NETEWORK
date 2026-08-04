@@ -21,10 +21,10 @@ export default function Home() {
             Entrar
           </Link>
           <Link
-            href="/register"
+            href="/empresa/cadastro"
             className="bg-sky-500 hover:bg-sky-600 text-white font-medium px-5 py-2.5 rounded-xl text-sm transition shadow-lg shadow-sky-500/20"
           >
-            Criar Conta
+            Testar 60 dias grátis
           </Link>
         </div>
       </header>
@@ -45,10 +45,10 @@ export default function Home() {
 
         <div className="flex flex-col sm:flex-row gap-4 w-full justify-center max-w-md">
           <Link
-            href="/register"
+            href="/empresa/cadastro"
             className="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-8 py-4 rounded-xl text-base transition flex items-center justify-center gap-2 shadow-xl shadow-sky-500/25"
           >
-            Começar Agora <ArrowRight className="w-5 h-5" />
+            Começar 60 dias grátis <ArrowRight className="w-5 h-5" />
           </Link>
           <Link
             href="/login"

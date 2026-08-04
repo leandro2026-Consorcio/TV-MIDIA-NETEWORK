@@ -10,7 +10,7 @@ WITH expected_tables AS (
     'campaign_media','campaign_screens','company_trials','referral_invites',
     'credit_packages','company_network_preferences','company_ad_offers',
     'ad_offer_orders','ad_order_delivery_ledger','seller_financial_ledger',
-    'platform_terms','company_term_acceptances','asaas_payment_events',
+    'platform_terms','platform_settings','company_term_acceptances','asaas_payment_events',
     'asaas_reconciliation_reviews','seller_financial_profiles','seller_financial_profile_logs',
     'seller_payout_eligibility','seller_payout_simulations','seller_payout_batches',
     'seller_payout_batch_items','seller_payout_transfers'
@@ -23,8 +23,8 @@ created_tables AS (
 )
 SELECT 
   'Tabelas Criadas' AS item,
-  (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables))::TEXT || ' de 37 tabelas do sistema' AS detalhe,
-  CASE WHEN (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables)) >= 37 THEN 'OK (100% COMPLETO)' ELSE 'ATENÇÃO: TABELAS FALTANDO' END AS resultado
+  (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables))::TEXT || ' de 38 tabelas do sistema' AS detalhe,
+  CASE WHEN (SELECT COUNT(*) FROM created_tables WHERE table_name IN (SELECT table_name FROM expected_tables)) >= 38 THEN 'OK (100% COMPLETO)' ELSE 'ATENÇÃO: TABELAS FALTANDO' END AS resultado
 UNION ALL
 SELECT 
   'Políticas RLS Ativas' AS item,

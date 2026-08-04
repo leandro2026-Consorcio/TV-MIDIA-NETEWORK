@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Building2, Wallet, Tv, Image as ImageIcon, ListVideo, Megaphone, Gift, Clock, Play, AlertCircle, ArrowUpRight, Plus, Loader2 } from 'lucide-react';
+import { getOnboardingContextAction } from '@/app/actions/onboarding';
+import { TrialStatusCard } from '@/components/trial-status-card';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -19,6 +21,7 @@ export default function DashboardPage() {
     isMaster: false,
   });
   const [loading, setLoading] = useState(true);
+  const [onboarding, setOnboarding] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -101,6 +104,7 @@ export default function DashboardPage() {
           totalBalance,
           isMaster,
         });
+        if (!isMaster) setOnboarding(await getOnboardingContextAction());
       } catch (err) {
         console.error('Erro ao carregar estatísticas:', err);
       } finally {
@@ -121,6 +125,13 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {onboarding?.trial && <TrialStatusCard trial={onboarding.trial} />}
+      {onboarding && !onboarding.hasCompany && (
+        <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 flex flex-col sm:flex-row justify-between gap-4">
+          <div><h2 className="font-bold text-white">Complete seu cadastro empresarial</h2><p className="text-sm text-amber-200/70 mt-1">Vincule sua empresa para liberar TVs, mídias e programações.</p></div>
+          <Link href="/empresa/cadastro" className="bg-amber-500 text-slate-950 px-4 py-2.5 rounded-xl text-xs font-bold text-center">Cadastrar empresa</Link>
+        </div>
+      )}
       {/* Welcome Banner */}
       <div className="bg-gradient-to-r from-purple-900/40 via-slate-900 to-slate-900 border border-purple-500/20 rounded-3xl p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 shadow-xl">
         <div>
@@ -137,10 +148,10 @@ export default function DashboardPage() {
 
         <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
           <Link
-            href="/marketplace"
+            href={onboarding?.trial ? '/onboarding' : '/marketplace'}
             className="bg-purple-500 hover:bg-purple-600 text-white font-bold px-5 py-3 rounded-xl text-sm transition flex items-center justify-center gap-2 shadow-lg shadow-purple-500/20 shrink-0"
           >
-            <Plus className="w-4 h-4" /> Explorar Marketplace
+            <Plus className="w-4 h-4" /> {onboarding?.trial ? 'Continuar configuração' : 'Explorar Marketplace'}
           </Link>
         </div>
       </div>
@@ -206,6 +217,15 @@ export default function DashboardPage() {
       <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-4">
         <h2 className="font-bold text-slate-200 text-base">Ações Rápidas</h2>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+          {onboarding?.trial ? (
+            <>
+              <QuickLink href="/screens/new" label="Adicionar TV" />
+              <QuickLink href="/media/new" label="Enviar mídia" />
+              <QuickLink href="/playlists/new" label="Criar programação" />
+              <QuickLink href="/company/invites" label="Convites VIP" />
+            </>
+          ) : (
+          <>
           <Link
             href="/marketplace"
             className="p-4 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl transition flex items-center justify-between text-sm font-medium text-slate-200"
@@ -237,8 +257,14 @@ export default function DashboardPage() {
             <span>Carteira de Créditos</span>
             <ArrowUpRight className="w-4 h-4 text-slate-500" />
           </Link>
+          </>
+          )}
         </div>
       </div>
     </div>
   );
+}
+
+function QuickLink({ href, label }: { href: string; label: string }) {
+  return <Link href={href} className="p-4 bg-slate-950 hover:bg-slate-800 border border-slate-800 rounded-xl transition flex items-center justify-between text-sm font-medium text-slate-200"><span>{label}</span><ArrowUpRight className="w-4 h-4 text-slate-500" /></Link>;
 }

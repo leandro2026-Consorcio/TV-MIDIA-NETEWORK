@@ -84,8 +84,29 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
     return { success: false, error: 'Duração de exibição inválida. Informe um valor em segundos maior que zero.' };
   }
 
-  // 6. Definir Status Inicial (Admin/Master = approved, Operador = pending_review)
-  const initialStatus = isMaster || userRole === 'admin' ? 'approved' : 'pending_review';
+  // 6. Mídia própria de empresa em trial respeita a chave controlada pelo Master.
+  // Marketplace/comercial continua passando pelos fluxos específicos de revisão.
+  let initialStatus = isMaster ? 'approved' : 'pending_review';
+  let trialAutoApproved = false;
+  if (!isMaster && userRole === 'admin') {
+    const { data: activeTrial } = await (supabase.from('company_trials') as any)
+      .select('id')
+      .eq('company_id', payload.company_id)
+      .eq('status', 'active')
+      .gte('trial_end_date', new Date().toISOString().slice(0, 10))
+      .maybeSingle();
+
+    if (activeTrial) {
+      const { data: setting } = await (supabase.from('platform_settings') as any)
+        .select('value')
+        .eq('key', 'auto_approve_trial_internal_media')
+        .maybeSingle();
+      trialAutoApproved = setting?.value === true;
+      initialStatus = trialAutoApproved ? 'approved' : 'pending_review';
+    } else {
+      initialStatus = 'approved';
+    }
+  }
 
   // 7. Inserir no banco
   const { data: newMedia, error: dbErr } = await (supabase.from('media_assets') as any)
@@ -126,6 +147,15 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
       status: initialStatus,
     },
   });
+
+  if (trialAutoApproved) {
+    await (supabase.from('audit_logs') as any).insert({
+      user_id: user.id,
+      company_id: payload.company_id,
+      action: 'TRIAL_INTERNAL_MEDIA_AUTO_APPROVED',
+      details: { media_id: newMedia.id, setting: 'auto_approve_trial_internal_media' },
+    });
+  }
 
   return { success: true, media: newMedia };
 }

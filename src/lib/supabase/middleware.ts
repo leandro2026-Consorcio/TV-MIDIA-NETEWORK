@@ -9,6 +9,8 @@ export async function updateSession(request: NextRequest) {
     pathname === '/' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
+    pathname.startsWith('/empresa/cadastro') ||
+    pathname.startsWith('/invite/') ||
     pathname.startsWith('/player') ||
     pathname.startsWith('/tv') ||
     pathname === '/manifest.webmanifest' ||
@@ -55,6 +57,42 @@ export async function updateSession(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+
+  // Empresas em trial operam somente o núcleo necessário. Esconder o menu não
+  // basta: o mesmo conjunto é aplicado ao acesso direto por URL.
+  if (user && !isPublicRoute) {
+    const { data: profile } = await (supabase.from('profiles') as any)
+      .select('is_master_admin')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (!profile?.is_master_admin) {
+      const { data: link } = await (supabase.from('company_users') as any)
+        .select('company_id')
+        .eq('user_id', user.id)
+        .eq('is_active', true)
+        .limit(1)
+        .maybeSingle();
+
+      if (link) {
+        const { data: trial } = await (supabase.from('company_trials') as any)
+          .select('id')
+          .eq('company_id', link.company_id)
+          .in('status', ['active', 'expired'])
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans'];
+        const isAllowedTrialRoute = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+        if (trial && !isAllowedTrialRoute) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/dashboard';
+          return NextResponse.redirect(url);
+        }
+      }
+    }
+  }
 
   // 3. Se o usuário NÃO está autenticado e tenta acessar área interna protegida, redireciona para /login
   if (!user && !isPublicRoute) {

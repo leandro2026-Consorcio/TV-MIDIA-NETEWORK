@@ -118,15 +118,21 @@ export interface Database {
         Relationships: [];
       };
       company_trials: {
-        Row: { id: string; company_id: string; trial_start_date: string; trial_end_date: string; trial_days: number; status: string; created_at: string; };
-        Insert: { id?: string; company_id: string; trial_start_date?: string; trial_end_date?: string; trial_days?: number; status?: string; created_at?: string; };
-        Update: { id?: string; company_id?: string; trial_start_date?: string; trial_end_date?: string; trial_days?: number; status?: string; created_at?: string; };
+        Row: { id: string; company_id: string; trial_start_date: string; trial_end_date: string; trial_days: number; free_days: number; trial_type: string; status: string; created_by?: string | null; metadata: Json; created_at: string; };
+        Insert: { id?: string; company_id: string; trial_start_date?: string; trial_end_date?: string; trial_days?: number; free_days?: number; trial_type?: string; status?: string; created_by?: string | null; metadata?: Json; created_at?: string; };
+        Update: { id?: string; company_id?: string; trial_start_date?: string; trial_end_date?: string; trial_days?: number; free_days?: number; trial_type?: string; status?: string; created_by?: string | null; metadata?: Json; created_at?: string; };
         Relationships: [];
       };
       referral_invites: {
-        Row: { id: string; inviter_company_id: string; invite_code: string; status: string; created_at: string; invited_company_name?: string; invited_contact_name?: string; expires_at?: string; };
-        Insert: { id?: string; inviter_company_id: string; invite_code: string; status?: string; created_at?: string; invited_company_name?: string; invited_contact_name?: string; expires_at?: string; };
-        Update: { id?: string; inviter_company_id?: string; invite_code?: string; status?: string; created_at?: string; invited_company_name?: string; invited_contact_name?: string; expires_at?: string; };
+        Row: { id: string; inviter_company_id: string; invited_company_id?: string | null; invite_code: string; status: string; trial_days_granted: number; metadata: Json; created_at: string; invited_company_name?: string | null; invited_contact_name?: string | null; accepted_at?: string | null; expires_at?: string | null; };
+        Insert: { id?: string; inviter_company_id: string; invited_company_id?: string | null; invite_code: string; status?: string; trial_days_granted?: number; metadata?: Json; created_at?: string; invited_company_name?: string | null; invited_contact_name?: string | null; accepted_at?: string | null; expires_at?: string | null; };
+        Update: { id?: string; inviter_company_id?: string; invited_company_id?: string | null; invite_code?: string; status?: string; trial_days_granted?: number; metadata?: Json; created_at?: string; invited_company_name?: string | null; invited_contact_name?: string | null; accepted_at?: string | null; expires_at?: string | null; };
+        Relationships: [];
+      };
+      platform_settings: {
+        Row: { key: string; value: Json; description: string | null; updated_by: string | null; updated_at: string; };
+        Insert: { key: string; value: Json; description?: string | null; updated_by?: string | null; updated_at?: string; };
+        Update: { key?: string; value?: Json; description?: string | null; updated_by?: string | null; updated_at?: string; };
         Relationships: [];
       };
       credit_packages: {

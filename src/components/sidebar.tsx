@@ -42,9 +42,11 @@ import { useRouter } from 'next/navigation';
 
 interface SidebarProps {
   isMasterAdmin: boolean;
+  hasCompany: boolean;
+  isTrial: boolean;
 }
 
-export function Sidebar({ isMasterAdmin }: SidebarProps) {
+export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
@@ -55,7 +57,7 @@ export function Sidebar({ isMasterAdmin }: SidebarProps) {
     router.refresh();
   };
 
-  const navItems = [
+  let navItems = [
     {
       name: 'Dashboard',
       href: '/dashboard',
@@ -158,12 +160,34 @@ export function Sidebar({ isMasterAdmin }: SidebarProps) {
     },
   ];
 
+  if (!isMasterAdmin && !hasCompany) {
+    navItems = [
+      navItems[0],
+      { name: 'Completar cadastro', href: '/empresa/cadastro', icon: Building2 },
+    ];
+  } else if (!isMasterAdmin && isTrial) {
+    const trialRoutes = new Set([
+      '/dashboard', '/screens', '/media', '/playlists', '/campaigns',
+    ]);
+    navItems = navItems.filter((item) => trialRoutes.has(item.href));
+    navItems.push(
+      { name: 'Convites VIP', href: '/company/invites', icon: Gift },
+      { name: 'Guia de início', href: '/onboarding', icon: CheckSquare },
+      { name: 'Planos & atendimento', href: '/plans', icon: CreditCard },
+    );
+  }
+
   if (isMasterAdmin) {
     navItems.push(
       {
         name: 'Segurança da Conta',
         href: '/admin/account-security',
         icon: KeyRound,
+      },
+      {
+        name: 'Configuração do Trial',
+        href: '/admin/platform-settings',
+        icon: Sliders,
       },
       {
         name: 'Biblioteca Informativa',
@@ -228,11 +252,13 @@ export function Sidebar({ isMasterAdmin }: SidebarProps) {
     );
   }
 
-  navItems.push({
-    name: 'Logs de Auditoria',
-    href: '/audit-logs',
-    icon: ShieldAlert,
-  });
+  if (isMasterAdmin || (hasCompany && !isTrial)) {
+    navItems.push({
+      name: 'Logs de Auditoria',
+      href: '/audit-logs',
+      icon: ShieldAlert,
+    });
+  }
 
   return (
     <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0">

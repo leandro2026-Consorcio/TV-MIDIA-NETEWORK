@@ -72,7 +72,7 @@ export type CampaignType = 'internal' | 'paid' | 'exchange' | 'external';
 export type CampaignStatus = 'draft' | 'scheduled' | 'active' | 'paused' | 'completed' | 'cancelled' | 'archived';
 
 export type TrialStatus = 'active' | 'expired' | 'converted' | 'cancelled';
-export type ReferralInviteStatus = 'created' | 'sent' | 'accepted' | 'expired' | 'converted' | 'cancelled';
+export type ReferralInviteStatus = 'available' | 'created' | 'sent' | 'accepted' | 'expired' | 'converted' | 'cancelled';
 
 export type AdOfferStatus = 'draft' | 'pending_review' | 'active' | 'paused' | 'rejected' | 'archived';
 export type AdOrderStatus = 'draft' | 'requested' | 'approved' | 'rejected' | 'cancelled' | 'paid_manual' | 'converted_to_campaign';

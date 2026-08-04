@@ -16,6 +16,7 @@ export default function DashboardLayout({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
+  const [isTrial, setIsTrial] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
@@ -69,6 +70,14 @@ export default function DashboardLayout({
           if (companyList && companyList.length > 0) {
             setCompanies(companyList as Company[]);
             setActiveCompany(companyList[0] as Company);
+            if (!profileData?.is_master_admin) {
+              const { data: trial } = await (supabase.from('company_trials') as any)
+                .select('status')
+                .eq('company_id', companyList[0].id)
+                .eq('status', 'active')
+                .maybeSingle();
+              setIsTrial(!!trial);
+            }
           }
         }
       } catch (error) {
@@ -97,7 +106,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
       {/* Sidebar Fixo */}
-      <Sidebar isMasterAdmin={profile.is_master_admin} />
+      <Sidebar isMasterAdmin={profile.is_master_admin} hasCompany={companies.length > 0} isTrial={isTrial} />
 
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col min-w-0">
