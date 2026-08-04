@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { AlertCircle, CheckCircle2, Edit3, Loader2, Newspaper, PlusCircle } from 'lucide-react';
+import { AlertCircle, CheckCircle2, Edit3, ExternalLink, Loader2, Newspaper, PlusCircle } from 'lucide-react';
 import {
   getInformativeContentsAction,
   InformativeContentInput,
@@ -37,7 +37,8 @@ export default function InformativeContentAdminPage() {
 
   const filteredItems = useMemo(() => items.filter((item) => {
     if (statusFilter && item.status !== statusFilter) return false;
-    const haystack = `${item.title} ${item.category || ''} ${item.city || ''} ${item.region || ''}`.toLowerCase();
+    const relatedSource = Array.isArray(item.content_sources) ? item.content_sources[0] : item.content_sources;
+    const haystack = `${item.title} ${item.category || ''} ${item.city || ''} ${item.region || ''} ${item.source_name || ''} ${item.original_url || ''} ${relatedSource?.source_name || ''} ${relatedSource?.source_url || ''}`.toLowerCase();
     return !search || haystack.includes(search.toLowerCase());
   }), [items, search, statusFilter]);
 
@@ -108,6 +109,7 @@ export default function InformativeContentAdminPage() {
                 </div>
                 {item.content_origin === 'manual' && <button onClick={() => edit(item)} className="rounded-lg bg-slate-800 p-2 text-slate-300 hover:text-white"><Edit3 className="h-4 w-4" /></button>}
               </div>
+              <SourceAttribution item={item} />
               <p className="line-clamp-3 text-sm leading-relaxed text-slate-400">{item.summary || 'Sem resumo.'}</p>
               <div className="flex flex-wrap gap-2 border-t border-slate-800 pt-3">
                 {item.status === 'pending_review' && <><button onClick={() => changeStatus(item.id, 'approved')} className="rounded-lg bg-emerald-500/10 px-3 py-1.5 text-xs font-bold text-emerald-400">Aprovar</button><button onClick={() => changeStatus(item.id, 'rejected')} className="rounded-lg bg-rose-500/10 px-3 py-1.5 text-xs font-bold text-rose-400">Rejeitar</button></>}
@@ -137,6 +139,42 @@ export default function InformativeContentAdminPage() {
             <div className="flex justify-end gap-3 border-t border-slate-800 pt-4"><button type="button" onClick={() => setShowForm(false)} className="rounded-xl bg-slate-800 px-4 py-2 text-slate-300">Cancelar</button><button disabled={saving} className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-5 py-2 font-bold text-white">{saving && <Loader2 className="h-4 w-4 animate-spin" />}Salvar conteúdo</button></div>
           </form>
         </div>
+      )}
+    </div>
+  );
+}
+
+function SourceAttribution({ item }: { item: any }) {
+  if (item.content_origin !== 'rss') return null;
+
+  const relatedSource = Array.isArray(item.content_sources) ? item.content_sources[0] : item.content_sources;
+  const sourceName = item.source_name || relatedSource?.source_name || 'Fonte RSS';
+  const sourceUrl = item.original_url || relatedSource?.source_url || null;
+  let hostname = '';
+
+  if (sourceUrl) {
+    try {
+      hostname = new URL(sourceUrl).hostname.replace(/^www\./, '');
+    } catch {
+      hostname = sourceUrl;
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-slate-800 bg-slate-950/70 px-3 py-2 text-xs text-slate-400">
+      <span>Fonte:</span>
+      <strong className="text-slate-200">{sourceName}</strong>
+      {sourceUrl && (
+        <a
+          href={sourceUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-semibold text-sky-400 hover:text-sky-300"
+          title="Abrir notícia no site de origem"
+        >
+          {hostname}
+          <ExternalLink className="h-3.5 w-3.5" />
+        </a>
       )}
     </div>
   );

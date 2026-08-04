@@ -100,7 +100,7 @@ export async function getInformativeContentsAction(filters?: {
   if (!isMaster) return { success: false, items: [], error: 'Acesso restrito ao Master Admin.' };
 
   let query = (supabase.from('informative_content_items') as any)
-    .select('*, content_sources(source_name)')
+    .select('*, content_sources(source_name, source_url)')
     .order('created_at', { ascending: false })
     .limit(250);
   if (filters?.status) query = query.eq('status', filters.status);
