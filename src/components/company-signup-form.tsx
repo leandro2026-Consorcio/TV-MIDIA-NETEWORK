@@ -26,6 +26,10 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
+  const [phone, setPhone] = useState('');
+  const [cnpj, setCnpj] = useState('');
+  const [participatesInNetwork, setParticipatesInNetwork] = useState(true);
+
   useEffect(() => {
     async function load() {
       const [settingsResult, segmentsResult, inviteResult, existingContext] = await Promise.all([
@@ -60,14 +64,15 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
       fullName: String(form.get('fullName') || ''),
       email,
       password,
-      phone: String(form.get('phone') || ''),
+      phone,
       tradeName: String(form.get('tradeName') || ''),
       corporateName: String(form.get('corporateName') || ''),
-      cnpj: String(form.get('cnpj') || ''),
+      cnpj,
       city: String(form.get('city') || ''),
       state: String(form.get('state') || ''),
       segmentId: String(form.get('segmentId') || ''),
       acceptedTerms: form.get('acceptedTerms') === 'on',
+      participatesInNetwork,
       inviteCode: invite?.code,
     });
 
@@ -146,7 +151,14 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
           <legend className="text-sm font-bold text-white mb-3">Responsável pela conta</legend>
           <div className="grid sm:grid-cols-2 gap-4">
             <Field name="fullName" label="Nome completo" required />
-            <Field name="phone" label="Telefone / WhatsApp" required placeholder="(65) 99999-9999" />
+            <Field
+              name="phone"
+              label="Telefone / WhatsApp"
+              required
+              value={phone}
+              onChange={(e) => setPhone(formatPhone(e.target.value))}
+              placeholder="(66) 99999-8989"
+            />
             <Field name="email" label="E-mail" type="email" required />
             <Field name="password" label="Senha" type="password" required minLength={6} placeholder="Mínimo 6 caracteres" />
           </div>
@@ -157,7 +169,13 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
           <div className="grid sm:grid-cols-2 gap-4">
             <Field name="tradeName" label="Nome fantasia" required />
             <Field name="corporateName" label="Razão social (opcional)" />
-            <Field name="cnpj" label="CNPJ (opcional)" />
+            <Field
+              name="cnpj"
+              label="CNPJ (opcional)"
+              value={cnpj}
+              onChange={(e) => setCnpj(formatCnpj(e.target.value))}
+              placeholder="00.000.000/0000-00"
+            />
             <label className="text-xs font-semibold text-slate-300">
               Segmento <span className="text-rose-400">*</span>
               <select name="segmentId" required defaultValue="" className="mt-2 w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-3 text-sm text-slate-100 focus:outline-none focus:border-sky-500">
@@ -168,6 +186,24 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
             <Field name="city" label="Cidade" required />
             <Field name="state" label="UF" required maxLength={2} placeholder="MT" />
           </div>
+        </fieldset>
+
+        {/* Consentimento de Participação na Rede */}
+        <fieldset className="space-y-3 border-t border-slate-800 pt-6">
+          <label className="flex items-start gap-3 text-xs text-slate-300 bg-sky-500/10 border border-sky-500/20 rounded-2xl p-4 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={participatesInNetwork}
+              onChange={(e) => setParticipatesInNetwork(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-900 text-sky-500 focus:ring-0"
+            />
+            <div className="space-y-1">
+              <strong className="block font-bold text-white">Quero participar da rede Mídia por Mídia da minha cidade</strong>
+              <span className="block text-slate-300 leading-relaxed">
+                Ao participar, sua empresa poderá aparecer para outras empresas participantes com nome fantasia, cidade e segmento para parcerias e campanhas locais. Você pode alterar essa preferência no painel quando quiser.
+              </span>
+            </div>
+          </label>
         </fieldset>
 
         <label className="flex items-start gap-3 text-xs text-slate-400 bg-slate-950 border border-slate-800 rounded-xl p-4">
@@ -182,6 +218,23 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
       </form>
     </div>
   );
+}
+
+function formatPhone(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  if (digits.length <= 2) return digits ? `(${digits}` : '';
+  if (digits.length <= 6) return `(${digits.slice(0, 2)}) ${digits.slice(2)}`;
+  if (digits.length <= 10) return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7, 11)}`;
+}
+
+function formatCnpj(value: string) {
+  const digits = value.replace(/\D/g, '').slice(0, 14);
+  if (digits.length <= 2) return digits;
+  if (digits.length <= 5) return `${digits.slice(0, 2)}.${digits.slice(2)}`;
+  if (digits.length <= 8) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5)}`;
+  if (digits.length <= 12) return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8)}`;
+  return `${digits.slice(0, 2)}.${digits.slice(2, 5)}.${digits.slice(5, 8)}/${digits.slice(8, 12)}-${digits.slice(12, 14)}`;
 }
 
 function Field({ label, ...props }: React.InputHTMLAttributes<HTMLInputElement> & { label: string }) {

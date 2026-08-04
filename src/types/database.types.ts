@@ -160,9 +160,9 @@ export interface Database {
         Relationships: [];
       };
       company_network_preferences: {
-        Row: { company_id: string; accepts_network_ads: boolean; max_external_grade_percentage?: number; requires_manual_approval?: boolean; notes?: string | null; blocked_segments: string[]; blocked_companies: string[]; updated_at: string; };
-        Insert: { company_id: string; accepts_network_ads?: boolean; max_external_grade_percentage?: number; requires_manual_approval?: boolean; notes?: string | null; blocked_segments?: string[]; blocked_companies?: string[]; updated_at?: string; };
-        Update: { company_id?: string; accepts_network_ads?: boolean; max_external_grade_percentage?: number; requires_manual_approval?: boolean; notes?: string | null; blocked_segments?: string[]; blocked_companies?: string[]; updated_at?: string; };
+        Row: { company_id: string; accepts_network_ads: boolean; max_external_grade_percentage?: number; requires_manual_approval?: boolean; notes?: string | null; blocked_segments: string[]; blocked_companies: string[]; participates_in_network?: boolean; show_company_name?: boolean; show_city?: boolean; show_segment?: boolean; show_whatsapp?: boolean; public_whatsapp?: string | null; public_description?: string | null; updated_at: string; };
+        Insert: { company_id: string; accepts_network_ads?: boolean; max_external_grade_percentage?: number; requires_manual_approval?: boolean; notes?: string | null; blocked_segments?: string[]; blocked_companies?: string[]; participates_in_network?: boolean; show_company_name?: boolean; show_city?: boolean; show_segment?: boolean; show_whatsapp?: boolean; public_whatsapp?: string | null; public_description?: string | null; updated_at?: string; };
+        Update: { company_id?: string; accepts_network_ads?: boolean; max_external_grade_percentage?: number; requires_manual_approval?: boolean; notes?: string | null; blocked_segments?: string[]; blocked_companies?: string[]; participates_in_network?: boolean; show_company_name?: boolean; show_city?: boolean; show_segment?: boolean; show_whatsapp?: boolean; public_whatsapp?: string | null; public_description?: string | null; updated_at?: string; };
         Relationships: [];
       };
       network_inventory_ledger: {
@@ -903,10 +903,16 @@ export interface Database {
         Update: { id?: string; company_id?: string | null; created_by?: string; content_source_id?: string | null; content_origin?: 'manual' | 'rss'; title?: string; summary?: string | null; body?: string | null; category?: string | null; image_url?: string | null; media_asset_id?: string | null; source_name?: string | null; original_url?: string | null; rss_dedupe_key?: string | null; published_at?: string | null; region?: string | null; city?: string | null; segment?: string | null; duration_seconds?: number; start_date?: string | null; end_date?: string | null; status?: 'draft' | 'pending_review' | 'approved' | 'rejected' | 'active' | 'paused' | 'expired' | 'archived'; is_active?: boolean; expires_at?: string | null; metadata?: Json; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
+      content_categories: {
+        Row: { id: string; name: string; slug: string; description: string | null; sort_order: number; is_active: boolean; created_at: string; updated_at: string; };
+        Insert: { id?: string; name: string; slug: string; description?: string | null; sort_order?: number; is_active?: boolean; created_at?: string; updated_at?: string; };
+        Update: { id?: string; name?: string; slug?: string; description?: string | null; sort_order?: number; is_active?: boolean; created_at?: string; updated_at?: string; };
+        Relationships: [];
+      };
       screen_content_settings: {
-        Row: { id: string; company_id: string; screen_id: string; enable_breathing_content: boolean; enable_manual_content: boolean; enable_rss_content: boolean; ads_between_content: number; content_duration_seconds: number; allowed_categories: string[] | null; fallback_to_ads: boolean; is_active: boolean; metadata: Json; created_at: string; updated_at: string; };
-        Insert: { id?: string; company_id: string; screen_id: string; enable_breathing_content?: boolean; enable_manual_content?: boolean; enable_rss_content?: boolean; ads_between_content?: number; content_duration_seconds?: number; allowed_categories?: string[] | null; fallback_to_ads?: boolean; is_active?: boolean; metadata?: Json; created_at?: string; updated_at?: string; };
-        Update: { id?: string; company_id?: string; screen_id?: string; enable_breathing_content?: boolean; enable_manual_content?: boolean; enable_rss_content?: boolean; ads_between_content?: number; content_duration_seconds?: number; allowed_categories?: string[] | null; fallback_to_ads?: boolean; is_active?: boolean; metadata?: Json; created_at?: string; updated_at?: string; };
+        Row: { id: string; company_id: string; screen_id: string; enable_breathing_content: boolean; enable_manual_content: boolean; enable_rss_content: boolean; ads_between_content: number; content_duration_seconds: number; allowed_categories: string[] | null; fallback_to_ads: boolean; content_mix_mode?: 'ads_first' | 'content_first'; mix_interval?: number; is_active: boolean; metadata: Json; created_at: string; updated_at: string; };
+        Insert: { id?: string; company_id: string; screen_id: string; enable_breathing_content?: boolean; enable_manual_content?: boolean; enable_rss_content?: boolean; ads_between_content?: number; content_duration_seconds?: number; allowed_categories?: string[] | null; fallback_to_ads?: boolean; content_mix_mode?: 'ads_first' | 'content_first'; mix_interval?: number; is_active?: boolean; metadata?: Json; created_at?: string; updated_at?: string; };
+        Update: { id?: string; company_id?: string; screen_id?: string; enable_breathing_content?: boolean; enable_manual_content?: boolean; enable_rss_content?: boolean; ads_between_content?: number; content_duration_seconds?: number; allowed_categories?: string[] | null; fallback_to_ads?: boolean; content_mix_mode?: 'ads_first' | 'content_first'; mix_interval?: number; is_active?: boolean; metadata?: Json; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
       screen_content_logs: {

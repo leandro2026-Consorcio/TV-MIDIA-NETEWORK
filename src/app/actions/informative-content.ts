@@ -46,7 +46,9 @@ export interface ScreenContentSettingsInput {
   enableBreathingContent: boolean;
   enableManualContent: boolean;
   enableRssContent: boolean;
-  adsBetweenContent: 3 | 4 | 5;
+  adsBetweenContent?: number;
+  contentMixMode?: 'ads_first' | 'content_first';
+  mixInterval?: number;
   contentDurationSeconds: number;
   allowedCategories: string[];
   fallbackToAds: boolean;
@@ -329,7 +331,8 @@ export async function saveScreenContentSettingsAction(input: ScreenContentSettin
   if (!isMaster && !(await canAdminCompany(supabase, user.id, screen.company_id))) {
     return { success: false, error: 'Apenas Admin da empresa ou Master pode alterar esta configuração.' };
   }
-  if (![3, 4, 5].includes(input.adsBetweenContent)) return { success: false, error: 'Frequência inválida.' };
+  const mixMode = input.contentMixMode === 'content_first' ? 'content_first' : 'ads_first';
+  const interval = Math.min(5, Math.max(1, Number(input.mixInterval || input.adsBetweenContent || 4)));
 
   const categories = [...new Set((input.allowedCategories || [])
     .map((category) => sanitizeRssText(category, 80))
@@ -341,7 +344,9 @@ export async function saveScreenContentSettingsAction(input: ScreenContentSettin
       enable_breathing_content: input.enableBreathingContent,
       enable_manual_content: input.enableManualContent,
       enable_rss_content: input.enableRssContent,
-      ads_between_content: input.adsBetweenContent,
+      ads_between_content: interval,
+      content_mix_mode: mixMode,
+      mix_interval: interval,
       content_duration_seconds: Math.min(15, Math.max(8, Number(input.contentDurationSeconds || 10))),
       allowed_categories: categories.length ? categories : null,
       fallback_to_ads: input.fallbackToAds,

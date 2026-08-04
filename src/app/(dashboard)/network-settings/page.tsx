@@ -20,6 +20,15 @@ export default function NetworkSettingsPage() {
   const [blockedSegments, setBlockedSegments] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
 
+  // Public Network Visibility State
+  const [participatesInNetwork, setParticipatesInNetwork] = useState(true);
+  const [showCompanyName, setShowCompanyName] = useState(true);
+  const [showCity, setShowCity] = useState(true);
+  const [showSegment, setShowSegment] = useState(true);
+  const [showWhatsapp, setShowWhatsapp] = useState(false);
+  const [publicWhatsapp, setPublicWhatsapp] = useState('');
+  const [publicDescription, setPublicDescription] = useState('');
+
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -32,13 +41,21 @@ export default function NetworkSettingsPage() {
       setLoading(true);
       const res = await getCompanyNetworkPreferencesAction(companyId);
       if (res.success && res.preferences) {
-        const prefs = res.preferences as CompanyNetworkPreferences;
+        const prefs = res.preferences as any;
         setAcceptsNetworkAds(Boolean(prefs.accepts_network_ads));
         setMaxGradePercent(String(prefs.max_external_grade_percentage ?? 10));
         setRequiresManualApproval(Boolean(prefs.requires_manual_approval));
         setBlockedCompanies(prefs.blocked_companies || []);
         setBlockedSegments(prefs.blocked_segments || []);
         setNotes(prefs.notes || '');
+
+        setParticipatesInNetwork(prefs.participates_in_network !== false);
+        setShowCompanyName(prefs.show_company_name !== false);
+        setShowCity(prefs.show_city !== false);
+        setShowSegment(prefs.show_segment !== false);
+        setShowWhatsapp(Boolean(prefs.show_whatsapp));
+        setPublicWhatsapp(prefs.public_whatsapp || '');
+        setPublicDescription(prefs.public_description || '');
       }
     } catch (err: any) {
       setError(err.message);
@@ -111,7 +128,14 @@ export default function NetworkSettingsPage() {
       blocked_companies: blockedCompanies,
       blocked_segments: blockedSegments,
       notes: notes || null,
-    });
+      participates_in_network: participatesInNetwork,
+      show_company_name: showCompanyName,
+      show_city: showCity,
+      show_segment: showSegment,
+      show_whatsapp: showWhatsapp,
+      public_whatsapp: publicWhatsapp || null,
+      public_description: publicDescription || null,
+    } as any);
 
     if (!res.success) {
       setError(res.error || 'Erro ao salvar preferências da rede.');
@@ -183,6 +207,106 @@ export default function NetworkSettingsPage() {
       )}
 
       <form onSubmit={handleSavePreferences} className="space-y-6">
+        {/* Painel de Participação e Visibilidade na Rede */}
+        <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-6 shadow-xl text-xs">
+          <div className="flex items-center gap-3 border-b border-slate-800 pb-4">
+            <div className="bg-sky-500/10 p-2.5 rounded-xl text-sky-400 border border-sky-500/20">
+              <Building2 className="w-6 h-6" />
+            </div>
+            <div>
+              <h2 className="font-bold text-white text-base">Participação e Visibilidade no Diretório da Rede</h2>
+              <p className="text-slate-400">Escolha como sua empresa aparece para outras empresas participantes na sua cidade</p>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-4 bg-slate-950 border border-slate-800 rounded-xl">
+              <div>
+                <label className="font-bold text-white text-sm block">Participar da rede Mídia por Mídia da minha cidade</label>
+                <p className="text-slate-400 text-xs mt-0.5">Permite que sua empresa apareça no diretório público de empresas participantes para parcerias e indicações</p>
+              </div>
+              <input
+                type="checkbox"
+                checked={participatesInNetwork}
+                onChange={(e) => setParticipatesInNetwork(e.target.checked)}
+                className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
+              />
+            </div>
+
+            <div className={participatesInNetwork ? 'space-y-4 pt-2' : 'space-y-4 pt-2 opacity-40 pointer-events-none'}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <label className="flex items-center gap-2.5 p-3 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showCompanyName}
+                    onChange={(e) => setShowCompanyName(e.target.checked)}
+                    className="accent-sky-500"
+                  />
+                  <span className="text-slate-200 font-semibold">Exibir Nome Fantasia</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-3 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showCity}
+                    onChange={(e) => setShowCity(e.target.checked)}
+                    className="accent-sky-500"
+                  />
+                  <span className="text-slate-200 font-semibold">Exibir Cidade / UF</span>
+                </label>
+
+                <label className="flex items-center gap-2.5 p-3 bg-slate-950 border border-slate-800 rounded-xl cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showSegment}
+                    onChange={(e) => setShowSegment(e.target.checked)}
+                    className="accent-sky-500"
+                  />
+                  <span className="text-slate-200 font-semibold">Exibir Segmento</span>
+                </label>
+              </div>
+
+              <div className="space-y-3 p-4 bg-slate-950 border border-slate-800 rounded-xl">
+                <label className="flex items-center justify-between cursor-pointer">
+                  <div>
+                    <span className="font-bold text-white text-sm block">Mostrar WhatsApp comercial público</span>
+                    <span className="text-slate-400 text-xs">Exibe botão direto para WhatsApp de atendimento no cartão da sua empresa</span>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={showWhatsapp}
+                    onChange={(e) => setShowWhatsapp(e.target.checked)}
+                    className="w-5 h-5 accent-sky-500 rounded cursor-pointer"
+                  />
+                </label>
+
+                {showWhatsapp && (
+                  <div className="pt-2">
+                    <label className="block text-slate-300 font-semibold mb-1">WhatsApp comercial para contato</label>
+                    <input
+                      type="text"
+                      value={publicWhatsapp}
+                      onChange={(e) => setPublicWhatsapp(e.target.value)}
+                      placeholder="(66) 99999-8989"
+                      className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 focus:outline-none focus:border-sky-500"
+                    />
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-slate-300 font-semibold mb-1">Descrição pública da empresa (opcional)</label>
+                <textarea
+                  rows={3}
+                  value={publicDescription}
+                  onChange={(e) => setPublicDescription(e.target.value)}
+                  placeholder="Apresente sua empresa em 1 ou 2 frases para outros parceiros da cidade..."
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-3 text-slate-100 focus:outline-none focus:border-sky-500"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
         {/* Painel Principal de Configurações */}
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl space-y-6 shadow-xl text-xs">
           <div className="flex items-center gap-3 border-b border-slate-800 pb-4">

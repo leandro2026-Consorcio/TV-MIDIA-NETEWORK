@@ -24,6 +24,7 @@ export interface CompanySignupInput {
   state: string;
   segmentId: string;
   acceptedTerms: boolean;
+  participatesInNetwork?: boolean;
   inviteCode?: string;
 }
 
@@ -154,6 +155,18 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
   if (payload.password.length < 6) return { success: false as const, error: 'A senha deve ter pelo menos 6 caracteres.' };
   if (!/^[A-Z]{2}$/.test(payload.state)) return { success: false as const, error: 'Informe a UF com duas letras.' };
 
+  const rawPhoneDigits = payload.phone.replace(/\D/g, '');
+  if (rawPhoneDigits.length < 10 || rawPhoneDigits.length > 11) {
+    return { success: false as const, error: 'Informe um número de telefone com DDD válido (ex: (66) 99999-8989).' };
+  }
+
+  if (payload.cnpj) {
+    const rawCnpjDigits = payload.cnpj.replace(/\D/g, '');
+    if (rawCnpjDigits.length !== 14 || !isValidCnpjDigits(rawCnpjDigits)) {
+      return { success: false as const, error: 'Informe um CNPJ válido.' };
+    }
+  }
+
   const settingsResult = await getPublicSignupSettingsAction();
   if (!settingsResult.settings.enabled) {
     try {
@@ -252,13 +265,49 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
     };
   }
 
+  const createdCompanyId = data.company_id as string;
+  if (createdCompanyId) {
+    const participates = input.participatesInNetwork !== false;
+    await (admin.from('company_network_preferences') as any)
+      .upsert({
+        company_id: createdCompanyId,
+        participates_in_network: participates,
+        show_company_name: true,
+        show_city: true,
+        show_segment: true,
+        show_whatsapp: false,
+      }, { onConflict: 'company_id' });
+  }
+
   return {
     success: true as const,
-    companyId: data.company_id as string,
+    companyId: createdCompanyId,
     trialDays: Number(data.trial_days),
     invitesCreated: Number(data.invites_created),
     shouldSignIn: createdAuthUser,
   };
+}
+
+function isValidCnpjDigits(digits: string): boolean {
+  if (digits.length !== 14) return false;
+  if (/^(\d)\1{13}$/.test(digits)) return false;
+
+  const calc = (slice: string, factors: number[]) => {
+    let sum = 0;
+    for (let i = 0; i < slice.length; i++) {
+      sum += parseInt(slice[i], 10) * factors[i];
+    }
+    const remainder = sum % 11;
+    return remainder < 2 ? 0 : 11 - remainder;
+  };
+
+  const d1 = calc(digits.slice(0, 12), [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  if (d1 !== parseInt(digits[12], 10)) return false;
+
+  const d2 = calc(digits.slice(0, 13), [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2]);
+  if (d2 !== parseInt(digits[13], 10)) return false;
+
+  return true;
 }
 
 export async function getOnboardingContextAction() {

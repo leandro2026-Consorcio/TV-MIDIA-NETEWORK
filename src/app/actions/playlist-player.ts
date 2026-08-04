@@ -51,26 +51,47 @@ function leastCommonMultiple(left: number, right: number): number {
 function interleaveInformativeItems(
   commercialItems: PlayerPlaylistItem[],
   informativeItems: PlayerPlaylistItem[],
-  adsBetween: number
+  mixMode: 'ads_first' | 'content_first',
+  interval: number
 ): PlayerPlaylistItem[] {
-  if (commercialItems.length === 0 || informativeItems.length === 0) return commercialItems;
-  // O MMC fecha o ciclo mantendo a ordem dos anúncios, a frequência exata e
-  // espaço suficiente para que todo conteúdo informativo elegível seja exibido.
-  const commercialSlots = leastCommonMultiple(
-    commercialItems.length,
-    adsBetween * informativeItems.length
-  );
+  if (commercialItems.length === 0) return informativeItems;
+  if (informativeItems.length === 0) return commercialItems;
+
+  const validInterval = Math.min(5, Math.max(1, Number(interval) || 4));
   const result: PlayerPlaylistItem[] = [];
-  let contentIndex = 0;
-  for (let slot = 0; slot < commercialSlots; slot += 1) {
-    const commercial = commercialItems[slot % commercialItems.length];
-    result.push({ ...commercial, id: `${commercial.id}:slot:${slot}` });
-    if ((slot + 1) % adsBetween === 0) {
-      const informative = informativeItems[contentIndex % informativeItems.length];
-      result.push({ ...informative, id: `${informative.id}:slot:${contentIndex}` });
-      contentIndex += 1;
+
+  if (mixMode === 'ads_first') {
+    const totalSlots = leastCommonMultiple(
+      commercialItems.length,
+      validInterval * informativeItems.length
+    );
+    let contentIdx = 0;
+    for (let slot = 0; slot < totalSlots; slot += 1) {
+      const commercial = commercialItems[slot % commercialItems.length];
+      result.push({ ...commercial, id: `${commercial.id}:slot:${slot}` });
+      if ((slot + 1) % validInterval === 0) {
+        const informative = informativeItems[contentIdx % informativeItems.length];
+        result.push({ ...informative, id: `${informative.id}:slot:${contentIdx}` });
+        contentIdx += 1;
+      }
+    }
+  } else {
+    const totalSlots = leastCommonMultiple(
+      informativeItems.length,
+      validInterval * commercialItems.length
+    );
+    let commercialIdx = 0;
+    for (let slot = 0; slot < totalSlots; slot += 1) {
+      const informative = informativeItems[slot % informativeItems.length];
+      result.push({ ...informative, id: `${informative.id}:slot:${slot}` });
+      if ((slot + 1) % validInterval === 0) {
+        const commercial = commercialItems[commercialIdx % commercialItems.length];
+        result.push({ ...commercial, id: `${commercial.id}:slot:${commercialIdx}` });
+        commercialIdx += 1;
+      }
     }
   }
+
   return result;
 }
 
@@ -357,10 +378,9 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     }
 
     if (operationalItems.length > 0) {
-      const adsBetween = [3, 4, 5].includes(Number(contentSettings.ads_between_content))
-        ? Number(contentSettings.ads_between_content)
-        : 4;
-      finalItems = interleaveInformativeItems(itemsWithSignedUrls, operationalItems, adsBetween);
+      const mixMode = contentSettings.content_mix_mode === 'content_first' ? 'content_first' : 'ads_first';
+      const interval = Math.min(5, Math.max(1, Number(contentSettings.mix_interval || contentSettings.ads_between_content || 4)));
+      finalItems = interleaveInformativeItems(itemsWithSignedUrls, operationalItems, mixMode, interval);
     }
   }
 

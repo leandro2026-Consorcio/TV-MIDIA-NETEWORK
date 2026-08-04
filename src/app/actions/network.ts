@@ -226,6 +226,80 @@ export async function updateCompanyNetworkPreferencesAction(
 }
 
 /**
+ * Buscar lista pública de empresas participantes da rede Mídia por Mídia
+ * Retorna apenas dados públicos autorizados pela empresa.
+ */
+export async function getPublicNetworkCompaniesAction(filters?: {
+  city?: string;
+  state?: string;
+  segmentId?: string;
+}) {
+  const supabase = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false, companies: [], error: 'Usuário não autenticado.' };
+
+  try {
+    const { data, error } = await (supabase.from('company_network_preferences') as any)
+      .select(`
+        company_id,
+        participates_in_network,
+        show_company_name,
+        show_city,
+        show_segment,
+        show_whatsapp,
+        public_whatsapp,
+        public_description,
+        companies!inner(
+          id,
+          trade_name,
+          city,
+          state,
+          company_segments(
+            is_primary,
+            segments(id, name)
+          )
+        )
+      `)
+      .eq('participates_in_network', true);
+
+    if (error) throw error;
+
+    let list = (data || []).map((row: any) => {
+      const comp = row.companies;
+      const primarySeg = comp?.company_segments?.find((cs: any) => cs.is_primary)?.segments || comp?.company_segments?.[0]?.segments;
+      return {
+        companyId: row.company_id,
+        tradeName: row.show_company_name !== false ? (comp?.trade_name || 'Empresa Participante') : 'Empresa Participante',
+        city: row.show_city !== false ? comp?.city : null,
+        state: row.show_city !== false ? comp?.state : null,
+        segmentId: primarySeg?.id || null,
+        segmentName: row.show_segment !== false ? (primarySeg?.name || null) : null,
+        publicWhatsapp: row.show_whatsapp ? row.public_whatsapp : null,
+        publicDescription: row.public_description || null,
+      };
+    });
+
+    if (filters?.city?.trim()) {
+      const c = filters.city.trim().toLowerCase();
+      list = list.filter((item: any) => item.city && item.city.toLowerCase().includes(c));
+    }
+
+    if (filters?.state?.trim()) {
+      const s = filters.state.trim().toUpperCase();
+      list = list.filter((item: any) => item.state && item.state.toUpperCase() === s);
+    }
+
+    if (filters?.segmentId?.trim()) {
+      list = list.filter((item: any) => item.segmentId === filters.segmentId);
+    }
+
+    return { success: true, companies: list, error: null };
+  } catch (err: any) {
+    return { success: false, companies: [], error: err.message || 'Falha ao buscar empresas da rede.' };
+  }
+}
+
+/**
  * 6. Aplicar Política de Trial a uma Empresa (Master Admin ou Automação)
  */
 export async function applyTrialCreditPolicyAction(companyId: string, ruleType: RuleType = 'trial_standard') {

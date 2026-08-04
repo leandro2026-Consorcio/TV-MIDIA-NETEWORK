@@ -172,6 +172,7 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
     ]);
     navItems = navItems.filter((item) => trialRoutes.has(item.href));
     navItems.push(
+      { name: 'Empresas da Rede', href: '/network/companies', icon: Building2 },
       { name: 'Convites VIP', href: '/company/invites', icon: Gift },
       { name: 'Primeiros passos', href: '/onboarding', icon: CheckSquare },
       { name: 'Planos & atendimento', href: '/plans', icon: CreditCard },
@@ -193,6 +194,11 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
         name: 'Configuração do Trial',
         href: '/admin/platform-settings',
         icon: Sliders,
+      },
+      {
+        name: 'Categorias de Conteúdo',
+        href: '/admin/content-categories',
+        icon: Tag,
       },
       {
         name: 'Biblioteca Informativa',
