@@ -34,7 +34,8 @@ import {
   Crown,
   FileText,
   Newspaper,
-  Rss
+  Rss,
+  KeyRound
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -159,6 +160,11 @@ export function Sidebar({ isMasterAdmin }: SidebarProps) {
 
   if (isMasterAdmin) {
     navItems.push(
+      {
+        name: 'Segurança da Conta',
+        href: '/admin/account-security',
+        icon: KeyRound,
+      },
       {
         name: 'Biblioteca Informativa',
         href: '/admin/informative-content',
