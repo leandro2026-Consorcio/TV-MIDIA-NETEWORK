@@ -2,6 +2,7 @@
 
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
+import { getPlatformCivilDate, getTrialDaysRemaining } from '@/lib/trial-days';
 
 export interface PublicSignupSettings {
   enabled: boolean;
@@ -316,9 +317,9 @@ export async function getOnboardingContextAction() {
   let daysRemaining = 0;
   let effectiveStatus = trial?.status || 'none';
   if (trial?.status === 'active') {
-    const end = new Date(`${trial.trial_end_date}T23:59:59`);
-    daysRemaining = Math.max(0, Math.ceil((end.getTime() - Date.now()) / 86_400_000));
-    if (daysRemaining === 0 && end.getTime() < Date.now()) effectiveStatus = 'expired';
+    daysRemaining = getTrialDaysRemaining(trial.trial_end_date, trial.trial_days);
+    const today = getPlatformCivilDate();
+    if (daysRemaining === 0 && trial.trial_end_date < today) effectiveStatus = 'expired';
   }
 
   return {

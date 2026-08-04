@@ -1,6 +1,7 @@
 'use server';
 
 import { createClient } from '@/lib/supabase/server';
+import { getPlatformCivilDate, getTrialDaysRemaining } from '@/lib/trial-days';
 import crypto from 'crypto';
 
 function generateInviteCode(): string {
@@ -154,15 +155,10 @@ export async function getCompanyTrialStatusAction(companyId: string) {
   let isExpired = false;
 
   if (trial && trial.status === 'active') {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const endDate = new Date(trial.trial_end_date);
-    endDate.setHours(23, 59, 59, 999);
+    daysRemaining = getTrialDaysRemaining(trial.trial_end_date, trial.trial_days);
+    const today = getPlatformCivilDate();
 
-    const diffTime = endDate.getTime() - today.getTime();
-    daysRemaining = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-
-    if (diffTime < 0) {
+    if (trial.trial_end_date < today) {
       isExpired = true;
       // Auto-expirar trial
       await (supabase.from('company_trials') as any)

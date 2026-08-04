@@ -89,7 +89,7 @@ export async function updateSession(request: NextRequest) {
           .limit(1)
           .maybeSingle();
 
-        const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans'];
+        const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans', '/help/getting-started'];
         const isAllowedTrialRoute = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
         if ((trial || trialError) && !isAllowedTrialRoute) {
           const url = request.nextUrl.clone();
