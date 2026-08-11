@@ -148,3 +148,62 @@ export async function transferToAsaasSubAccount(payload: {
     return { success: false, error: err.message };
   }
 }
+
+/**
+ * 7. Criar Assinatura Recorrente no Asaas (Planos Mensais 1 a 5 TVs)
+ */
+export async function createAsaasSubscription(payload: {
+  customerId: string;
+  valueCents: number;
+  nextDueDate: string; // YYYY-MM-DD (ex: após 60 dias grátis ou imediato)
+  description: string;
+  externalReference: string; // ex: company_id + plan_id
+  billingType?: 'UNDEFINED' | 'PIX' | 'BOLETO' | 'CREDIT_CARD';
+  cycle?: 'MONTHLY' | 'YEARLY';
+}) {
+  const value = (payload.valueCents / 100).toFixed(2);
+
+  const subscriptionData = await fetchAsaas('/subscriptions', {
+    method: 'POST',
+    body: JSON.stringify({
+      customer: payload.customerId,
+      billingType: payload.billingType || 'UNDEFINED',
+      value: parseFloat(value),
+      nextDueDate: payload.nextDueDate,
+      cycle: payload.cycle || 'MONTHLY',
+      description: payload.description,
+      externalReference: payload.externalReference,
+    }),
+  });
+
+  return subscriptionData;
+}
+
+/**
+ * 8. Criar Link de Pagamento / Checkout Direto no Asaas para Plano
+ */
+export async function createAsaasPaymentLink(payload: {
+  name: string;
+  valueCents: number;
+  description: string;
+  externalReference: string;
+  billingType?: 'UNDEFINED' | 'PIX' | 'BOLETO' | 'CREDIT_CARD';
+}) {
+  const value = (payload.valueCents / 100).toFixed(2);
+
+  const paymentLinkData = await fetchAsaas('/paymentLinks', {
+    method: 'POST',
+    body: JSON.stringify({
+      name: payload.name,
+      billingType: payload.billingType || 'UNDEFINED',
+      chargeType: 'RECURRENT',
+      subscriptionCycle: 'MONTHLY',
+      value: parseFloat(value),
+      description: payload.description,
+      externalReference: payload.externalReference,
+    }),
+  });
+
+  return paymentLinkData;
+}
+

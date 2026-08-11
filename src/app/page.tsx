@@ -93,6 +93,89 @@ const resources = [
   { icon: Users, label: 'Convidar 3 empresas parceiras' },
 ];
 
+const pricingPlans = [
+  {
+    id: '1-tv',
+    title: '1 TV',
+    price: 'R$ 29,90',
+    period: '/mês',
+    subtitle: 'Ideal para quem deseja iniciar a divulgação em tela própria.',
+    badge: 'Iniciante',
+    popular: false,
+    includesPrevious: null,
+    features: [
+      'Inclua mídias (vídeos e imagens)',
+      'Alterne entre notícias em tempo real e propagandas',
+      'Conecte sua Smart TV direto na internet sem necessidade de outros equipamentos',
+      'Controle total de quantidade de visualizações',
+      'Número ilimitado de imagens ou vídeos',
+      'Exibição em formato Vertical ou Horizontal',
+    ],
+  },
+  {
+    id: '2-tvs',
+    title: '2 TVs',
+    price: 'R$ 49,90',
+    period: '/mês',
+    subtitle: 'Monetize e venda espaços nas suas telas para terceiros.',
+    badge: 'Venda de Espaço',
+    popular: false,
+    includesPrevious: '1 TV',
+    features: [
+      'Adicione venda de propagandas pelo nosso site ou permita que pessoas comprem espaços dentro da sua TV',
+      'Escolha os nichos que podem aparecer na sua TV',
+      'Receba 90% de todo o valor negociado nas suas telas',
+    ],
+  },
+  {
+    id: '3-tvs',
+    title: '3 TVs',
+    price: 'R$ 69,90',
+    period: '/mês',
+    subtitle: 'Amplie seu alcance criando redes de mídia compartilhada.',
+    badge: 'Mídia Compartilhada',
+    popular: false,
+    includesPrevious: '1 e 2 TVs',
+    features: [
+      'Compartilhe propagandas gerando créditos (apareça em mais TVs sem investimento financeiro)',
+      'Convide parceiros para entrarem para seu grupo de mídia compartilhada',
+      'Controle total de créditos e débitos dos compartilhamentos',
+    ],
+  },
+  {
+    id: '4-tvs',
+    title: '4 TVs',
+    price: 'R$ 89,90',
+    period: '/mês',
+    subtitle: 'Gestão multi-usuário e relatórios detalhados.',
+    badge: 'Gestão Avançada',
+    popular: false,
+    includesPrevious: '1, 2 e 3 TVs',
+    features: [
+      'Mais de um usuário para controle e gestão do painel',
+      'Emita relatórios de visualizações e relatórios operacionais',
+      'Troque o valor da mensalidade por espaços nas suas TVs',
+    ],
+  },
+  {
+    id: '5-tvs',
+    title: '5 TVs',
+    price: 'R$ 99,90',
+    period: '/mês',
+    additionalTv: '+ R$ 14,99 por TV adicional',
+    subtitle: 'Sem mensalidades e faturamento potencial superior a R$ 3.000,00.',
+    badge: '⭐ Mais Escolhido / Faturamento Máximo',
+    popular: true,
+    includesPrevious: '1, 2, 3 e 4 TVs',
+    features: [
+      'Não pague mensalidades e ganhe valores mensais',
+      'Entre para o grupo de mídia compartilhada e escolha em quais locais quer aparecer',
+      'Venda espaços dentro da sua TV para eventos na sua cidade ou região',
+      'Rendas em anúncios vendidos podem superar R$ 3.000,00/mês',
+    ],
+  },
+];
+
 const faqs = [
   {
     question: 'Precisa de aprovação para começar?',
@@ -254,6 +337,7 @@ export default function Home() {
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-300 lg:flex" aria-label="Navegação principal">
             <a href="#como-funciona" className="transition hover:text-cyan-300">Como funciona</a>
             <a href="#beneficios" className="transition hover:text-cyan-300">Benefícios</a>
+            <a href="#planos" className="transition hover:text-cyan-300">Planos e Preços</a>
             <a href="#convites" className="transition hover:text-cyan-300">Convites</a>
             <a href="#duvidas" className="transition hover:text-cyan-300">Dúvidas</a>
           </nav>
@@ -437,6 +521,126 @@ export default function Home() {
                 <p className="mt-3 text-sm leading-6 text-slate-400">{text}</p>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="planos" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <SectionTitle
+            eyebrow="Transparente e sem fidelidade"
+            title="Planos e Preços"
+            description="Escolha a quantidade de TVs e aproveite todas as vantagens acumulativas. Mude ou cancele quando quiser."
+          />
+
+          <div className="mt-8 flex justify-center">
+            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/[0.1] px-5 py-2.5 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-cyan-300 shadow-lg shadow-cyan-500/10">
+              <Sparkles className="h-4 w-4 text-cyan-300" />
+              Primeiros 60 dias 100% grátis • Sem cartão de crédito
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {pricingPlans.map((plan) => (
+              <div
+                key={plan.id}
+                className={`relative flex flex-col justify-between rounded-3xl border p-6 transition hover:-translate-y-1.5 ${
+                  plan.popular
+                    ? 'border-cyan-400/60 bg-gradient-to-b from-[#0f2842] via-[#0b1c31] to-[#071222] shadow-2xl shadow-cyan-500/20 sm:col-span-2 lg:col-span-3 xl:col-span-1'
+                    : 'border-white/[0.09] bg-[#0b1728] hover:border-cyan-400/30'
+                }`}
+              >
+                {plan.popular && (
+                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 px-3.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-md">
+                    Destaque
+                  </div>
+                )}
+
+                <div>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xl font-black text-white">{plan.title}</span>
+                    {plan.badge && (
+                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
+                        plan.popular ? 'bg-cyan-400/20 text-cyan-300' : 'bg-white/[0.06] text-slate-300'
+                      }`}>
+                        {plan.badge}
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="mt-4 flex items-baseline gap-1">
+                    <span className="text-3xl font-black tracking-tight text-white">{plan.price}</span>
+                    <span className="text-xs font-semibold text-slate-400">{plan.period}</span>
+                  </div>
+                  {plan.additionalTv && (
+                    <p className="mt-1 text-xs font-bold text-cyan-300">{plan.additionalTv}</p>
+                  )}
+
+                  <p className="mt-3 text-xs leading-5 text-slate-400">{plan.subtitle}</p>
+
+                  {plan.includesPrevious && (
+                    <div className="mt-4 rounded-xl border border-cyan-400/25 bg-cyan-400/[0.07] px-3 py-2 text-[11px] font-extrabold text-cyan-300">
+                      ✓ Inclui todas as vantagens do plano de {plan.includesPrevious} +
+                    </div>
+                  )}
+
+                  <div className="my-5 h-px bg-white/[0.08]" />
+
+                  <ul className="space-y-2.5 text-xs text-slate-300">
+                    {plan.features.map((feature, idx) => (
+                      <li key={idx} className="flex items-start gap-2">
+                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
+                        <span className="leading-5">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+
+                <div className="mt-8 border-t border-white/[0.06] pt-4">
+                  <Link
+                    href={`${signupHref}?plano=${plan.id}`}
+                    className={`inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-xl text-xs font-extrabold transition ${
+                      plan.popular
+                        ? 'bg-cyan-400 text-slate-950 hover:bg-cyan-300 shadow-lg shadow-cyan-400/20'
+                        : 'bg-white/[0.08] text-white hover:bg-white/[0.15] border border-white/10'
+                    }`}
+                  >
+                    Testar 60 dias grátis <ArrowRight className="h-3.5 w-3.5" />
+                  </Link>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Banner Indique e Ganhe */}
+          <div className="mt-12 overflow-hidden rounded-3xl border border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-400/[0.05] to-transparent p-6 backdrop-blur-md sm:p-8">
+            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-400/20 text-amber-300 shadow-inner">
+                  <Gift className="h-6 w-6" />
+                </div>
+                <div>
+                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-300">
+                    🎁 Programa Indique e Ganhe para Membros
+                  </div>
+                  <h3 className="mt-2 text-xl font-extrabold text-white">
+                    Ganhe 1 Mensalidade Grátis a Cada Empresa Indicada!
+                  </h3>
+                  <p className="mt-2 max-w-3xl text-xs leading-6 text-slate-300 sm:text-sm">
+                    Após se tornar membro, convide outras empresas! Para <strong className="text-white">cada membro/empresa indicada</strong> em <strong className="text-white">qualquer plano</strong> que pagar a primeira mensalidade, <strong className="text-amber-300">quem indicou ganha 1 mensalidade inteiramente grátis!</strong>
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0">
+                <Link
+                  href={signupHref}
+                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-amber-300 px-6 text-xs font-extrabold text-slate-950 shadow-lg shadow-amber-400/15 transition hover:-translate-y-0.5 hover:bg-amber-200"
+                >
+                  Quero ser membro e indicar <ArrowRight className="h-4 w-4" />
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
