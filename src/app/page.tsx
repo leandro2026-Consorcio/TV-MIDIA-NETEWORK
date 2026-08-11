@@ -3,6 +3,7 @@ import {
   ArrowRight,
   BadgeCheck,
   BarChart3,
+  Building2,
   Check,
   ChevronDown,
   CirclePlay,
@@ -12,9 +13,12 @@ import {
   ImageUp,
   LayoutDashboard,
   ListChecks,
+  Mail,
   MapPin,
   Menu,
+  MessageSquare,
   MonitorPlay,
+  Phone,
   Play,
   Sparkles,
   Tv,
@@ -178,32 +182,49 @@ const pricingPlans = [
 
 const faqs = [
   {
-    question: 'Precisa de aprovação para começar?',
+    question: 'Precisa de aprovação manual para começar?',
     answer:
-      'Não. Se o cadastro público estiver habilitado, sua empresa é criada automaticamente e você já acessa o painel.',
+      'Não. O cadastro é 100% automático. Assim que você cria sua conta, recebe acesso imediato ao painel para cadastrar sua empresa, configurar suas TVs e enviar suas mídias.',
   },
   {
-    question: 'Precisa de cartão de crédito?',
-    answer: 'Não. O teste gratuito de 60 dias não exige cartão.',
-  },
-  {
-    question: 'Quanto tempo dura o teste?',
-    answer: 'O teste gratuito dura 60 dias a partir do cadastro da empresa.',
-  },
-  {
-    question: 'Posso convidar outras empresas?',
+    question: 'Precisa de cartão de crédito para os 60 dias grátis?',
     answer:
-      'Sim. Cada empresa recebe 3 convites VIP para indicar empresas estratégicas da sua rede.',
+      'Não! O teste gratuito dura 60 dias a partir da criação da conta e não exige nenhum cartão de crédito ou compromisso financeiro inicial.',
   },
   {
-    question: 'Posso usar uma Smart TV?',
+    question: 'Quais são os planos e mensalidades disponíveis?',
     answer:
-      'Sim. Basta abrir o link da TV no navegador do dispositivo e fazer o pareamento pelo código.',
+      'Possuímos planos flexíveis de 1 a 5 TVs com vantagens acumulativas: 1 TV por R$ 29,90/mês, 2 TVs por R$ 49,90/mês, 3 TVs por R$ 69,90/mês, 4 TVs por R$ 89,90/mês e 5 TVs por R$ 99,90/mês (+ R$ 14,99 por TV adicional). Todos iniciam com 60 dias grátis.',
   },
   {
-    question: 'Depois dos 60 dias, o que acontece?',
+    question: 'Como funciona o programa Indique e Ganhe para membros?',
     answer:
-      'Você será avisado no painel sobre o fim do período gratuito e poderá escolher um plano quando essa etapa estiver disponível.',
+      'Após se tornar membro, para cada empresa indicada em qualquer plano que assinar e pagar a 1ª mensalidade, quem indicou ganha 1 mensalidade inteiramente grátis para sua empresa. Não há limite de indicações!',
+  },
+  {
+    question: 'Como funciona a venda de propagandas na minha TV?',
+    answer:
+      'A partir do plano de 2 TVs, você pode disponibilizar espaços da sua tela à venda no nosso site. Outras empresas compram anúncios diretamente e você recebe 90% de todo o valor negociado nas suas telas.',
+  },
+  {
+    question: 'Preciso comprar aparelhos ou equipamentos específicos?',
+    answer:
+      'Não. Qualquer Smart TV conectada à internet ou dispositivo comum com navegador web pode ser conectado diretamente sem necessidade de comprar TV Box ou equipamentos extras.',
+  },
+  {
+    question: 'Quais mídias e formatos são suportados?',
+    answer:
+      'Você pode enviar imagens e vídeos ilimitados na orientação Vertical ou Horizontal, além de alternar com exibição de notícias em tempo real e conteúdos de respiro.',
+  },
+  {
+    question: 'Como funciona a mídia compartilhada por créditos?',
+    answer:
+      'A partir do plano de 3 TVs, sua empresa pode participar do grupo de mídia compartilhada. Suas exibições geram créditos para veicular sua marca em telas de empresas parceiras na cidade sem custos adicionais.',
+  },
+  {
+    question: 'Onde fica localizada a Mídia por Mídia e qual é o contato?',
+    answer:
+      'Nossa sede está localizada na Av. das Embaúbas, 2114 - Setor Comercial, Sinop-MT (CEP 78550-110), inscrita no CNPJ 10.764.218/0001-76. Nosso contato direto via telefone e WhatsApp é (66) 99608-6030.',
   },
 ];
 
@@ -211,29 +232,55 @@ const structuredData = {
   '@context': 'https://schema.org',
   '@graph': [
     {
-      '@type': 'Organization',
+      '@type': 'LocalBusiness',
       '@id': 'https://midiapormidia.com.br/#organization',
-      name: 'Mídia por Mídia',
-      alternateName: 'Rede Indoor Local',
+      name: 'Mídia por Mídia - Rede Indoor Local',
+      legalName: 'Mídia por Mídia',
+      taxID: '10.764.218/0001-76',
       url: 'https://midiapormidia.com.br/',
+      telephone: '+55-66-99608-6030',
       logo: {
         '@type': 'ImageObject',
         url: 'https://midiapormidia.com.br/media-tv-icon.svg',
       },
       image: 'https://midiapormidia.com.br/og.png',
       description:
-        'Plataforma brasileira de mídia indoor para empresas divulgarem propagandas em TVs e criarem redes locais de parceiros.',
-      areaServed: {
-        '@type': 'Country',
-        name: 'Brasil',
+        'Plataforma de mídia indoor e TV corporativa em Sinop-MT e Brasil. Cadastre TVs, publique propagandas e crie redes de mídias parceiras.',
+      address: {
+        '@type': 'PostalAddress',
+        streetAddress: 'Av. das Embaúbas, 2114 - Setor Comercial',
+        addressLocality: 'Sinop',
+        addressRegion: 'MT',
+        postalCode: '78550-110',
+        addressCountry: 'BR',
       },
+      geo: {
+        '@type': 'GeoCoordinates',
+        latitude: '-11.8641',
+        longitude: '-55.5053',
+      },
+      areaServed: [
+        {
+          '@type': 'City',
+          name: 'Sinop',
+        },
+        {
+          '@type': 'State',
+          name: 'Mato Grosso',
+        },
+        {
+          '@type': 'Country',
+          name: 'Brasil',
+        },
+      ],
+      priceRange: 'R$ 0,00 - R$ 99,90',
     },
     {
       '@type': 'WebSite',
       '@id': 'https://midiapormidia.com.br/#website',
       url: 'https://midiapormidia.com.br/',
       name: 'Mídia por Mídia',
-      alternateName: 'Rede Indoor Local',
+      alternateName: 'Rede Indoor Local Sinop-MT',
       inLanguage: 'pt-BR',
       publisher: {
         '@id': 'https://midiapormidia.com.br/#organization',
@@ -249,7 +296,7 @@ const structuredData = {
       url: 'https://midiapormidia.com.br/',
       inLanguage: 'pt-BR',
       description:
-        'Plataforma de mídia indoor para cadastrar TVs, publicar imagens e vídeos e divulgar empresas em redes locais.',
+        'Plataforma de mídia indoor para cadastrar Smart TVs, publicar imagens/vídeos e gerenciar redes de mídia indoor local.',
       provider: {
         '@id': 'https://midiapormidia.com.br/#organization',
       },
@@ -259,7 +306,7 @@ const structuredData = {
       },
       offers: {
         '@type': 'Offer',
-        name: 'Teste gratuito por 60 dias',
+        name: 'Teste gratuito por 60 dias sem cartão de crédito',
         price: '0',
         priceCurrency: 'BRL',
         url: 'https://midiapormidia.com.br/empresa/cadastro',
@@ -797,13 +844,64 @@ export default function Home() {
         </div>
       </section>
 
+      <section id="contato" className="scroll-mt-20 border-t border-white/[0.07] bg-[#091526] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <div className="grid gap-10 lg:grid-cols-3">
+            <div className="space-y-4">
+              <Logo />
+              <p className="text-xs leading-6 text-slate-400 sm:text-sm">
+                Plataforma de mídia indoor e TV corporativa. Transforme qualquer Smart TV em canal de comunicação local e monetização de publicidade.
+              </p>
+              <div className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3.5 py-1.5 text-xs font-bold text-cyan-300">
+                <Building2 className="h-4 w-4" /> CNPJ: 10.764.218/0001-76
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="flex items-center gap-2 text-base font-extrabold text-white">
+                <MapPin className="h-5 w-5 text-cyan-400" /> Endereço & Sede
+              </h3>
+              <p className="text-xs leading-6 text-slate-300 sm:text-sm">
+                <strong className="text-white">Av. das Embaúbas, 2114 - Setor Comercial</strong><br />
+                Sinop - MT, CEP 78550-110
+              </p>
+              <p className="text-xs text-slate-500">
+                Atendimento presencial e suporte a empresas parceiras em Sinop-MT e em todo o Brasil.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <h3 className="flex items-center gap-2 text-base font-extrabold text-white">
+                <Phone className="h-5 w-5 text-emerald-400" /> Contato & WhatsApp
+              </h3>
+              <div>
+                <a
+                  href="https://wa.me/5566996086030?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20M%C3%ADdia%20por%20M%C3%ADdia%20e%20gostaria%20de%20informa%C3%A7%C3%B5es."
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2.5 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-extrabold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/20"
+                >
+                  <Phone className="h-4 w-4" /> Contato: (66) 99608-6030
+                </a>
+              </div>
+              <p className="text-xs text-slate-400">
+                Fale diretamente conosco pelo WhatsApp para esclarecer dúvidas ou ativar seu plano.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
       <footer className="border-t border-white/[0.07] px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 text-center sm:flex-row sm:text-left">
           <Logo />
-          <p className="text-xs leading-5 text-slate-600">
-            © {new Date().getFullYear()} Mídia por Mídia. Plataforma brasileira de mídia indoor local.
+          <p className="text-xs leading-5 text-slate-500">
+            © {new Date().getFullYear()} Mídia por Mídia. CNPJ 10.764.218/0001-76 • Av. das Embaúbas, 2114, Sinop-MT.
           </p>
-          <Link href="/login" className="text-sm font-semibold text-slate-400 transition hover:text-white">Acessar painel</Link>
+          <div className="flex items-center gap-4 text-xs">
+            <a href="#contato" className="text-slate-400 transition hover:text-white">Contato</a>
+            <Link href="/login" className="font-semibold text-slate-400 transition hover:text-white">Acessar painel</Link>
+          </div>
         </div>
       </footer>
     </main>

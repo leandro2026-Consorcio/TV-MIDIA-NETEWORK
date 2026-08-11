@@ -10,11 +10,11 @@ const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Mídia por Mídia | Plataforma de mídia indoor local',
+    default: 'Mídia por Mídia | Mídia Indoor e TV Corporativa em Sinop-MT e Brasil',
     template: '%s | Mídia por Mídia',
   },
   description:
-    'Transforme sua TV em mídia indoor local. Cadastre sua empresa, publique propagandas e conecte parceiros da sua cidade. Teste grátis por 60 dias.',
+    'Plataforma de mídia indoor e TV corporativa em Sinop-MT. Transforme sua Smart TV em canal de comunicação e propaganda local. Teste grátis por 60 dias sem cartão.',
   applicationName: 'Mídia por Mídia',
   authors: [{ name: 'Mídia por Mídia', url: siteUrl }],
   creator: 'Mídia por Mídia',
@@ -22,13 +22,21 @@ export const metadata: Metadata = {
   category: 'Tecnologia e publicidade',
   keywords: [
     'mídia indoor',
+    'mídia indoor Sinop',
+    'mídia indoor MT',
+    'mídia indoor Mato Grosso',
     'TV corporativa',
-    'publicidade em TV',
+    'publicidade em TV Sinop',
+    'propaganda em TV',
     'propaganda local',
     'rede de mídia local',
     'digital signage Brasil',
+    'digital signage Sinop',
     'painel de mídia indoor',
-    'divulgação para empresas',
+    'anúncios em TV',
+    'divulgação para empresas Sinop',
+    'monetização de TV corporativa',
+    'mídia compartilhada',
   ],
   alternates: {
     canonical: '/',
@@ -41,21 +49,21 @@ export const metadata: Metadata = {
     locale: 'pt_BR',
     url: '/',
     siteName: 'Mídia por Mídia',
-    title: 'Mídia por Mídia | Transforme sua TV em mídia local',
+    title: 'Mídia por Mídia | Plataforma de Mídia Indoor em Sinop-MT e Brasil',
     description:
-      'Cadastre sua empresa, conecte sua TV e publique sua propaganda. São 60 dias grátis, sem cartão e com acesso imediato.',
+      'Cadastre sua empresa, conecte sua Smart TV e publique propagandas em Sinop-MT e em todo o Brasil. 60 dias grátis sem cartão de crédito.',
     images: [
       {
         url: '/og.png',
         width: 1731,
         height: 909,
-        alt: 'Mídia por Mídia — transforme sua TV em mídia local e teste por 60 dias grátis',
+        alt: 'Mídia por Mídia — plataforma de mídia indoor e TV corporativa',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Mídia por Mídia | Transforme sua TV em mídia local',
+    title: 'Mídia por Mídia | Mídia Indoor em Sinop-MT',
     description:
       'Conecte sua TV, publique sua propaganda e fortaleça a rede de mídia da sua cidade. Teste grátis por 60 dias.',
     images: ['/og.png'],
@@ -83,8 +91,10 @@ export const metadata: Metadata = {
     : undefined,
   other: {
     'content-language': 'pt-BR',
-    'geo.region': 'BR',
-    'geo.placename': 'Brasil',
+    'geo.region': 'BR-MT',
+    'geo.placename': 'Sinop, Mato Grosso, Brasil',
+    'geo.position': '-11.8641;-55.5053',
+    'ICBM': '-11.8641, -55.5053',
   },
 };
 
