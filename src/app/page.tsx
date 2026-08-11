@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { WhatsAppButton } from '@/components/whatsapp-button';
 import {
   ArrowRight,
   BadgeCheck,
@@ -904,6 +905,7 @@ export default function Home() {
           </div>
         </div>
       </footer>
+      <WhatsAppButton />
     </main>
   );
 }
