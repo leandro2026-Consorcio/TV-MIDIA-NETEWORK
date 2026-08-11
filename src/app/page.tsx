@@ -275,6 +275,11 @@ const structuredData = {
         },
       ],
       priceRange: 'R$ 0,00 - R$ 99,90',
+      parentOrganization: {
+        '@type': 'Organization',
+        name: 'MSD Digital',
+        url: 'https://msddigital.com.br/',
+      },
     },
     {
       '@type': 'WebSite',
@@ -896,9 +901,12 @@ export default function Home() {
       <footer className="border-t border-white/[0.07] px-4 py-8 sm:px-6">
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 text-center sm:flex-row sm:text-left">
           <Logo />
-          <p className="text-xs leading-5 text-slate-500">
-            © {new Date().getFullYear()} Mídia por Mídia. CNPJ 10.764.218/0001-76 • Av. das Embaúbas, 2114, Sinop-MT.
-          </p>
+          <div className="text-xs leading-5 text-slate-500">
+            <p>© {new Date().getFullYear()} Mídia por Mídia. CNPJ 10.764.218/0001-76 • Av. das Embaúbas, 2114, Sinop-MT.</p>
+            <p className="mt-1 text-slate-400">
+              Um produto <a href="https://msddigital.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-cyan-400 hover:underline">MSD Digital</a> (<a href="https://msddigital.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300">msddigital.com.br</a>)
+            </p>
+          </div>
           <div className="flex items-center gap-4 text-xs">
             <a href="#contato" className="text-slate-400 transition hover:text-white">Contato</a>
             <Link href="/login" className="font-semibold text-slate-400 transition hover:text-white">Acessar painel</Link>

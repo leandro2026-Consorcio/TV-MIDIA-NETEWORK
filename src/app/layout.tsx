@@ -16,9 +16,12 @@ export const metadata: Metadata = {
   description:
     'Plataforma de mídia indoor e TV corporativa em Sinop-MT. Transforme sua Smart TV em canal de comunicação e propaganda local. Teste grátis por 60 dias sem cartão.',
   applicationName: 'Mídia por Mídia',
-  authors: [{ name: 'Mídia por Mídia', url: siteUrl }],
-  creator: 'Mídia por Mídia',
-  publisher: 'Mídia por Mídia',
+  authors: [
+    { name: 'MSD Digital', url: 'https://msddigital.com.br' },
+    { name: 'Mídia por Mídia', url: siteUrl },
+  ],
+  creator: 'MSD Digital (msddigital.com.br)',
+  publisher: 'MSD Digital',
   category: 'Tecnologia e publicidade',
   keywords: [
     'mídia indoor',
