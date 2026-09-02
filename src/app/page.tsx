@@ -1,5 +1,7 @@
 import Link from 'next/link';
 import { WhatsAppButton } from '@/components/whatsapp-button';
+import { getPublicSignupSettingsAction } from '@/app/actions/onboarding';
+import { formatPrice } from '@/lib/platform-pricing';
 import {
   ArrowRight,
   BadgeCheck,
@@ -32,6 +34,10 @@ import {
 } from 'lucide-react';
 
 const signupHref = '/empresa/cadastro';
+
+// Mantém os preços públicos atualizados sem tornar a página indisponível se o
+// banco oscilar: o Next pode servir a última versão válida enquanto revalida.
+export const revalidate = 60;
 
 const steps = [
   {
@@ -376,12 +382,55 @@ function SectionTitle({
   );
 }
 
-export default function Home() {
+export default async function Home() {
+  const { settings } = await getPublicSignupSettingsAction();
+  const displayedPricingPlans = pricingPlans.map((plan) => ({
+    ...plan,
+    price: formatPrice(settings.planPrices[plan.id as keyof typeof settings.planPrices]),
+    additionalTv: plan.id === '5-tvs'
+      ? `+ ${formatPrice(settings.planPrices['additional-tv'])} por TV adicional`
+      : undefined,
+  }));
+  const displayedFaqs = faqs.map((faq) => faq.question === 'Quais são os planos e mensalidades disponíveis?'
+    ? {
+        ...faq,
+        answer: `Possuímos planos flexíveis de 1 a 5 TVs com vantagens acumulativas: 1 TV por ${formatPrice(settings.planPrices['1-tv'])}/mês, 2 TVs por ${formatPrice(settings.planPrices['2-tvs'])}/mês, 3 TVs por ${formatPrice(settings.planPrices['3-tvs'])}/mês, 4 TVs por ${formatPrice(settings.planPrices['4-tvs'])}/mês e 5 TVs por ${formatPrice(settings.planPrices['5-tvs'])}/mês (+ ${formatPrice(settings.planPrices['additional-tv'])} por TV adicional). Todos iniciam com ${settings.trialDays} dias grátis.`,
+      }
+    : faq);
+  const displayedStructuredData = {
+    ...structuredData,
+    '@graph': structuredData['@graph'].map((entry) => {
+      if (entry['@type'] === 'Organization') {
+        const highestPrice = Math.max(...Object.values(settings.planPrices));
+        return { ...entry, priceRange: `R$ 0,00 - ${formatPrice(highestPrice)}` };
+      }
+      if (entry['@type'] === 'SoftwareApplication') {
+        return {
+          ...entry,
+          offers: {
+            ...entry.offers,
+            name: `Teste gratuito por ${settings.trialDays} dias sem cartão de crédito`,
+          },
+        };
+      }
+      if (entry['@type'] === 'FAQPage') {
+        return {
+          ...entry,
+          mainEntity: displayedFaqs.map(({ question, answer }) => ({
+            '@type': 'Question',
+            name: question,
+            acceptedAnswer: { '@type': 'Answer', text: answer },
+          })),
+        };
+      }
+      return entry;
+    }),
+  };
   return (
     <main id="inicio" className="min-h-screen overflow-hidden bg-[#07101f] text-white selection:bg-cyan-300 selection:text-slate-950">
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(displayedStructuredData) }}
       />
       <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.07] bg-[#07101f]/85 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:px-6 lg:px-8">
@@ -594,7 +643,7 @@ export default function Home() {
           </div>
 
           <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {pricingPlans.map((plan) => (
+            {displayedPricingPlans.map((plan) => (
               <div
                 key={plan.id}
                 className={`relative flex flex-col justify-between rounded-3xl border p-6 transition hover:-translate-y-1.5 ${
@@ -807,7 +856,7 @@ export default function Home() {
         <div className="mx-auto max-w-3xl">
           <SectionTitle eyebrow="Dúvidas frequentes" title="Tudo o que você precisa saber para começar" />
           <div className="mt-12 space-y-3">
-            {faqs.map(({ question, answer }) => (
+            {displayedFaqs.map(({ question, answer }) => (
               <details key={question} className="group rounded-2xl border border-white/[0.08] bg-[#07101f] open:border-cyan-400/20">
                 <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-left text-sm font-extrabold text-white sm:p-6 sm:text-base">
                   {question}

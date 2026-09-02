@@ -37,3 +37,7 @@ tsconfig.tsbuildinfo
 *.env
 *.key
 *.token
+
+.vercel
+.env*
+supabase/.temp/

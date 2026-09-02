@@ -2,6 +2,14 @@
 
 Este manual descreve a **ordem lógica de cadastros e liberações** para operação da plataforma, bem como o fluxo exclusivo do **Master Admin** para concessão de **gratuidade de uso, planos ilimitados e degustação (trials)** para empresas parceiras.
 
+## Acesso e configuração inicial do Master Admin
+
+O Master Admin entra pela mesma rota `/login` e usa a mesma autenticação por e-mail e senha dos demais usuários. O acesso global é liberado pelo campo `profiles.is_master_admin`; não existe uma senha paralela de administração.
+
+Para promover o primeiro Master Admin com segurança, use uma credencial de `service_role` no ambiente administrativo para chamar via RPC a função `set_master_admin_by_email(email, true)`. A função não é acessível a usuários anônimos ou autenticados comuns. Depois da promoção, o menu exibe o selo **Master Admin** e as áreas administrativas.
+
+Os preços mensais anunciados no site podem ser alterados em **Configurações da Plataforma**, no menu do Master Admin. O preço mínimo e a comissão das ofertas de mídia continuam em **Revisão de Ofertas**, pois são regras comerciais diferentes.
+
 ---
 
 ## 1. Ordem Lógica de Cadastros e Liberações (Fluxo Operacional)

@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { Profile, Company } from '@/types';
 import { Sidebar } from '@/components/sidebar';
@@ -20,7 +20,8 @@ export default function DashboardLayout({
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
-  const supabase = createClient();
+  const pathname = usePathname();
+  const supabase = useMemo(() => createClient(), []);
 
   useEffect(() => {
     async function loadUserData() {
@@ -78,7 +79,14 @@ export default function DashboardLayout({
                 .order('created_at', { ascending: false })
                 .limit(1)
                 .maybeSingle();
-              setIsTrial(!!trial);
+              const hasTrial = !!trial;
+              setIsTrial(hasTrial);
+
+              if (hasTrial) {
+                const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans', '/help/getting-started'];
+                const isAllowed = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+                if (!isAllowed) router.replace('/dashboard');
+              }
             }
           }
         }
@@ -90,7 +98,7 @@ export default function DashboardLayout({
     }
 
     loadUserData();
-  }, [router, supabase]);
+  }, [pathname, router, supabase]);
 
   if (loading) {
     return (

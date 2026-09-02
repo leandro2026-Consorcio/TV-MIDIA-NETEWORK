@@ -16,15 +16,21 @@ export async function updateSession(request: NextRequest) {
     pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/api/');
 
-  // 2. Se for rota de player (/tv ou /player) ou API pública, libera o acesso imediatamente sem verificar login
-  if (
-    pathname.startsWith('/tv') ||
-    pathname.startsWith('/player') ||
-    pathname === '/manifest.webmanifest' ||
-    pathname === '/' ||
-    pathname.startsWith('/api/')
-  ) {
+  // Rotas públicas precisam funcionar mesmo quando o provedor de autenticação
+  // estiver lento ou temporariamente indisponível. Antes, /login era marcada
+  // como pública, mas ainda aguardava auth.getUser(), causando o timeout 504 da
+  // Vercel antes que o formulário pudesse ser exibido.
+  if (isPublicRoute) {
     return NextResponse.next();
+  }
+
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/login';
+    url.searchParams.set('error', 'auth_config');
+    return NextResponse.redirect(url);
   }
 
   let supabaseResponse = NextResponse.next({
@@ -32,8 +38,8 @@ export async function updateSession(request: NextRequest) {
   });
 
   const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    supabaseUrl,
+    supabaseAnonKey,
     {
       cookies: {
         getAll() {
@@ -58,59 +64,12 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  // Empresas em trial operam somente o núcleo necessário. Esconder o menu não
-  // basta: o mesmo conjunto é aplicado ao acesso direto por URL.
-  if (user && !isPublicRoute) {
-    const { data: profile } = await (supabase.from('profiles') as any)
-      .select('is_master_admin')
-      .eq('id', user.id)
-      .maybeSingle();
-
-    if (!profile?.is_master_admin) {
-      const { data: link, error: linkError } = await (supabase.from('company_users') as any)
-        .select('company_id')
-        .eq('user_id', user.id)
-        .eq('is_active', true)
-        .limit(1)
-        .maybeSingle();
-
-      if (!link && !linkError) {
-        const url = request.nextUrl.clone();
-        url.pathname = '/empresa/cadastro';
-        return NextResponse.redirect(url);
-      }
-
-      if (link) {
-        const { data: trial, error: trialError } = await (supabase.from('company_trials') as any)
-          .select('id')
-          .eq('company_id', link.company_id)
-          .in('status', ['active', 'expired', 'cancelled'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans', '/help/getting-started'];
-        const isAllowedTrialRoute = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
-        if ((trial || trialError) && !isAllowedTrialRoute) {
-          const url = request.nextUrl.clone();
-          url.pathname = '/dashboard';
-          return NextResponse.redirect(url);
-        }
-      }
-    }
-  }
-
-  // 3. Se o usuário NÃO está autenticado e tenta acessar área interna protegida, redireciona para /login
+  // O middleware valida somente a sessão. Consultas de perfil, empresa e trial
+  // são feitas no portal, onde não estão sujeitas ao limite curto do Edge.
+  // A segurança dos dados permanece garantida pelas políticas RLS do Supabase.
   if (!user && !isPublicRoute) {
     const url = request.nextUrl.clone();
     url.pathname = '/login';
-    return NextResponse.redirect(url);
-  }
-
-  // 4. Se o usuário já está logado e acessa /login ou /register, redireciona para /dashboard
-  if (user && (pathname.startsWith('/login') || pathname.startsWith('/register'))) {
-    const url = request.nextUrl.clone();
-    url.pathname = '/dashboard';
     return NextResponse.redirect(url);
   }
 

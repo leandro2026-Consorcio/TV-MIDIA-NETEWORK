@@ -191,7 +191,7 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
         icon: KeyRound,
       },
       {
-        name: 'Configuração do Trial',
+        name: 'Configurações da Plataforma',
         href: '/admin/platform-settings',
         icon: Sliders,
       },

@@ -3,6 +3,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getPlatformCivilDate, getTrialDaysRemaining } from '@/lib/trial-days';
+import { DEFAULT_PLAN_PRICES, normalizePlanPrices, type PlanPrices } from '@/lib/platform-pricing';
 
 export interface PublicSignupSettings {
   enabled: boolean;
@@ -10,6 +11,7 @@ export interface PublicSignupSettings {
   invitesCount: number;
   autoApproveTrialInternalMedia: boolean;
   disabledMessage: string;
+  planPrices: PlanPrices;
 }
 
 export interface CompanySignupInput {
@@ -42,6 +44,7 @@ const DEFAULT_SETTINGS: PublicSignupSettings = {
   invitesCount: 3,
   autoApproveTrialInternalMedia: true,
   disabledMessage: 'Novos cadastros estão temporariamente indisponíveis. Fale com nosso atendimento.',
+  planPrices: DEFAULT_PLAN_PRICES,
 };
 
 function cleanText(value: unknown, max = 160) {
@@ -64,6 +67,7 @@ export async function getPublicSignupSettingsAction() {
         'trial_invites_count',
         'auto_approve_trial_internal_media',
         'public_signup_disabled_message',
+        'subscription_plan_prices_cents',
       ]);
 
     if (error) throw error;
@@ -76,6 +80,7 @@ export async function getPublicSignupSettingsAction() {
         invitesCount: Number(readSetting(rows, 'trial_invites_count', 3)),
         autoApproveTrialInternalMedia: Boolean(readSetting(rows, 'auto_approve_trial_internal_media', true)),
         disabledMessage: String(readSetting(rows, 'public_signup_disabled_message', DEFAULT_SETTINGS.disabledMessage)),
+        planPrices: normalizePlanPrices(readSetting(rows, 'subscription_plan_prices_cents', DEFAULT_PLAN_PRICES)),
       } satisfies PublicSignupSettings,
     };
   } catch {
@@ -432,12 +437,14 @@ export async function updatePlatformTrialSettingsAction(settings: PublicSignupSe
 
   const trialDays = Math.max(1, Math.min(365, Number(settings.trialDays) || 60));
   const invitesCount = Math.max(1, Math.min(10, Number(settings.invitesCount) || 3));
+  const planPrices = normalizePlanPrices(settings.planPrices);
   const rows = [
     ['public_trial_signup_enabled', Boolean(settings.enabled)],
     ['public_trial_days', trialDays],
     ['trial_invites_count', invitesCount],
     ['auto_approve_trial_internal_media', Boolean(settings.autoApproveTrialInternalMedia)],
     ['public_signup_disabled_message', cleanText(settings.disabledMessage, 500) || DEFAULT_SETTINGS.disabledMessage],
+    ['subscription_plan_prices_cents', planPrices],
   ].map(([key, value]) => ({ key, value, updated_by: user.id, updated_at: new Date().toISOString() }));
 
   const admin = createAdminClient();
@@ -446,7 +453,7 @@ export async function updatePlatformTrialSettingsAction(settings: PublicSignupSe
   await (admin.from('audit_logs') as any).insert({
     user_id: user.id,
     action: 'PLATFORM_TRIAL_SETTINGS_UPDATED',
-    details: { enabled: settings.enabled, trial_days: trialDays, invites_count: invitesCount },
+    details: { enabled: settings.enabled, trial_days: trialDays, invites_count: invitesCount, plan_prices_cents: planPrices },
   });
   return { success: true as const };
 }
