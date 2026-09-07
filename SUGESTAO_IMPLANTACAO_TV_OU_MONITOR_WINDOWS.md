@@ -287,3 +287,5 @@ Na tela de detalhes, mostrar somente as opções compatíveis com o tipo:
 ## Decisão recomendada
 
 Usar **TV** para equipamentos dedicados de exibição e **Monitor Windows** para computadores conectados a monitores. Ambos devem compartilhar o mesmo cadastro de programação, mas o Monitor Windows deve possuir um aplicativo local responsável por inicialização, quiosque, energia, inatividade e recuperação automática.
+
+Para a participação de pessoas comuns com telas residenciais, consultar o [Roadmap da Rede Orgânica](./ROADMAP_REDE_ORGANICA.md). Essa modalidade usa fator de crédito `0,01` e exige estoque de brindes cadastrado pela empresa antes da distribuição da campanha.
