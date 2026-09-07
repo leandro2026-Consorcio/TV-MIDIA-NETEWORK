@@ -58,9 +58,9 @@ export interface Database {
         Relationships: [];
       };
       screens: {
-        Row: { id: string; company_id: string; name: string; description: string | null; orientation: 'horizontal' | 'vertical'; resolution: string | null; location_description: string | null; status: string; device_token_hash: string | null; last_ping_at: string | null; paired_at: string | null; created_at: string; updated_at: string; };
-        Insert: { id?: string; company_id: string; name: string; description?: string | null; orientation?: 'horizontal' | 'vertical'; resolution?: string | null; location_description?: string | null; status?: string; device_token_hash?: string | null; last_ping_at?: string | null; paired_at?: string | null; created_at?: string; updated_at?: string; };
-        Update: { id?: string; company_id?: string; name?: string; description?: string | null; orientation?: 'horizontal' | 'vertical'; resolution?: string | null; location_description?: string | null; status?: string; device_token_hash?: string | null; last_ping_at?: string | null; paired_at?: string | null; created_at?: string; updated_at?: string; };
+        Row: { id: string; company_id: string; name: string; description: string | null; orientation: 'horizontal' | 'vertical'; resolution: string | null; location_description: string | null; device_type: 'tv' | 'windows_monitor'; status: string; device_token_hash: string | null; last_ping_at: string | null; paired_at: string | null; created_at: string; updated_at: string; };
+        Insert: { id?: string; company_id: string; name: string; description?: string | null; orientation?: 'horizontal' | 'vertical'; resolution?: string | null; location_description?: string | null; device_type?: 'tv' | 'windows_monitor'; status?: string; device_token_hash?: string | null; last_ping_at?: string | null; paired_at?: string | null; created_at?: string; updated_at?: string; };
+        Update: { id?: string; company_id?: string; name?: string; description?: string | null; orientation?: 'horizontal' | 'vertical'; resolution?: string | null; location_description?: string | null; device_type?: 'tv' | 'windows_monitor'; status?: string; device_token_hash?: string | null; last_ping_at?: string | null; paired_at?: string | null; created_at?: string; updated_at?: string; };
         Relationships: [];
       };
       screen_pairing_codes: {

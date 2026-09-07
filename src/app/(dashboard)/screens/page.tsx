@@ -81,7 +81,7 @@ export default function ScreensPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Gerenciamento de TVs / Telas</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Gerenciamento de Telas</h1>
           <p className="text-slate-400 text-sm mt-1">
             Cadastre, edite e vincule telas aos seus estabelecimentos comerciais.
           </p>
@@ -134,6 +134,9 @@ export default function ScreensPage() {
                 </h3>
                 <p className="text-xs font-semibold text-slate-400 truncate mb-1">
                   {screen.company_name || 'Empresa'}
+                </p>
+                <p className="text-xs text-sky-400 font-semibold">
+                  {screen.device_type === 'windows_monitor' ? 'Monitor Windows' : 'TV'}
                 </p>
                 {screen.description && (
                   <p className="text-xs text-slate-500 line-clamp-2 mb-3">{screen.description}</p>

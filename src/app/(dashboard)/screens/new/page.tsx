@@ -11,6 +11,7 @@ export default function NewScreenPage() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [orientation, setOrientation] = useState<'horizontal' | 'vertical'>('horizontal');
+  const [deviceType, setDeviceType] = useState<'tv' | 'windows_monitor'>('tv');
   const [resolution, setResolution] = useState('1920x1080');
   const [locationDescription, setLocationDescription] = useState('');
   const [companyId, setCompanyId] = useState('');
@@ -101,6 +102,7 @@ export default function NewScreenPage() {
           name,
           description: description || null,
           orientation,
+          device_type: deviceType,
           resolution,
           location_description: locationDescription || null,
           status: 'pending_pairing',
@@ -153,8 +155,8 @@ export default function NewScreenPage() {
           <ArrowLeft className="w-5 h-5" />
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Cadastrar Nova TV / Tela</h1>
-          <p className="text-slate-400 text-sm">Adicione um novo dispositivo para pareamento</p>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Cadastrar Nova Tela</h1>
+          <p className="text-slate-400 text-sm">Escolha TV ou Monitor Windows para iniciar o pareamento</p>
         </div>
       </div>
 
@@ -168,6 +170,18 @@ export default function NewScreenPage() {
         )}
 
         <form onSubmit={handleSubmit} className="space-y-5 text-sm">
+          <div>
+            <label className="block font-medium text-slate-300 mb-1">Tipo de dispositivo *</label>
+            <select
+              value={deviceType}
+              onChange={(e) => setDeviceType(e.target.value as 'tv' | 'windows_monitor')}
+              className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 text-sm focus:outline-none focus:border-sky-500"
+            >
+              <option value="tv">TV / Smart TV / TV Box</option>
+              <option value="windows_monitor">Monitor Windows / computador</option>
+            </select>
+            <p className="text-xs text-slate-500 mt-1.5">Monitor Windows receberá instruções para iniciar automaticamente com o computador.</p>
+          </div>
           <div>
             <label className="block font-medium text-slate-300 mb-1">Empresa Proprietária *</label>
             {companies.length === 0 ? (

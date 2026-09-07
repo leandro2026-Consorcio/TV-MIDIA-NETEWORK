@@ -57,6 +57,7 @@ export type SellerPayoutTransfer = Database['public']['Tables']['seller_payout_t
 
 export type UserRole = 'admin' | 'operator' | 'external';
 export type ScreenOrientation = 'horizontal' | 'vertical';
+export type ScreenDeviceType = 'tv' | 'windows_monitor';
 export type ScreenStatus = 'pending_pairing' | 'online' | 'offline' | 'inactive';
 
 export type MediaType = 'image' | 'video';

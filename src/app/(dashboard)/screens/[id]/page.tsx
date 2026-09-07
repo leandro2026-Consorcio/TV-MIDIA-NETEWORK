@@ -302,6 +302,9 @@ export default function ScreenDetailPage() {
           <div>
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-white tracking-tight">{screen.name}</h1>
+              <p className="text-sm text-sky-400 font-semibold">
+                {screen.device_type === 'windows_monitor' ? 'Monitor Windows' : 'TV'}
+              </p>
               <span
                 className={`px-2.5 py-0.5 rounded-full text-xs font-bold ${
                   screen.status === 'online'
