@@ -118,6 +118,7 @@ export async function getApprovedCompanyMediaAssetsAction(companyId: string) {
     .eq('company_id', companyId)
     .eq('status', 'approved')
     .eq('trial_internal_only', false)
+    .eq('owner_only', false)
     .order('created_at', { ascending: false });
 
   if (error) {

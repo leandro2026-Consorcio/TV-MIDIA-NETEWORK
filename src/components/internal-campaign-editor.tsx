@@ -28,7 +28,7 @@ import {
   Tv,
 } from 'lucide-react';
 
-type Duration = 5 | 10 | 15 | 30;
+type Duration = number;
 
 export default function InternalCampaignEditor({ campaignId }: { campaignId: string }) {
   const [campaign, setCampaign] = useState<any>(null);
@@ -214,8 +214,8 @@ export default function InternalCampaignEditor({ campaignId }: { campaignId: str
               <ImageIcon className="w-5 h-5 text-purple-400" />
             </div>
             {!isFinal && <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto_auto] gap-2">
-              <select value={selectedMediaId} onChange={(e) => setSelectedMediaId(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white"><option value="">Selecione uma mídia...</option>{mediaOptions.map((media) => <option key={media.id} value={media.id}>{media.title}</option>)}</select>
-              <select value={duration} onChange={(e) => setDuration(Number(e.target.value) as Duration)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white">{[5, 10, 15, 30].map((value) => <option key={value} value={value}>{value}s</option>)}</select>
+              <select value={selectedMediaId} onChange={(e) => { const id = e.target.value; setSelectedMediaId(id); const media = mediaOptions.find((item) => item.id === id); if (media) setDuration(Number(media.playback_duration_seconds)); }} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white"><option value="">Selecione uma mídia...</option>{mediaOptions.map((media) => <option key={media.id} value={media.id}>{media.title}{media.owner_only ? ' (uso interno)' : ''}</option>)}</select>
+              <select value={duration} onChange={(e) => setDuration(Number(e.target.value) as Duration)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white">{Array.from(new Set([5, 10, 15, 30, duration])).sort((a, b) => a - b).map((value) => <option key={value} value={value}>{value}s</option>)}</select>
               <button type="button" onClick={addMedia} disabled={working || !selectedMediaId} className="px-4 py-2.5 bg-purple-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 disabled:opacity-50"><Plus className="w-4 h-4" /> Adicionar</button>
             </div>}
             {mediaLinks.length === 0 ? <p className="text-xs text-amber-400 py-4">Adicione ao menos uma mídia aprovada para ativar a campanha.</p> : mediaLinks.map((link) => <div key={link.id} className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl p-3"><div><strong className="text-white text-sm">{link.media_assets?.title || 'Mídia'}</strong><p className="text-[10px] text-slate-400">{link.playback_duration_seconds}s · {link.media_assets?.media_type}</p></div>{!isFinal && <button onClick={() => runAction(() => removeCampaignMediaAction(campaignId, link.media_asset_id), 'Mídia removida.')} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>}</div>)}

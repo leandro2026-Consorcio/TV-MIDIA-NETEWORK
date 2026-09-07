@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import { Gift, Laptop, Loader2, MonitorPlay, RefreshCw, Tv, Wallet } from 'lucide-react';
+import { Download, Gift, Laptop, Loader2, MonitorPlay, RefreshCw, Tv, Wallet } from 'lucide-react';
 import { activateOrganicParticipantAction, createOrganicScreenAction, getOrganicDashboardAction, pairOrganicScreenAction, reserveOrganicRewardAction } from '@/app/actions/organic-network';
 
 export default function OrganicNetworkPage() {
@@ -82,7 +82,7 @@ export default function OrganicNetworkPage() {
           <h2 className="text-xl font-black">Adicionar tela orgânica</h2>
           <input required placeholder="Nome da tela" value={screen.name} onChange={e => setScreen({ ...screen, name: e.target.value })} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3" />
           <select value={screen.deviceType} onChange={e => setScreen({ ...screen, deviceType: e.target.value as any })} className="w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3"><option value="organic_tv">TV residencial</option><option value="organic_windows_monitor">Monitor Windows residencial</option></select>
-          {screen.deviceType === 'organic_windows_monitor' && <p className="rounded-xl bg-violet-400/10 p-3 text-xs text-violet-200">O Monitor Windows poderá iniciar com o computador, abrir em modo quiosque e entrar na programação após o tempo de inatividade.</p>}
+          {screen.deviceType === 'organic_windows_monitor' && <div className="rounded-xl bg-violet-400/10 p-3 text-xs text-violet-200"><p>O Monitor Windows poderá iniciar com o computador, abrir em modo quiosque e entrar na programação após o tempo de inatividade.</p><a href={`/api/downloads/windows-monitor?mode=organic&idle=${screen.idleMinutes}`} className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-500 px-3 py-2 font-bold text-white"><Download className="h-4 w-4" /> Baixar instalador configurado</a></div>}
           <label className="block text-sm text-slate-400">Iniciar após inatividade (minutos)<input type="number" min={0} max={1440} value={screen.idleMinutes} onChange={e => setScreen({ ...screen, idleMinutes: Number(e.target.value) })} className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3" /></label>
           <button disabled={busy} className="w-full rounded-xl bg-cyan-400 px-5 py-3 font-black text-slate-950">Cadastrar tela</button>
         </form>

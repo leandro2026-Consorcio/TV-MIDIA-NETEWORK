@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Company } from '@/types';
-import { ArrowLeft, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, AlertCircle } from 'lucide-react';
 
 export default function NewScreenPage() {
   const [name, setName] = useState('');
@@ -181,6 +181,7 @@ export default function NewScreenPage() {
               <option value="windows_monitor">Monitor Windows / computador</option>
             </select>
             <p className="text-xs text-slate-500 mt-1.5">Monitor Windows receberá instruções para iniciar automaticamente com o computador.</p>
+            {deviceType === 'windows_monitor' && <a href="/api/downloads/windows-monitor" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-500/15 px-3 py-2 text-xs font-bold text-violet-300"><Download className="h-4 w-4" /> Baixar instalador do Monitor Windows</a>}
           </div>
           <div>
             <label className="block font-medium text-slate-300 mb-1">Empresa Proprietária *</label>

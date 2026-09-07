@@ -125,7 +125,7 @@ export async function updatePlaylistAction(
 export async function addPlaylistItemAction(
   playlistId: string,
   mediaAssetId: string,
-  playbackDurationSeconds: 5 | 10 | 15 | 30
+  playbackDurationSeconds: number
 ) {
   const supabase = createClient();
   const {
@@ -134,6 +134,10 @@ export async function addPlaylistItemAction(
 
   if (!user) {
     return { success: false, error: 'Usuário não autenticado.' };
+  }
+
+  if (playbackDurationSeconds < 5 || playbackDurationSeconds > 3600 || playbackDurationSeconds % 5 !== 0) {
+    return { success: false, error: 'Duração inválida. Use múltiplos de 5 segundos, entre 5 e 3600.' };
   }
 
   const { data: playlist } = await (supabase.from('playlists') as any)

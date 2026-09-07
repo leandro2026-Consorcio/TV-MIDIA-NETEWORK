@@ -43,7 +43,7 @@ export default function PlaylistMontadorPage() {
 
   const [showMediaPicker, setShowMediaPicker] = useState(false);
   const [selectedMediaId, setSelectedMediaId] = useState('');
-  const [itemDuration, setItemDuration] = useState<5 | 10 | 15 | 30>(10);
+  const [itemDuration, setItemDuration] = useState<number>(10);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -375,7 +375,7 @@ export default function PlaylistMontadorPage() {
                       <div>
                         <label className="block text-slate-300 font-medium mb-1">Tempo de Exibição (Segundos)</label>
                         <div className="grid grid-cols-4 gap-2">
-                          {[5, 10, 15, 30].map((dur) => (
+                          {Array.from(new Set([5, 10, 15, 30, itemDuration])).sort((a, b) => a - b).map((dur) => (
                             <button
                               key={dur}
                               type="button"

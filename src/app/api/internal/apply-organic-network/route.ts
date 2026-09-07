@@ -11,6 +11,8 @@ const FILES = [
   '20260907000050_screen_device_types.sql',
   '20260907000060_monitor_credit_ratio.sql',
   '20260907000070_organic_network.sql',
+  '20260907000080_owner_only_long_media.sql',
+  '20260907000090_organic_maintenance.sql',
 ];
 
 export async function POST(request: NextRequest) {
@@ -29,7 +31,9 @@ export async function POST(request: NextRequest) {
       exists(select 1 from information_schema.columns where table_schema='public' and table_name='screens' and column_name='device_type') as device_type,
       exists(select 1 from information_schema.tables where table_schema='public' and table_name='organic_participants') as participants,
       exists(select 1 from information_schema.tables where table_schema='public' and table_name='organic_campaign_rewards') as rewards,
-      exists(select 1 from information_schema.routines where routine_schema='public' and routine_name='record_organic_playback') as playback_rpc`);
+      exists(select 1 from information_schema.routines where routine_schema='public' and routine_name='record_organic_playback') as playback_rpc,
+      exists(select 1 from information_schema.columns where table_schema='public' and table_name='media_assets' and column_name='owner_only') as owner_only,
+      exists(select 1 from information_schema.routines where routine_schema='public' and routine_name='run_organic_maintenance') as maintenance_rpc`);
     return NextResponse.json({ success: true, validation });
   } catch (error) {
     console.error('Falha ao aplicar Rede Orgânica:', error instanceof Error ? error.message : 'erro desconhecido');

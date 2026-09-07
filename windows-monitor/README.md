@@ -18,6 +18,8 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 O usuário autoriza localmente a criação do inicializador. O site nunca altera o Windows sozinho.
 
+O portal também disponibiliza o script pronto em `/api/downloads/windows-monitor`. Para a modalidade residencial, o download é gerado com `/api/downloads/windows-monitor?mode=organic&idle=5`.
+
 ## Monitor Windows da Rede Orgânica
 
 Para um computador residencial que deve abrir a programação após ficar parado por 5 minutos:

@@ -235,6 +235,7 @@ export default function MediaListPage() {
                     <span>Tempo Exibição:</span>
                     <span className="font-bold text-amber-400">{media.playback_duration_seconds}s</span>
                   </div>
+                  {(media as any).owner_only && <p className="text-[10px] font-bold uppercase tracking-wide text-violet-300">Uso exclusivo nas telas da empresa</p>}
                   <div className="flex justify-between text-slate-500">
                     <span>Tamanho:</span>
                     <span>{formatFileSize(media.file_size_bytes)}</span>

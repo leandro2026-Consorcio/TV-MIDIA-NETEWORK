@@ -11,7 +11,8 @@ const ALLOWED_MIME_TYPES = [
   'video/webm',
 ];
 
-const ALLOWED_PLAYBACK_DURATIONS = [5, 10, 15, 30];
+const STANDARD_PLAYBACK_DURATIONS = [5, 10, 15, 30];
+const MAX_OWNER_ONLY_DURATION_SECONDS = 3600;
 
 export interface CreateMediaPayload {
   id?: string;
@@ -80,9 +81,10 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
   }
 
   // 5. Validação Server-Side de Duração de Exibição
-  if (!payload.playback_duration_seconds || payload.playback_duration_seconds <= 0) {
-    return { success: false, error: 'Duração de exibição inválida. Informe um valor em segundos maior que zero.' };
+  if (!payload.playback_duration_seconds || payload.playback_duration_seconds < 5 || payload.playback_duration_seconds > MAX_OWNER_ONLY_DURATION_SECONDS || payload.playback_duration_seconds % 5 !== 0) {
+    return { success: false, error: 'Duração inválida. Use múltiplos de 5 segundos, entre 5 e 3600.' };
   }
+  const ownerOnly = !STANDARD_PLAYBACK_DURATIONS.includes(payload.playback_duration_seconds);
 
   // 6. Mídia própria de empresa em trial respeita a chave controlada pelo Master.
   // Marketplace/comercial continua passando pelos fluxos específicos de revisão.
@@ -131,6 +133,7 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
       height: payload.height || null,
       duration_seconds: payload.duration_seconds || null,
       playback_duration_seconds: payload.playback_duration_seconds,
+      owner_only: ownerOnly,
       status: initialStatus,
       trial_internal_only: trialAutoApproved,
     })
@@ -149,6 +152,7 @@ export async function createMediaAssetAction(payload: CreateMediaPayload) {
     details: {
       media_id: newMedia.id,
       title: payload.title,
+      owner_only: ownerOnly,
       status: initialStatus,
     },
   });

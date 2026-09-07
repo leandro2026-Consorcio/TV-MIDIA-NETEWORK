@@ -191,7 +191,7 @@ export async function updateCampaignAction(
 export async function addCampaignMediaAction(
   campaignId: string,
   mediaAssetId: string,
-  durationSeconds: 5 | 10 | 15 | 30
+  durationSeconds: number
 ) {
   const supabase = createClient();
   const {
@@ -200,6 +200,10 @@ export async function addCampaignMediaAction(
 
   if (!user) {
     return { success: false, error: 'Usuário não autenticado.' };
+  }
+
+  if (durationSeconds < 5 || durationSeconds > 3600 || durationSeconds % 5 !== 0) {
+    return { success: false, error: 'Duração inválida. Use múltiplos de 5 segundos, entre 5 e 3600.' };
   }
 
   const { data: campaign } = await (supabase.from('campaigns') as any)

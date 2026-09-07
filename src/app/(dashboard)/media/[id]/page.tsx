@@ -31,7 +31,7 @@ export default function MediaDetailPage() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [playbackDuration, setPlaybackDuration] = useState<5 | 10 | 15 | 30>(10);
+  const [playbackDuration, setPlaybackDuration] = useState<number>(10);
   const [rejectionReason, setRejectionReason] = useState('');
 
   const [loading, setLoading] = useState(true);
@@ -380,7 +380,9 @@ export default function MediaDetailPage() {
                   <option value={10}>10 Segundos</option>
                   <option value={15}>15 Segundos</option>
                   <option value={30}>30 Segundos</option>
+                  {playbackDuration > 30 && <option value={playbackDuration}>{playbackDuration} Segundos (uso interno)</option>}
                 </select>
+                {playbackDuration > 30 && <p className="mt-2 text-xs text-violet-300">Esta mídia é exclusiva das telas da própria empresa.</p>}
               </div>
 
               <div>

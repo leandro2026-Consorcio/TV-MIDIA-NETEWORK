@@ -291,7 +291,7 @@ export default function NewMediaPage() {
                 </div>
                 {metaPreview.mediaType === 'video' && metaPreview.durationSeconds && (
                   <span className="bg-amber-500/10 border border-amber-500/30 text-amber-400 font-bold px-2.5 py-1 rounded-lg">
-                    Faturamento: {playbackDuration}s (Arredondado de {metaPreview.durationSeconds}s)
+                    {playbackDuration > 30 ? 'Uso exclusivo nas suas telas' : 'Duração comercial'}: {playbackDuration}s
                   </span>
                 )}
               </div>
@@ -351,6 +351,11 @@ export default function NewMediaPage() {
                 </button>
               ))}
             </div>
+            {playbackDuration > 30 && (
+              <p className="mt-3 rounded-xl border border-violet-500/30 bg-violet-500/10 p-3 text-xs text-violet-200">
+                Vídeos acima de 30 segundos ficam automaticamente restritos às TVs e monitores da própria empresa. Eles não aparecem no marketplace nem na Rede Orgânica.
+              </p>
+            )}
           </div>
 
           <div>

@@ -178,7 +178,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     campaign_id: string | null;
     item_type: 'commercial_campaign' | 'internal_campaign' | 'playlist_media';
     sort_order: number;
-    playback_duration_seconds: 5 | 10 | 15 | 30;
+    playback_duration_seconds: number;
     media: any;
   }> = [];
 

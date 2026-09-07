@@ -106,16 +106,16 @@ export async function getOrganicProgrammingAction(deviceToken: string) {
   const city = screen.organic_participants.city;
   const state = screen.organic_participants.state;
   const { data: rewards } = await (admin.from('organic_campaign_rewards') as any)
-    .select('id,campaign_id,title,city,state,campaigns(status,campaign_media(is_active,playback_duration_seconds,media_assets(id,title,file_path,media_type,status)))')
+    .select('id,campaign_id,title,city,state,campaigns(status,campaign_type,campaign_media(is_active,playback_duration_seconds,media_assets(id,title,file_path,media_type,status,owner_only,trial_internal_only)))')
     .eq('status', 'active').gt('quantity_available', 0).lt('starts_at', new Date().toISOString()).gt('expires_at', new Date().toISOString()).limit(25);
   const items: any[] = [];
   for (const reward of rewards || []) {
     if (reward.city && reward.city.toLowerCase() !== String(city).toLowerCase()) continue;
     if (reward.state && reward.state.toUpperCase() !== String(state).toUpperCase()) continue;
-    if (!['active', 'scheduled'].includes(reward.campaigns?.status)) continue;
+    if (!['active', 'scheduled'].includes(reward.campaigns?.status) || reward.campaigns?.campaign_type === 'internal') continue;
     for (const link of reward.campaigns?.campaign_media || []) {
       const media = link.media_assets;
-      if (!link.is_active || media?.status !== 'approved') continue;
+      if (!link.is_active || media?.status !== 'approved' || media.owner_only || media.trial_internal_only) continue;
       const { data: signed } = await admin.storage.from('media-assets').createSignedUrl(media.file_path, 3600);
       if (signed?.signedUrl) items.push({ id: `${reward.id}:${media.id}`, rewardId: reward.id, campaignId: reward.campaign_id, mediaId: media.id, title: media.title, mediaType: media.media_type, duration: Number(link.playback_duration_seconds || 10), url: signed.signedUrl });
     }
@@ -152,7 +152,7 @@ export async function getOrganicRewardsManagementAction() {
   if (!companyIds.length) return { success: true as const, companies: [], campaigns: [], rewards: [] };
   const [companies, campaigns, rewards] = await Promise.all([
     (supabase.from('companies') as any).select('id,trade_name').in('id', companyIds).order('trade_name'),
-    (supabase.from('campaigns') as any).select('id,company_id,name,status').in('company_id', companyIds).in('status', ['draft','scheduled','active']).order('created_at', { ascending: false }),
+    (supabase.from('campaigns') as any).select('id,company_id,name,status,campaign_type').in('company_id', companyIds).in('status', ['draft','scheduled','active']).neq('campaign_type', 'internal').order('created_at', { ascending: false }),
     (supabase.from('organic_campaign_rewards') as any).select('*,companies(trade_name),campaigns(name)').in('company_id', companyIds).order('created_at', { ascending: false }),
   ]);
   return { success: true as const, companies: companies.data || [], campaigns: campaigns.data || [], rewards: rewards.data || [] };
@@ -167,8 +167,10 @@ export async function createOrganicRewardAction(payload: { campaignId: string; c
     const { data: membership } = await (supabase.from('company_users') as any).select('id').eq('company_id', payload.companyId).eq('user_id', user.id).eq('role', 'admin').eq('is_active', true).single();
     if (!membership) return { success: false as const, error: 'Apenas administradores da empresa podem cadastrar brindes.' };
   }
-  const { data: campaign } = await (supabase.from('campaigns') as any).select('id,company_id').eq('id', payload.campaignId).eq('company_id', payload.companyId).single();
+  const { data: campaign } = await (supabase.from('campaigns') as any).select('id,company_id,campaign_type').eq('id', payload.campaignId).eq('company_id', payload.companyId).neq('campaign_type', 'internal').single();
   if (!campaign) return { success: false as const, error: 'Campanha inválida para esta empresa.' };
+  const { data: campaignMedia } = await (supabase.from('campaign_media') as any).select('media_assets(owner_only,trial_internal_only)').eq('campaign_id', payload.campaignId);
+  if ((campaignMedia || []).some((link: any) => link.media_assets?.owner_only || link.media_assets?.trial_internal_only)) return { success: false as const, error: 'Campanhas com mídia de uso interno não podem participar da Rede Orgânica.' };
   const quantity = Math.max(1, Math.floor(payload.quantity));
   const { error } = await (supabase.from('organic_campaign_rewards') as any).insert({ campaign_id: payload.campaignId, company_id: payload.companyId, title: payload.title.trim(), description: payload.description.trim() || null, credits_required: Math.max(0.01, payload.creditsRequired), credit_budget: Math.max(0.01, payload.creditBudget), quantity_total: quantity, quantity_available: quantity, expires_at: new Date(payload.expiresAt).toISOString(), city: payload.city?.trim() || null, state: payload.state?.trim().toUpperCase() || null, status: 'active', created_by: user.id });
   return error ? { success: false as const, error: error.message } : { success: true as const };

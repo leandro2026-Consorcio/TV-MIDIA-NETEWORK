@@ -7,7 +7,10 @@ const nextConfig = {
         './supabase/migrations/20260907000050_screen_device_types.sql',
         './supabase/migrations/20260907000060_monitor_credit_ratio.sql',
         './supabase/migrations/20260907000070_organic_network.sql',
+        './supabase/migrations/20260907000080_owner_only_long_media.sql',
+        './supabase/migrations/20260907000090_organic_maintenance.sql',
       ],
+      '/api/downloads/windows-monitor': ['./windows-monitor/Install-MidiaMonitor.ps1'],
     },
   },
 };

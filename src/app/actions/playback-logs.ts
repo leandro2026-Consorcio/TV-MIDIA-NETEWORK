@@ -56,8 +56,7 @@ export async function recordPlaybackLogAction(
     return { success: false, error: 'ID da mídia não fornecido.' };
   }
 
-  const allowedDurations = [5, 10, 15, 30];
-  if (!allowedDurations.includes(payload.planned_duration_seconds)) {
+  if (payload.planned_duration_seconds < 5 || payload.planned_duration_seconds > 3600 || payload.planned_duration_seconds % 5 !== 0) {
     return { success: false, error: 'Duração planejada inválida.' };
   }
 
