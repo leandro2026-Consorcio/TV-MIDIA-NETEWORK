@@ -11,9 +11,11 @@ import {
   ChevronDown,
   CirclePlay,
   Clock3,
+  Coins,
   Gift,
   Handshake,
   ImageUp,
+  Laptop,
   LayoutDashboard,
   ListChecks,
   Mail,
@@ -24,6 +26,8 @@ import {
   Phone,
   Play,
   Sparkles,
+  School,
+  Share2,
   Tv,
   Upload,
   UserPlus,
@@ -90,6 +94,11 @@ const benefits = [
     icon: MapPin,
     title: 'Rede local de parceiros',
     text: 'Convide empresas da sua cidade e ajude a criar uma rede de mídia mais forte.',
+  },
+  {
+    icon: Laptop,
+    title: 'Computadores também viram mídia',
+    text: 'Um computador ligado a um monitor pode reproduzir a programação, gerar créditos e ampliar sua rede.',
   },
 ];
 
@@ -226,7 +235,12 @@ const faqs = [
   {
     question: 'Como funciona a mídia compartilhada por créditos?',
     answer:
-      'A partir do plano de 3 TVs, sua empresa pode participar do grupo de mídia compartilhada. Suas exibições geram créditos para veicular sua marca em telas de empresas parceiras na cidade sem custos adicionais.',
+      'Toda empresa que compra mídia em telas parceiras pode participar da rede quando não houver bloqueio para o segmento anunciado. As exibições são registradas e uma fração do valor pode retornar em créditos para os parceiros que disponibilizam suas telas. Monitores Windows também podem gerar créditos, com uma regra de alcance proporcional ao dispositivo.',
+  },
+  {
+    question: 'Onde a rede pode funcionar?',
+    answer:
+      'Em TVs de recepções e salas de espera, monitores Windows, escolas, coworkings, clínicas, lojas e empresas com muitos computadores. Cada ponto ajuda a criar uma rede local de informação, ofertas e oportunidades entre parceiros.',
   },
   {
     question: 'Onde fica localizada a Mídia por Mídia e qual é o contato?',
@@ -438,6 +452,7 @@ export default async function Home() {
 
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-300 lg:flex" aria-label="Navegação principal">
             <a href="#como-funciona" className="transition hover:text-cyan-300">Como funciona</a>
+            <a href="#rede-parceiros" className="transition hover:text-cyan-300">Rede de parceiros</a>
             <a href="#beneficios" className="transition hover:text-cyan-300">Benefícios</a>
             <a href="#planos" className="transition hover:text-cyan-300">Planos e Preços</a>
             <a href="#convites" className="transition hover:text-cyan-300">Convites</a>
@@ -623,6 +638,65 @@ export default async function Home() {
                 <p className="mt-3 text-sm leading-6 text-slate-400">{text}</p>
               </article>
             ))}
+          </div>
+        </div>
+      </section>
+
+      <section id="rede-parceiros" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
+        <div className="mx-auto max-w-7xl">
+          <SectionTitle
+            eyebrow="Uma rede que devolve valor"
+            title="Sua tela divulga. A rede reconhece."
+            description="Na Mídia por Mídia, a propaganda local circula entre empresas parceiras e transforma atenção em oportunidade para toda a comunidade."
+          />
+
+          <div className="mt-14 grid gap-5 lg:grid-cols-3">
+            <article className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/[0.12] to-transparent p-7 sm:p-8">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
+                <Share2 className="h-7 w-7" />
+              </div>
+              <h3 className="mt-7 text-xl font-extrabold text-white">Mídia local compartilhada</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Quando uma empresa compra mídia em pontos parceiros, o anúncio pode aparecer nas telas elegíveis da rede. Se o parceiro não bloquear aquele segmento, todos participam da circulação de forma organizada e transparente.
+              </p>
+            </article>
+
+            <article className="rounded-3xl border border-amber-300/20 bg-gradient-to-br from-amber-300/[0.12] to-transparent p-7 sm:p-8">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-300/15 text-amber-300">
+                <Coins className="h-7 w-7" />
+              </div>
+              <h3 className="mt-7 text-xl font-extrabold text-white">Cada exibição pode gerar créditos</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                As telas parceiras registram as exibições. Esses registros podem gerar créditos para a empresa que disponibiliza espaço, ajudando a financiar a própria divulgação dentro da rede.
+              </p>
+            </article>
+
+            <article className="rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-300/[0.12] to-transparent p-7 sm:p-8">
+              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-300/15 text-violet-300">
+                <Laptop className="h-7 w-7" />
+              </div>
+              <h3 className="mt-7 text-xl font-extrabold text-white">Computador também é um ponto de mídia</h3>
+              <p className="mt-3 text-sm leading-6 text-slate-300">
+                Um monitor Windows em uma recepção, sala de espera ou estação compartilhada pode rodar a programação, servir como fonte de propaganda e gerar créditos conforme a regra de alcance do dispositivo.
+              </p>
+            </article>
+          </div>
+
+          <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#0b1728] p-7 sm:p-9">
+            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
+              <div className="max-w-3xl">
+                <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Imagine a rede funcionando</p>
+                <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Escolas, coworkings e empresas com muitos computadores podem virar novos pontos de contato.</h3>
+                <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
+                  Uma escola pode informar cursos, eventos e parceiros nos computadores da recepção. Um coworking pode divulgar serviços para profissionais que circulam diariamente. Uma empresa pode usar os computadores de colaboradores em áreas comuns para exibir comunicados, benefícios e ofertas locais — sempre com programação aprovada e controle da empresa.
+                </p>
+              </div>
+              <div className="grid shrink-0 gap-3 sm:grid-cols-3 lg:grid-cols-1">
+                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><School className="h-5 w-5 text-cyan-300" /> Escolas</div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><Building2 className="h-5 w-5 text-amber-300" /> Coworkings</div>
+                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><Users className="h-5 w-5 text-violet-300" /> Equipes</div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
