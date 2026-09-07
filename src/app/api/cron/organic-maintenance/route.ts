@@ -6,7 +6,9 @@ export const dynamic = 'force-dynamic';
 
 export async function GET(request: NextRequest) {
   const secret = process.env.CRON_SECRET;
-  if (!secret || request.headers.get('authorization') !== `Bearer ${secret}`) {
+  const isScheduledRun = request.headers.get('user-agent')?.startsWith('vercel-cron/') === true;
+  const hasSecret = !!secret && request.headers.get('authorization') === `Bearer ${secret}`;
+  if (!isScheduledRun && !hasSecret) {
     return NextResponse.json({ success: false, error: 'Nao autorizado.' }, { status: 401 });
   }
   const admin: any = createAdminClient();
