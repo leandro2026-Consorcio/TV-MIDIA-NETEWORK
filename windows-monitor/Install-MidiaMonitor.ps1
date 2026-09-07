@@ -14,6 +14,8 @@ New-Item -ItemType Directory -Force -Path $installDir | Out-Null
 $launcherContent = @"
 `$ErrorActionPreference = 'SilentlyContinue'
 `$url = '$PlayerUrl'
+`$idleMinutes = $IdleStartMinutes
+`$profileDir = '$installDir\BrowserProfile'
 `$chrome = @(
   "`$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
   "`$env:ProgramFiles(x86)\Google\Chrome\Application\chrome.exe",
@@ -21,10 +23,31 @@ $launcherContent = @"
   "`$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
   "`$env:ProgramFiles(x86)\Microsoft\Edge\Application\msedge.exe"
 ) | Where-Object { Test-Path `$_ } | Select-Object -First 1
-if (`$chrome) {
-  Start-Process -FilePath `$chrome -ArgumentList "--kiosk", "--noerrdialogs", "--disable-session-crashed-bubble", `$url
-} else {
-  Start-Process `$url
+
+Add-Type @'
+using System;
+using System.Runtime.InteropServices;
+public static class MidiaIdle {
+  [StructLayout(LayoutKind.Sequential)] public struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+  [DllImport("user32.dll")] static extern bool GetLastInputInfo(ref LASTINPUTINFO value);
+  public static uint Seconds() { var value = new LASTINPUTINFO(); value.cbSize = (uint)Marshal.SizeOf(value); GetLastInputInfo(ref value); return ((uint)Environment.TickCount - value.dwTime) / 1000; }
+}
+'@
+
+`$playerProcess = `$null
+while (`$true) {
+  `$idleEnough = `$idleMinutes -le 0 -or [MidiaIdle]::Seconds() -ge (`$idleMinutes * 60)
+  `$running = `$playerProcess -and -not `$playerProcess.HasExited
+  if (`$idleEnough -and -not `$running) {
+    if (`$chrome) {
+      `$playerProcess = Start-Process -PassThru -FilePath `$chrome -ArgumentList "--kiosk", "--noerrdialogs", "--disable-session-crashed-bubble", "--user-data-dir=`"`$profileDir`"", `$url
+    } else { Start-Process `$url; `$playerProcess = `$null }
+  }
+  if (`$idleMinutes -gt 0 -and -not `$idleEnough -and `$running) {
+    Stop-Process -Id `$playerProcess.Id -Force
+    `$playerProcess = `$null
+  }
+  Start-Sleep -Seconds 5
 }
 "@
 
@@ -39,4 +62,5 @@ $shortcut.Description = 'Inicia o Monitor Windows Mídia por Mídia'
 $shortcut.Save()
 
 Write-Output "Monitor Windows instalado. O player iniciará com o Windows em: $PlayerUrl"
+Write-Output "Inatividade configurada: $IdleStartMinutes minuto(s). Zero significa exibição contínua."
 Write-Output "Pasta local: $installDir"

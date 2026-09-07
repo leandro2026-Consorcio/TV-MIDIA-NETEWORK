@@ -13,6 +13,8 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/invite/') ||
     pathname.startsWith('/player') ||
     pathname.startsWith('/tv') ||
+    pathname.startsWith('/organic-tv') ||
+    pathname.startsWith('/organic/register') ||
     pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/api/');
 

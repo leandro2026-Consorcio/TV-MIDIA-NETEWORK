@@ -30,6 +30,7 @@ import {
   Send,
   Share2,
   Network,
+  MonitorPlay,
   ShieldCheck,
   Crown,
   FileText,
@@ -63,6 +64,11 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
       name: 'Dashboard',
       href: '/dashboard',
       icon: LayoutDashboard,
+    },
+    {
+      name: 'Rede Orgânica',
+      href: '/organic',
+      icon: MonitorPlay,
     },
     {
       name: 'Marketplace de Mídia',
@@ -159,16 +165,22 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
       href: '/ad-offer-orders',
       icon: ShoppingCart,
     },
+    {
+      name: 'Brindes da Rede Orgânica',
+      href: '/organic-rewards',
+      icon: Gift,
+    },
   ];
 
   if (!isMasterAdmin && !hasCompany) {
     navItems = [
       navItems[0],
+      navItems[1],
       { name: 'Completar cadastro', href: '/empresa/cadastro', icon: Building2 },
     ];
   } else if (!isMasterAdmin && isTrial) {
     const trialRoutes = new Set([
-      '/dashboard', '/screens', '/media', '/playlists', '/campaigns',
+      '/dashboard', '/organic', '/screens', '/media', '/playlists', '/campaigns',
     ]);
     navItems = navItems.filter((item) => trialRoutes.has(item.href));
     navItems.push(

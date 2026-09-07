@@ -18,6 +18,16 @@ Set-ExecutionPolicy -Scope Process Bypass
 
 O usuário autoriza localmente a criação do inicializador. O site nunca altera o Windows sozinho.
 
+## Monitor Windows da Rede Orgânica
+
+Para um computador residencial que deve abrir a programação após ficar parado por 5 minutos:
+
+```powershell
+.\Install-MidiaMonitorOrganico.ps1 -IdleStartMinutes 5
+```
+
+O inicializador consulta a inatividade global de teclado e mouse no Windows. Ele abre `/organic-tv` em um perfil separado do navegador quando o tempo configurado é atingido e fecha apenas essa sessão de exibição quando o usuário volta a utilizar o computador. Use `0` para um computador dedicado que deve exibir continuamente.
+
 ## Desinstalação
 
 ```powershell
@@ -28,7 +38,7 @@ O usuário autoriza localmente a criação do inicializador. O site nunca altera
 
 - Este pacote configura inicialização por atalho no perfil do usuário, não um serviço Windows.
 - O computador precisa permanecer ligado e sem suspensão para exibir continuamente.
-- A configuração de inatividade global do Windows ainda deve ser adicionada ao aplicativo nativo/watchdog.
+- A primeira versão já detecta inatividade global por teclado e mouse; um aplicativo assinado continua recomendado para distribuição comercial.
 - O navegador precisa estar instalado.
 - O pareamento e a programação continuam usando o mesmo player e token da tela.
 

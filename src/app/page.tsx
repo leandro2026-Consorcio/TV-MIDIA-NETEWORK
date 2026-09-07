@@ -690,6 +690,9 @@ export default async function Home() {
                 <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
                   Uma escola pode informar cursos, eventos e parceiros nos computadores da recepção. Um coworking pode divulgar serviços para profissionais que circulam diariamente. Uma empresa pode usar os computadores de colaboradores em áreas comuns para exibir comunicados, benefícios e ofertas locais — sempre com programação aprovada e controle da empresa.
                 </p>
+                <Link href="/organic/register" className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-violet-400 px-5 font-extrabold text-slate-950 transition hover:bg-violet-300">
+                  Quero transformar minha tela em ponto orgânico <ArrowRight className="h-4 w-4" />
+                </Link>
               </div>
               <div className="grid shrink-0 gap-3 sm:grid-cols-3 lg:grid-cols-1">
                 <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><School className="h-5 w-5 text-cyan-300" /> Escolas</div>
