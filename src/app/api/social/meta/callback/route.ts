@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from 'crypto';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { encryptSocialToken } from '@/lib/social-token-crypto';
+import { detectChannelCapabilities } from '@/lib/social/meta';
 
 export const dynamic = 'force-dynamic';
 
@@ -15,9 +16,9 @@ export async function GET(request: NextRequest) {
     const stateRaw = request.nextUrl.searchParams.get('state');
     const appId = process.env.META_APP_ID;
     const appSecret = process.env.META_APP_SECRET;
-    const version = process.env.META_GRAPH_VERSION;
+    const version = process.env.META_GRAPH_VERSION || 'v19.0';
     const redirectUri = process.env.META_REDIRECT_URI;
-    if (!code || !stateRaw || !appId || !appSecret || !version || !redirectUri) throw new Error('Callback Meta incompleto.');
+    if (!code || !stateRaw || !appId || !appSecret || !redirectUri) throw new Error('Callback Meta incompleto ou não configurado.');
     const [payload, signature] = stateRaw.split('.');
     const expected = createHmac('sha256', appSecret).update(payload).digest('base64url');
     if (!signature || signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) throw new Error('State OAuth inválido.');
@@ -42,10 +43,12 @@ export async function GET(request: NextRequest) {
     const tokenResponse = await fetch(tokenUrl, { cache: 'no-store' });
     if (!tokenResponse.ok) throw new Error('Falha ao trocar código OAuth.');
     const tokenData = await tokenResponse.json() as { access_token: string; expires_in?: number };
-    const pagesResponse = await fetch(`https://graph.facebook.com/${version}/me/accounts?fields=id,name,access_token,instagram_business_account&access_token=${encodeURIComponent(tokenData.access_token)}`, { cache: 'no-store' });
+    const pagesResponse = await fetch(`https://graph.facebook.com/${version}/me/accounts?fields=id,name,access_token,instagram_business_account{id,username,name}&access_token=${encodeURIComponent(tokenData.access_token)}`, { cache: 'no-store' });
     if (!pagesResponse.ok) throw new Error('Falha ao listar canais Meta elegíveis.');
-    const pages = (await pagesResponse.json() as { data?: Array<{ id: string; name: string; access_token: string; instagram_business_account?: { id: string } }> }).data || [];
+    const pages = (await pagesResponse.json() as { data?: Array<{ id: string; name: string; access_token: string; instagram_business_account?: { id: string; username?: string; name?: string } }> }).data || [];
     const admin = createAdminClient();
+    const scopes = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts', 'instagram_basic', 'instagram_content_publish'];
+
     for (const page of pages) {
       const { data: existing } = await (admin.from('social_connections') as any).select('owner_type,owner_id')
         .eq('provider', 'facebook').eq('provider_account_id', page.id).maybeSingle();
@@ -55,20 +58,55 @@ export async function GET(request: NextRequest) {
       const { data: connection, error } = await (admin.from('social_connections') as any).upsert({
         owner_type: state.ownerType, owner_id: state.ownerId, provider: 'facebook', provider_account_id: page.id,
         encrypted_access_token: encryptSocialToken(page.access_token), token_key_version: 1,
-        scopes: ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'], status: 'active', connected_by: user.id,
+        scopes, status: 'active', connected_by: user.id,
         connected_at: new Date().toISOString(), expires_at: tokenData.expires_in ? new Date(Date.now() + tokenData.expires_in * 1000).toISOString() : null,
       }, { onConflict: 'provider,provider_account_id' }).select('id').single();
       if (error || !connection) throw error || new Error('Falha ao persistir conexão Meta.');
-      await (admin.from('social_channels') as any).upsert({ connection_id: connection.id, owner_type: state.ownerType, owner_id: state.ownerId,
-        provider: 'facebook', channel_type: 'facebook_page', provider_channel_id: page.id, display_name: page.name, status: 'draft' }, { onConflict: 'provider,provider_channel_id' });
+
+      // Detecção de capacidade do Facebook Page
+      const fbCaps = detectChannelCapabilities('facebook_page', scopes);
+      await (admin.from('social_channels') as any).upsert({
+        connection_id: connection.id, owner_type: state.ownerType, owner_id: state.ownerId,
+        provider: 'facebook', channel_type: 'facebook_page', provider_channel_id: page.id, display_name: page.name,
+        feed_publish_capable: fbCaps.feedPublishCapable,
+        reel_publish_capable: fbCaps.reelPublishCapable,
+        story_publish_capable: fbCaps.storyPublishCapable,
+        insights_capable: fbCaps.insightsCapable,
+        metrics_capable: fbCaps.metricsCapable,
+        diagnostic_status: fbCaps.diagnosticStatus,
+        diagnostic_message: fbCaps.diagnosticMessage,
+        last_diagnosed_at: new Date().toISOString(),
+        status: 'draft',
+      }, { onConflict: 'provider,provider_channel_id' });
+
+      // Detecção de capacidade do Instagram Professional
       if (page.instagram_business_account?.id) {
-        await (admin.from('social_channels') as any).upsert({ connection_id: connection.id, owner_type: state.ownerType, owner_id: state.ownerId,
+        const igCaps = detectChannelCapabilities('instagram_professional', scopes, { is_business_account: true, story_eligible: false });
+        await (admin.from('social_channels') as any).upsert({
+          connection_id: connection.id, owner_type: state.ownerType, owner_id: state.ownerId,
           provider: 'instagram', channel_type: 'instagram_professional', provider_channel_id: page.instagram_business_account.id,
-          display_name: `${page.name} — Instagram`, status: 'draft' }, { onConflict: 'provider,provider_channel_id' });
+          display_name: `${page.instagram_business_account.username || page.name} (Instagram)`,
+          feed_publish_capable: igCaps.feedPublishCapable,
+          reel_publish_capable: igCaps.reelPublishCapable,
+          story_publish_capable: igCaps.storyPublishCapable,
+          insights_capable: igCaps.insightsCapable,
+          metrics_capable: igCaps.metricsCapable,
+          diagnostic_status: igCaps.diagnosticStatus,
+          diagnostic_message: igCaps.diagnosticMessage,
+          last_diagnosed_at: new Date().toISOString(),
+          status: 'draft',
+        }, { onConflict: 'provider,provider_channel_id' });
       }
+    }
+
+    if (state.ownerType === 'creator') {
+      destination.pathname = '/creator';
+    } else {
+      destination.pathname = '/marketplace';
     }
     destination.searchParams.set('social', 'connected');
   } catch (error) {
+    destination.searchParams.set('social', 'error');
     destination.searchParams.set('message', error instanceof Error ? error.message : 'Erro na integração Meta.');
   }
   return NextResponse.redirect(destination);
