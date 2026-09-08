@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { WhatsAppButton } from '@/components/whatsapp-button';
+import { PublicShowcaseSection } from '@/components/public-showcase-section';
 import { getPublicSignupSettingsAction } from '@/app/actions/onboarding';
 import { formatPrice } from '@/lib/platform-pricing';
 import { createClient } from '@/lib/supabase/server';
@@ -400,9 +401,13 @@ function SectionTitle({
 export default async function Home() {
   const { settings } = await getPublicSignupSettingsAction();
   const supabase = createClient();
-  const { data: expansionPlans } = await (supabase.from('expansion_plans') as any)
-    .select('code,name,description,featured,expansion_plan_versions(included_screens,monthly_price_cents,extra_screen_price_cents,effective_to)')
-    .eq('status','active').eq('public_available',true).order('display_order');
+  const [{ data: expansionPlans }, { data: showcaseRes }] = await Promise.all([
+    (supabase.from('expansion_plans') as any)
+      .select('code,name,description,featured,expansion_plan_versions(included_screens,monthly_price_cents,extra_screen_price_cents,effective_to)')
+      .eq('status','active').eq('public_available',true).order('display_order'),
+    (supabase.rpc as any)('get_public_showcase_data'),
+  ]);
+  const showcaseData = showcaseRes || { metrics: { total_companies: 0, total_public_screens: 0, cities_count: 0, cities: [] }, companies: [], creators: [], rewards: [], locations: [] };
   const expansionByScreens = new Map<number, any>((expansionPlans || []).map((plan:any) => {
     const version=(plan.expansion_plan_versions||[]).find((item:any)=>!item.effective_to); return [Number(version?.included_screens),{...plan,version}];
   }));
@@ -466,6 +471,7 @@ export default async function Home() {
           <nav className="hidden items-center gap-7 text-sm font-medium text-slate-300 lg:flex" aria-label="Navegação principal">
             <a href="#como-funciona" className="transition hover:text-cyan-300">Como funciona</a>
             <a href="#rede-parceiros" className="transition hover:text-cyan-300">Rede de parceiros</a>
+            <a href="#vitrine" className="transition hover:text-cyan-300">Vitrine da Rede</a>
             <a href="#beneficios" className="transition hover:text-cyan-300">Benefícios</a>
             <a href="#planos" className="transition hover:text-cyan-300">Planos e Preços</a>
             <a href="#convites" className="transition hover:text-cyan-300">Convites</a>
@@ -716,6 +722,8 @@ export default async function Home() {
           </div>
         </div>
       </section>
+
+      <PublicShowcaseSection data={showcaseData} />
 
       <section id="planos" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
         <div className="mx-auto max-w-7xl">
