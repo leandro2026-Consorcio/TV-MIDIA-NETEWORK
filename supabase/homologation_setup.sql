@@ -1,4 +1,4 @@
-﻿-- ============================================================================
+-- ============================================================================
 -- SCRIPT DE HOMOLOGAÇÃO CONTROLADA POR PERFIL — MÍDIA POR MÍDIA
 -- ============================================================================
 -- Objetivo: Criar e vincular os 5 perfis de teste de homologação sem gerar cobrança
@@ -107,41 +107,41 @@ BEGIN
   -- --------------------------------------------------------------------------
   -- 3. PERFIL DO LÍDER (affiliate_profiles)
   -- --------------------------------------------------------------------------
-  SELECT id INTO v_leader_affiliate_id FROM public.affiliate_profiles WHERE user_id = v_lider_user_id;
+  SELECT id INTO v_leader_affiliate_id FROM public.affiliate_profiles WHERE attribution_code = 'LIDER-HOMOLOG';
   IF v_leader_affiliate_id IS NULL THEN
-    INSERT INTO public.affiliate_profiles (user_id, role, display_name, attribution_code, status)
-    VALUES (v_lider_user_id, 'leader', 'HOMOLOGAÇÃO MPM — Líder Teste', 'LIDER-HOMOLOG', 'active')
+    INSERT INTO public.affiliate_profiles (user_id, affiliate_type, display_name, attribution_code, status, metadata)
+    VALUES (v_lider_user_id, 'partners', 'HOMOLOGAÇÃO MPM — Líder Teste', 'LIDER-HOMOLOG', 'active', '{"role":"leader","env":"homologation"}'::jsonb)
     RETURNING id INTO v_leader_affiliate_id;
   ELSE
     UPDATE public.affiliate_profiles
-    SET role = 'leader', display_name = 'HOMOLOGAÇÃO MPM — Líder Teste', status = 'active'
+    SET user_id = v_lider_user_id, affiliate_type = 'partners', display_name = 'HOMOLOGAÇÃO MPM — Líder Teste', status = 'active', metadata = metadata || '{"role":"leader","env":"homologation"}'::jsonb
     WHERE id = v_leader_affiliate_id;
   END IF;
 
   -- --------------------------------------------------------------------------
   -- 4. PERFIL DO CREATOR (affiliate_profiles + creator_profiles)
   -- --------------------------------------------------------------------------
-  SELECT id INTO v_creator_affiliate_id FROM public.affiliate_profiles WHERE user_id = v_creator_user_id;
+  SELECT id INTO v_creator_affiliate_id FROM public.affiliate_profiles WHERE attribution_code = 'CREATOR-HOMOLOG';
   IF v_creator_affiliate_id IS NULL THEN
-    INSERT INTO public.affiliate_profiles (user_id, role, display_name, attribution_code, status)
-    VALUES (v_creator_user_id, 'creator', 'HOMOLOGAÇÃO MPM — Creator Teste', 'CREATOR-HOMOLOG', 'active')
+    INSERT INTO public.affiliate_profiles (user_id, affiliate_type, display_name, attribution_code, status, metadata)
+    VALUES (v_creator_user_id, 'creators', 'HOMOLOGAÇÃO MPM — Creator Teste', 'CREATOR-HOMOLOG', 'active', '{"role":"creator","env":"homologation"}'::jsonb)
     RETURNING id INTO v_creator_affiliate_id;
   ELSE
     UPDATE public.affiliate_profiles
-    SET role = 'creator', display_name = 'HOMOLOGAÇÃO MPM — Creator Teste', status = 'active'
+    SET user_id = v_creator_user_id, affiliate_type = 'creators', display_name = 'HOMOLOGAÇÃO MPM — Creator Teste', status = 'active', metadata = metadata || '{"role":"creator","env":"homologation"}'::jsonb
     WHERE id = v_creator_affiliate_id;
   END IF;
 
   SELECT id INTO v_creator_profile_id FROM public.creator_profiles WHERE user_id = v_creator_user_id;
   IF v_creator_profile_id IS NULL THEN
     INSERT INTO public.creator_profiles (
-      user_id, display_name, slug, bio, city, state, niche,
+      user_id, display_name, slug, bio, city, state, niches,
       is_public_profile, show_followers_publicly, show_scores_publicly, show_pricing_publicly,
       is_verified, pricing_mode, status, creator_score, media_value_score, tier
     )
     VALUES (
       v_creator_user_id, 'HOMOLOGAÇÃO MPM — Creator Teste', 'creator-teste-homologacao',
-      'Perfil oficial de homologação controlada da rede Mídia por Mídia.', 'Cuiabá', 'MT', 'Lifestyle & Varejo',
+      'Perfil oficial de homologação controlada da rede Mídia por Mídia.', 'Cuiabá', 'MT', ARRAY['Lifestyle', 'Varejo'],
       true, true, true, true,
       true, 'dynamic', 'active', 88.5, 125.0, 'tier_b'
     )
@@ -150,6 +150,7 @@ BEGIN
     UPDATE public.creator_profiles
     SET display_name = 'HOMOLOGAÇÃO MPM — Creator Teste',
         slug = 'creator-teste-homologacao',
+        niches = ARRAY['Lifestyle', 'Varejo'],
         is_public_profile = true,
         show_followers_publicly = true,
         show_scores_publicly = true,
@@ -301,25 +302,27 @@ BEGIN
   -- --------------------------------------------------------------------------
   SELECT id INTO v_organic_participant_id FROM public.organic_participants WHERE user_id = v_org_user_id;
   IF v_organic_participant_id IS NULL THEN
-    INSERT INTO public.organic_participants (user_id, full_name, status)
-    VALUES (v_org_user_id, 'HOMOLOGAÇÃO MPM — Orgânico Teste', 'active')
+    INSERT INTO public.organic_participants (user_id, display_name, city, state, status)
+    VALUES (v_org_user_id, 'HOMOLOGAÇÃO MPM — Orgânico Teste', 'Cuiabá', 'MT', 'active')
     RETURNING id INTO v_organic_participant_id;
+  ELSE
+    UPDATE public.organic_participants
+    SET display_name = 'HOMOLOGAÇÃO MPM — Orgânico Teste', city = 'Cuiabá', state = 'MT', status = 'active'
+    WHERE id = v_organic_participant_id;
   END IF;
 
-  SELECT id INTO v_screen_res_id FROM public.screens WHERE name = 'HOMOLOGAÇÃO MPM — Tela Residencial Sala';
+  SELECT id INTO v_screen_res_id FROM public.organic_screens WHERE participant_id = v_organic_participant_id AND name = 'HOMOLOGAÇÃO MPM — Tela Residencial Sala';
   IF v_screen_res_id IS NULL THEN
-    INSERT INTO public.screens (
-      company_id, name, venue_type, venue_category, city, state, orientation,
-      is_active, is_public_screen, show_on_map, device_type
+    INSERT INTO public.organic_screens (
+      participant_id, name, device_type, orientation, status
     )
     VALUES (
-      NULL, 'HOMOLOGAÇÃO MPM — Tela Residencial Sala', 'residential', 'Residência Particular',
-      'Cuiabá', 'MT', 'horizontal', true, false, false, 'tv'
+      v_organic_participant_id, 'HOMOLOGAÇÃO MPM — Tela Residencial Sala', 'organic_tv', 'horizontal', 'online'
     )
     RETURNING id INTO v_screen_res_id;
   ELSE
-    UPDATE public.screens
-    SET venue_type = 'residential', is_public_screen = false, show_on_map = false
+    UPDATE public.organic_screens
+    SET device_type = 'organic_tv', orientation = 'horizontal', status = 'online'
     WHERE id = v_screen_res_id;
   END IF;
 
