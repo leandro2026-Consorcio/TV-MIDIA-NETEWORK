@@ -83,11 +83,12 @@ export async function GET(request: NextRequest) {
 
     // 3. Perfil do Líder (affiliate_profiles com affiliate_type = 'partners')
     let leaderAffiliateId: string | null = null;
-    const { data: existingLeaderAff } = await db
+    const { data: allLeaderMatches } = await db
       .from('affiliate_profiles')
-      .select('id')
-      .eq('attribution_code', 'LIDER-HOMOLOG')
-      .maybeSingle();
+      .select('id, attribution_code, user_id')
+      .or(`attribution_code.ilike.LIDER-HOMOLOG,user_id.eq.${userIds.lider}`);
+
+    const existingLeaderAff = allLeaderMatches?.[0];
 
     if (existingLeaderAff) {
       leaderAffiliateId = existingLeaderAff.id;
@@ -116,11 +117,12 @@ export async function GET(request: NextRequest) {
 
     // 4. Perfil do Creator (affiliate_profiles com affiliate_type = 'creators' + creator_profiles)
     let creatorAffiliateId: string | null = null;
-    const { data: existingCreatorAff } = await db
+    const { data: allCreatorMatches } = await db
       .from('affiliate_profiles')
-      .select('id')
-      .eq('attribution_code', 'CREATOR-HOMOLOG')
-      .maybeSingle();
+      .select('id, attribution_code, user_id')
+      .or(`attribution_code.ilike.CREATOR-HOMOLOG,user_id.eq.${userIds.creator}`);
+
+    const existingCreatorAff = allCreatorMatches?.[0];
 
     if (existingCreatorAff) {
       creatorAffiliateId = existingCreatorAff.id;
