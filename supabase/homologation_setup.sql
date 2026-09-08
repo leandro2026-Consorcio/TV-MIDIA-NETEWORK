@@ -234,34 +234,16 @@ BEGIN
   -- --------------------------------------------------------------------------
   -- 8. PLANO 3 TVs E VÍNCULO DE EXPANSÃO (LÍDER -> CREATOR -> EMPRESA -> 3 TVs)
   -- --------------------------------------------------------------------------
-  -- Garantir Plano 3 TVs
-  SELECT id INTO v_plan_id FROM public.expansion_plans WHERE code = 'expansion-3-tvs';
+  -- Garantir Plano 3 TVs (usar plano oficial já semeado na Etapa 1)
+  SELECT id INTO v_plan_id FROM public.expansion_plans WHERE code = 'mpm-3-tvs';
   IF v_plan_id IS NULL THEN
-    INSERT INTO public.expansion_plans (code, name, description, status, public_available, display_order)
-    VALUES ('expansion-3-tvs', 'Plano 3 TVs', 'Plano de expansão com 3 telas indoor comerciais.', 'active', true, 2)
-    RETURNING id INTO v_plan_id;
+    SELECT id INTO v_plan_id FROM public.expansion_plans WHERE code ILIKE '%3-tv%' LIMIT 1;
   END IF;
 
-  SELECT id INTO v_plan_version_id FROM public.expansion_plan_versions WHERE plan_id = v_plan_id AND effective_to IS NULL;
-  IF v_plan_version_id IS NULL THEN
-    INSERT INTO public.expansion_plan_versions (
-      plan_id, version, included_screens, monthly_price_cents, extra_screen_price_cents,
-      days_until_second_charge, recurring_interval_months, commission_release_policy
-    )
-    VALUES (v_plan_id, 1, 3, 29900, 5900, 60, 1, 'proportional_to_activated_screens')
-    RETURNING id INTO v_plan_version_id;
-  END IF;
+  SELECT id INTO v_plan_version_id FROM public.expansion_plan_versions WHERE plan_id = v_plan_id ORDER BY version DESC LIMIT 1;
 
   -- Garantir Versão de Regra de Comissão
-  SELECT id INTO v_rule_version_id FROM public.expansion_commission_rule_versions WHERE effective_to IS NULL LIMIT 1;
-  IF v_rule_version_id IS NULL THEN
-    INSERT INTO public.expansion_commission_rule_versions (
-      version, name, first_platform_percent, first_creator_percent, first_leader_percent,
-      recurring_platform_percent, recurring_creator_percent, recurring_leader_percent
-    )
-    VALUES (1, 'Regra Padrão Expansão', 10.0, 67.1141, 22.8859, 73.1544, 16.7785, 10.0671)
-    RETURNING id INTO v_rule_version_id;
-  END IF;
+  SELECT id INTO v_rule_version_id FROM public.expansion_commission_rule_versions WHERE effective_to IS NULL ORDER BY version DESC LIMIT 1;
 
   -- Criar Assinatura do Plano 3 TVs (Simulada, sem cobrança Asaas)
   SELECT id INTO v_subscription_id FROM public.company_plan_subscriptions WHERE company_id = v_company_id;
@@ -276,7 +258,7 @@ BEGIN
       v_company_id, v_plan_id, v_plan_version_id, v_rule_version_id,
       v_creator_affiliate_id, v_leader_affiliate_id,
       3, 29900, 'active',
-      '{"plan_code":"expansion-3-tvs","included_screens":3,"monthly_price_cents":29900,"simulated":true}'::jsonb,
+      '{"plan_code":"mpm-3-tvs","included_screens":3,"monthly_price_cents":29900,"simulated":true}'::jsonb,
       'homolog-subscription-3-tvs', v_master_id
     )
     RETURNING id INTO v_subscription_id;

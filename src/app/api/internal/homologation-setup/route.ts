@@ -391,67 +391,39 @@ export async function GET(request: NextRequest) {
     let planVersionId: string | null = null;
     let ruleVersionId: string | null = null;
 
-    const { data: existingPlan } = await db.from('expansion_plans').select('id').eq('code', 'expansion-3-tvs').maybeSingle();
-    if (existingPlan) {
-      planId = existingPlan.id;
-    } else {
-      const { data: np, error: pe } = await db.from('expansion_plans').insert({
-        code: 'expansion-3-tvs',
-        name: 'Plano 3 TVs',
-        description: 'Plano de homologação controlada com 3 telas indoor comerciais.',
-        status: 'active',
-        public_available: true,
-        display_order: 2,
-      }).select('id').single();
-      if (pe) return NextResponse.json({ success: false, step: 'expansion_plans', error: pe.message }, { status: 500 });
-      planId = np?.id;
-    }
+    const { data: plans } = await db
+      .from('expansion_plans')
+      .select('id, code')
+      .or('code.eq.mpm-3-tvs,code.ilike.%3-tv%');
+
+    const matchedPlan = plans?.find((p: any) => p.code === 'mpm-3-tvs') || plans?.[0];
+    planId = matchedPlan?.id;
 
     if (planId) {
-      const { data: existingVer } = await db.from('expansion_plan_versions').select('id').eq('plan_id', planId).maybeSingle();
-      if (existingVer) {
-        planVersionId = existingVer.id;
-      } else {
-        const { data: nv, error: ve } = await db.from('expansion_plan_versions').insert({
-          plan_id: planId,
-          version: 1,
-          included_screens: 3,
-          monthly_price_cents: 29900,
-          extra_screen_price_cents: 5900,
-          days_until_second_charge: 60,
-          recurring_interval_months: 1,
-          commission_release_policy: 'proportional_to_activated_screens',
-        }).select('id').single();
-        if (ve) return NextResponse.json({ success: false, step: 'expansion_plan_versions', error: ve.message }, { status: 500 });
-        planVersionId = nv?.id;
-      }
+      const { data: versions } = await db
+        .from('expansion_plan_versions')
+        .select('id')
+        .eq('plan_id', planId)
+        .order('version', { ascending: false })
+        .limit(1);
+      planVersionId = versions?.[0]?.id;
     }
 
-    const { data: ruleVer } = await db.from('expansion_commission_rule_versions').select('id').is('effective_to', null).limit(1).maybeSingle();
-    if (ruleVer) {
-      ruleVersionId = ruleVer.id;
-    } else {
-      const { data: nr, error: re } = await db.from('expansion_commission_rule_versions').insert({
-        version: 1,
-        name: 'Regra Padrão Expansão',
-        first_platform_percent: 10.0,
-        first_creator_percent: 67.1141,
-        first_leader_percent: 22.8859,
-        recurring_platform_percent: 73.1544,
-        recurring_creator_percent: 16.7785,
-        recurring_leader_percent: 10.0671,
-      }).select('id').single();
-      if (re) return NextResponse.json({ success: false, step: 'expansion_commission_rule_versions', error: re.message }, { status: 500 });
-      ruleVersionId = nr?.id;
-    }
+    const { data: rules } = await db
+      .from('expansion_commission_rule_versions')
+      .select('id')
+      .is('effective_to', null)
+      .order('version', { ascending: false })
+      .limit(1);
+
+    ruleVersionId = rules?.[0]?.id;
 
     let subscriptionId: string | null = null;
     if (companyId && planId && planVersionId && ruleVersionId && creatorAffiliateId && leaderAffiliateId) {
-      const { data: existingSub } = await db
+      const { data: existingSubs } = await db
         .from('company_plan_subscriptions')
         .select('id')
-        .eq('company_id', companyId)
-        .maybeSingle();
+        .eq('company_id', companyId);
 
       const subPayload = {
         company_id: companyId,
@@ -463,11 +435,12 @@ export async function GET(request: NextRequest) {
         requested_screens: 3,
         contracted_amount_cents: 29900,
         status: 'active',
-        frozen_snapshot: { plan_code: 'expansion-3-tvs', included_screens: 3, monthly_price_cents: 29900, simulated: true },
+        frozen_snapshot: { plan_code: 'mpm-3-tvs', included_screens: 3, monthly_price_cents: 29900, simulated: true },
         idempotency_key: 'homolog-subscription-3-tvs',
         created_by: userIds.master,
       };
 
+      const existingSub = existingSubs?.[0];
       if (existingSub) {
         subscriptionId = existingSub.id;
         await db.from('company_plan_subscriptions').update(subPayload).eq('id', subscriptionId);
