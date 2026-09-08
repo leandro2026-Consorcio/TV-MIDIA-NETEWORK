@@ -242,26 +242,6 @@ export async function GET(request: NextRequest) {
 
     // 6. Empresa Teste (companies + company_users + wallet)
     let companyId: string | null = null;
-    const { data: existingComp } = await db
-      .from('companies')
-      .select('id')
-      .eq('cnpj', '11222333000199')
-      .maybeSingle();
-
-    const companyFullPayload = {
-      trade_name: 'HOMOLOGAÇÃO MPM — Empresa Teste',
-      corporate_name: 'HOMOLOGAÇÃO MPM — Empresa Teste LTDA',
-      cnpj: '11222333000199',
-      city: 'Cuiabá',
-      state: 'MT',
-      accepts_external_media: true,
-      accepts_exchange: true,
-      show_name_publicly: true,
-      show_in_marketplace: true,
-      show_on_map: true,
-      allow_automatic_campaigns: false,
-    };
-
     const companyBasePayload = {
       trade_name: 'HOMOLOGAÇÃO MPM — Empresa Teste',
       corporate_name: 'HOMOLOGAÇÃO MPM — Empresa Teste LTDA',
@@ -272,35 +252,28 @@ export async function GET(request: NextRequest) {
       accepts_exchange: true,
     };
 
-    if (existingComp) {
-      companyId = existingComp.id;
-      const { error: ceFull } = await db.from('companies').update(companyFullPayload).eq('id', companyId);
-      if (ceFull) {
-        await db.from('companies').update(companyBasePayload).eq('id', companyId);
-      }
+    const { data: compUpsert } = await db
+      .from('companies')
+      .upsert(companyBasePayload, { onConflict: 'cnpj' })
+      .select('id')
+      .maybeSingle();
+
+    if (compUpsert) {
+      companyId = compUpsert.id;
     } else {
-      const { data: newCompFull, error: compErrFull } = await db.from('companies').insert(companyFullPayload).select('id').maybeSingle();
-      if (!compErrFull && newCompFull) {
-        companyId = newCompFull.id;
-      } else {
-        const { data: newCompBase, error: compErrBase } = await db.from('companies').insert(companyBasePayload).select('id').single();
-        if (compErrBase) {
-          return NextResponse.json({ success: false, step: 'companies', error: compErrBase.message }, { status: 500 });
-        }
-        companyId = newCompBase?.id;
-      }
+      const { data: foundComp } = await db.from('companies').select('id').ilike('trade_name', '%Empresa Teste%').limit(1);
+      companyId = foundComp?.[0]?.id || null;
     }
 
     if (companyId) {
       // Associação Company User
-      const { data: existingCU } = await db
+      const { data: existingCUs } = await db
         .from('company_users')
         .select('id')
         .eq('company_id', companyId)
-        .eq('user_id', userIds.empresa)
-        .maybeSingle();
+        .eq('user_id', userIds.empresa);
 
-      if (!existingCU) {
+      if (!existingCUs || existingCUs.length === 0) {
         await db.from('company_users').insert({
           company_id: companyId,
           user_id: userIds.empresa,
@@ -310,13 +283,12 @@ export async function GET(request: NextRequest) {
       }
 
       // Carteira
-      const { data: existingWallet } = await db
+      const { data: existingWallets } = await db
         .from('wallets')
         .select('id')
-        .eq('company_id', companyId)
-        .maybeSingle();
+        .eq('company_id', companyId);
 
-      if (!existingWallet) {
+      if (!existingWallets || existingWallets.length === 0) {
         await db.from('wallets').insert({
           company_id: companyId,
           balance: 0.00,
@@ -329,50 +301,32 @@ export async function GET(request: NextRequest) {
     const screensCreated: any[] = [];
     if (companyId) {
       const screenDefinitions = [
-        { name: 'HOMOLOGAÇÃO MPM — TV Recepção', venue_category: 'Recepção Comercial', orientation: 'horizontal', price: 45 },
-        { name: 'HOMOLOGAÇÃO MPM — TV Salão Principal', venue_category: 'Salão de Atendimento', orientation: 'horizontal', price: 60 },
-        { name: 'HOMOLOGAÇÃO MPM — TV Vitrine', venue_category: 'Vitrine Externa', orientation: 'vertical', price: 75 },
+        { name: 'HOMOLOGAÇÃO MPM — TV Recepção', orientation: 'horizontal' },
+        { name: 'HOMOLOGAÇÃO MPM — TV Salão Principal', orientation: 'horizontal' },
+        { name: 'HOMOLOGAÇÃO MPM — TV Vitrine', orientation: 'vertical' },
       ];
 
+      const { data: allCompScreens } = await db
+        .from('screens')
+        .select('id, name')
+        .eq('company_id', companyId);
+
       for (const sdef of screenDefinitions) {
-        const { data: existingScreen } = await db
-          .from('screens')
-          .select('id, name')
-          .eq('company_id', companyId)
-          .eq('name', sdef.name)
-          .maybeSingle();
-
-        if (existingScreen) {
-          screensCreated.push(existingScreen);
+        const existing = allCompScreens?.find((s: any) => s.name === sdef.name);
+        if (existing) {
+          screensCreated.push(existing);
         } else {
-          const screenFullPayload = {
-            company_id: companyId,
-            name: sdef.name,
-            venue_type: 'commercial',
-            venue_category: sdef.venue_category,
-            orientation: sdef.orientation,
-            is_public_screen: true,
-            show_on_map: true,
-            indicative_price_credits: sdef.price,
-            status: 'online',
-          };
-          const screenBasePayload = {
+          const { data: newScreen, error: scrErr } = await db.from('screens').insert({
             company_id: companyId,
             name: sdef.name,
             orientation: sdef.orientation,
             status: 'online',
-          };
+          }).select('id, name').single();
 
-          const { data: newScreenFull, error: scrErrFull } = await db.from('screens').insert(screenFullPayload).select('id, name').maybeSingle();
-          if (!scrErrFull && newScreenFull) {
-            screensCreated.push(newScreenFull);
-          } else {
-            const { data: newScreenBase, error: scrErrBase } = await db.from('screens').insert(screenBasePayload).select('id, name').single();
-            if (scrErrBase) {
-              return NextResponse.json({ success: false, step: `screen ${sdef.name}`, error: scrErrBase.message }, { status: 500 });
-            }
-            if (newScreenBase) screensCreated.push(newScreenBase);
+          if (scrErr) {
+            return NextResponse.json({ success: false, step: `screen ${sdef.name}`, error: scrErr.message }, { status: 500 });
           }
+          if (newScreen) screensCreated.push(newScreen);
         }
       }
     }
