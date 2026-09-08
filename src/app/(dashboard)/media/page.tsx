@@ -1,21 +1,77 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
-import { MediaAsset } from '@/types';
-import { Image as ImageIcon, Video, Plus, Eye, Clock, Loader2, CheckCircle2, XCircle, Archive, AlertCircle } from 'lucide-react';
+import { Company, MediaAsset } from '@/types';
+import { Image as ImageIcon, Video, Plus, Eye, Clock, Loader2, CheckCircle2, XCircle, Archive, Building2 } from 'lucide-react';
 
 export default function MediaListPage() {
   const [mediaList, setMediaList] = useState<MediaAsset[]>([]);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [filterCompany, setFilterCompany] = useState<string>('all');
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [isMasterAdmin, setIsMasterAdmin] = useState(false);
+  const [contextLoaded, setContextLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    async function loadCompanyContext() {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: profile } = await (supabase.from('profiles') as any)
+          .select('is_master_admin')
+          .eq('id', user.id)
+          .single();
+
+        const isMaster = !!profile?.is_master_admin;
+        setIsMasterAdmin(isMaster);
+
+        let companyQuery;
+        if (isMaster) {
+          companyQuery = (supabase.from('companies') as any)
+            .select('*')
+            .order('trade_name');
+        } else {
+          const { data: links } = await (supabase.from('company_users') as any)
+            .select('company_id')
+            .eq('user_id', user.id)
+            .eq('is_active', true);
+          const companyIds = ((links || []) as any[]).map((link) => link.company_id);
+
+          if (companyIds.length > 0) {
+            companyQuery = (supabase.from('companies') as any)
+              .select('*')
+              .in('id', companyIds)
+              .order('trade_name');
+          }
+        }
+
+        if (companyQuery) {
+          const { data } = await companyQuery;
+          setCompanies((data || []) as Company[]);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar empresas da biblioteca:', err);
+      } finally {
+        setContextLoaded(true);
+      }
+    }
+
+    loadCompanyContext();
+  }, [supabase]);
 
   useEffect(() => {
     async function loadMedia() {
+      if (!contextLoaded) return;
+
       try {
         setLoading(true);
         const {
@@ -23,10 +79,15 @@ export default function MediaListPage() {
         } = await supabase.auth.getUser();
         if (!user) return;
 
-        // RLS garante filtragem por empresa
+        // A RLS define o que o usuário pode acessar; este filtro define o tenant
+        // que o Master escolheu administrar na interface.
         let query = (supabase.from('media_assets') as any)
           .select('*')
           .order('created_at', { ascending: false });
+
+        if (isMasterAdmin && filterCompany !== 'all') {
+          query = query.eq('company_id', filterCompany);
+        }
 
         if (filterType !== 'all') {
           query = query.eq('media_type', filterType);
@@ -51,7 +112,12 @@ export default function MediaListPage() {
     }
 
     loadMedia();
-  }, [filterType, filterStatus, supabase]);
+  }, [contextLoaded, filterCompany, filterType, filterStatus, isMasterAdmin, supabase]);
+
+  const companyNames = useMemo(
+    () => new Map(companies.map((company) => [company.id, company.trade_name])),
+    [companies]
+  );
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -117,7 +183,25 @@ export default function MediaListPage() {
 
       {/* Filters Bar */}
       <div className="flex flex-wrap items-center justify-between gap-4 bg-slate-900 border border-slate-800 p-4 rounded-2xl">
-        <div className="flex items-center gap-4 text-xs font-medium">
+        <div className="flex flex-wrap items-center gap-4 text-xs font-medium">
+          {isMasterAdmin && (
+            <div className="flex items-center gap-2">
+              <span className="text-slate-400">Empresa:</span>
+              <select
+                value={filterCompany}
+                onChange={(e) => setFilterCompany(e.target.value)}
+                className="max-w-64 bg-slate-950 border border-slate-800 text-slate-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-sky-500"
+              >
+                <option value="all">Todas as empresas</option>
+                {companies.map((company) => (
+                  <option key={company.id} value={company.id}>
+                    {company.trade_name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div className="flex items-center gap-2">
             <span className="text-slate-400">Tipo:</span>
             <select
@@ -221,6 +305,12 @@ export default function MediaListPage() {
                   <h3 className="font-bold text-white text-sm truncate group-hover:text-sky-400 transition">
                     {media.title}
                   </h3>
+                  <div className="mt-1 flex items-center gap-1.5 text-[11px] font-medium text-sky-300">
+                    <Building2 className="w-3.5 h-3.5 shrink-0" />
+                    <span className="truncate">
+                      Empresa: {companyNames.get(media.company_id) || 'Empresa não identificada'}
+                    </span>
+                  </div>
                   {media.description && (
                     <p className="text-xs text-slate-400 truncate">{media.description}</p>
                   )}
