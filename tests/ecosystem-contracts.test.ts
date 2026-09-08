@@ -6,7 +6,9 @@ const migration = [
   '20260908000160_mpm_ecosystem_foundation.sql','20260908000170_mpm_ecosystem_functions.sql',
   '20260908000200_matching_spend_growth_policies.sql','20260908000210_omnichannel_contracts_and_proofs.sql',
   '20260908000220_commissions_reconciliation_jobs.sql','20260908000230_sensitive_columns_and_admin_dashboard.sql',
+  '20260908000270_harden_mpm_economic_core.sql',
 ].map((name) => readFileSync(new URL(`../supabase/migrations/${name}`, import.meta.url), 'utf8')).join('\n');
+const hardening = readFileSync(new URL('../supabase/migrations/20260908000270_harden_mpm_economic_core.sql', import.meta.url), 'utf8');
 
 test('matching é determinístico e materializado, sem random puro', () => {
   assert.match(migration, /matching_decisions/); assert.match(migration, /score DESC,mc\.inventory_id/); assert.doesNotMatch(migration, /random\s*\(/i);
@@ -31,4 +33,25 @@ test('saldos legados são reconciliados sem conversão', () => {
 });
 test('segredos sociais e payout não são selecionáveis por clientes', () => {
   assert.match(migration, /REVOKE SELECT ON public\.social_connections/); assert.match(migration, /REVOKE SELECT ON public\.payout_methods/);
+});
+test('score usa configuração versionada e normaliza somente fatores disponíveis', () => {
+  assert.match(migration, /creator_score_tiers/);
+  assert.match(migration, /configuration_fingerprint/);
+  assert.match(migration, /normalized_weight_total/);
+  assert.doesNotMatch(hardening, /reliability\*0\.60/);
+});
+test('entitlement valida campanha, beneficiário, período e inventário', () => {
+  assert.match(migration, /Campanha não pertence ao beneficiário/);
+  assert.match(migration, /campaign\.status NOT IN \('scheduled','active'\)/);
+  assert.match(migration, /a\.inventory_id=ent\.inventory_id/);
+});
+test('reversal de settlement reverte comissão sem saldo negativo e registra recebível residual', () => {
+  assert.match(migration, /reverse_partner_commissions_for_settlement/);
+  assert.match(migration, /LEAST\(account\.available_balance,c\.amount_credits\)/);
+  assert.match(migration, /outstanding_debit_credits/);
+});
+test('RPCs econômicas administrativas não ficam executáveis por authenticated', () => {
+  for (const name of ['mpm_grant_credits','mpm_reverse_ledger_entry','accrue_partner_commission','record_validated_delivery_proof']) {
+    assert.match(migration, new RegExp(`REVOKE ALL ON FUNCTION public\\.${name}[^;]+FROM PUBLIC,anon,authenticated`));
+  }
 });

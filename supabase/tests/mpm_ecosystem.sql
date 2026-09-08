@@ -3,11 +3,11 @@ SET LOCAL request.jwt.claim.role='service_role';
 
 DO $test$
 DECLARE
- buyer UUID; seller UUID; screen_id UUID; inventory_id UUID; period_id UUID; bucket_id UUID; campaign_id UUID; media_id UUID; offer_id UUID; order_id UUID;
+ buyer UUID; seller UUID; screen_id UUID; inventory_id UUID; period_id UUID; bucket_id UUID; campaign_id UUID; wrong_campaign_id UUID; media_id UUID; offer_id UUID; order_id UUID;
  quote JSONB; matched JSONB; program_id UUID; commission_program_id UUID; attribution_id UUID; commission_id UUID; enrollment_id UUID; entitlement_id UUID; ep_id UUID; q1 UUID; q2 UUID;
- ledger_before BIGINT; ledger_after BIGINT; profile_id UUID; creator_id UUID; v_snapshot_id UUID; score JSONB;
+ ledger_before BIGINT; ledger_after BIGINT; profile_id UUID; creator_id UUID; v_snapshot_id UUID; score JSONB; score_changed JSONB; score_repeat JSONB; score_history_count INTEGER;
  connection_id UUID; channel_id UUID; social_inventory UUID; social_quote JSONB; contract_id UUID; publication_id UUID; proof_result JSONB; event_id UUID; event_result JSONB;
- wallet_id UUID; payout_id UUID; cashout JSONB; maintenance1 JSONB; maintenance2 JSONB; ecosystem_job1 JSONB; ecosystem_job2 JSONB; failed BOOLEAN; released_count INTEGER; settlement_status TEXT;
+ wallet_id UUID; payout_id UUID; cashout JSONB; maintenance1 JSONB; maintenance2 JSONB; ecosystem_job1 JSONB; ecosystem_job2 JSONB; failed BOOLEAN; released_count INTEGER; settlement_status TEXT; commission_credit NUMERIC; commission_reversal UUID;
 BEGIN
  INSERT INTO public.companies(trade_name,city,state) VALUES('Ecosystem Buyer','Cuiabá','MT') RETURNING id INTO buyer;
  INSERT INTO public.companies(trade_name,city,state) VALUES('Ecosystem Seller','Cuiabá','MT') RETURNING id INTO seller;
@@ -59,6 +59,13 @@ BEGIN
  VALUES(program_id,enrollment_id,inventory_id,'company',buyer,2000,'monthly','return_to_pool',now(),now()+interval '1 year') RETURNING id INTO entitlement_id;
  INSERT INTO public.entitlement_periods(entitlement_id,period_start,period_end,granted_quantity)
  VALUES(entitlement_id,current_date,current_date+30,2000) RETURNING id INTO ep_id;
+ INSERT INTO public.campaigns(company_id,name,campaign_type,status,start_date,end_date,target_insertions)
+ VALUES(seller,'Wrong beneficiary campaign','internal','active',current_date,current_date+30,100) RETURNING id INTO wrong_campaign_id;
+ failed:=false;
+ BEGIN
+   PERFORM public.consume_inventory_entitlement(ep_id,wrong_campaign_id,100,'eco:quota-wrong-beneficiary');
+ EXCEPTION WHEN OTHERS THEN failed:=position('beneficiário' in lower(SQLERRM))>0; END;
+ IF NOT failed THEN RAISE EXCEPTION 'FAIL entitlement accepted campaign from another company'; END IF;
  SELECT count(*) INTO ledger_before FROM public.wallet_ledger;
  q1:=public.consume_inventory_entitlement(ep_id,campaign_id,500,'eco:quota');
  q2:=public.consume_inventory_entitlement(ep_id,campaign_id,500,'eco:quota');
@@ -75,6 +82,14 @@ BEGIN
  VALUES(creator_id,25000,5,100000,4.5,80,9,1,0,4.8) RETURNING id INTO v_snapshot_id;
  score:=public.recalculate_creator_score(creator_id,v_snapshot_id,'creator-v1');
  IF (score->>'creator_score')::numeric<=0 OR (score->>'media_value_score')::numeric<=0 OR NOT EXISTS(SELECT 1 FROM public.creator_score_history h WHERE h.snapshot_id=v_snapshot_id) THEN RAISE EXCEPTION 'FAIL creator score: %',score; END IF;
+ UPDATE public.platform_settings SET value='{"reliability":100,"delivery":0,"engagement":0,"local_relevance":0}'::jsonb WHERE key='creator_score_weights';
+ UPDATE public.platform_settings SET value='{"reach":100,"engagement":0,"region":0,"niche":0,"performance":0}'::jsonb WHERE key='media_value_score_weights';
+ score_changed:=public.recalculate_creator_score(creator_id,v_snapshot_id,'creator-v1');
+ score_repeat:=public.recalculate_creator_score(creator_id,v_snapshot_id,'creator-v1');
+ SELECT count(*) INTO score_history_count FROM public.creator_score_history WHERE snapshot_id=v_snapshot_id;
+ IF score_changed->>'creator_score'=score->>'creator_score' OR score_changed->>'media_value_score'=score->>'media_value_score' THEN RAISE EXCEPTION 'FAIL configurable creator/media score did not change'; END IF;
+ IF score_changed->>'creator_score'<>score_repeat->>'creator_score' OR score_changed->>'media_value_score'<>score_repeat->>'media_value_score' OR score_history_count<>2 THEN RAISE EXCEPTION 'FAIL score determinism/history: %, %, count %',score_changed,score_repeat,score_history_count; END IF;
+ IF NOT EXISTS(SELECT 1 FROM public.creator_score_history WHERE snapshot_id=v_snapshot_id AND score_components ? 'creator_weights' AND score_components ? 'tier_thresholds') THEN RAISE EXCEPTION 'FAIL score configuration snapshot missing'; END IF;
 
  INSERT INTO public.social_connections(owner_type,owner_id,provider,provider_account_id,status)
  VALUES('company',seller,'instagram','eco-account','active') RETURNING id INTO connection_id;
@@ -97,6 +112,14 @@ BEGIN
  VALUES(commission_program_id,'code','ECO','company',buyer,buyer,'eco:attribution') RETURNING id INTO attribution_id;
  commission_id:=public.accrue_partner_commission(attribution_id,(proof_result->>'settlement_id')::uuid,'2099-01','eco:commission');
  IF commission_id IS NULL OR public.release_partner_commissions(now())<>1 THEN RAISE EXCEPTION 'FAIL partner commission'; END IF;
+ SELECT amount_credits INTO commission_credit FROM public.recurring_commissions WHERE id=commission_id;
+ UPDATE public.settlement_entries SET status='reversed',metadata=metadata||'{"reversal_reason":"Teste de reversão"}'::jsonb WHERE id=(proof_result->>'settlement_id')::uuid;
+ SELECT reversal_ledger_id INTO commission_reversal FROM public.recurring_commissions WHERE id=commission_id AND status='reversed' AND outstanding_debit_credits=0;
+ IF commission_reversal IS NULL OR NOT EXISTS(
+   SELECT 1 FROM public.wallet_ledger WHERE id=commission_reversal AND entry_type='reversal' AND direction='debit' AND amount=commission_credit
+ ) THEN RAISE EXCEPTION 'FAIL partner commission reversal'; END IF;
+ UPDATE public.settlement_entries SET status='reversed' WHERE id=(proof_result->>'settlement_id')::uuid;
+ IF (SELECT count(*) FROM public.wallet_ledger WHERE source_type='recurring_commission_reversal' AND source_id=commission_id)<>1 THEN RAISE EXCEPTION 'FAIL commission reversal idempotency'; END IF;
 
  INSERT INTO public.events(owner_company_id,name,city,state,starts_at,ends_at,status)
  VALUES(seller,'Evento Eco','Cuiabá','MT',now()+interval '1 day',now()+interval '2 days','active') RETURNING id INTO event_id;
@@ -114,6 +137,16 @@ BEGIN
  IF maintenance2->>'deduplicated'<>'true' THEN RAISE EXCEPTION 'FAIL maintenance idempotency: %',maintenance2; END IF;
  ecosystem_job1:=public.run_mpm_ecosystem_jobs('eco:ecosystem-job'); ecosystem_job2:=public.run_mpm_ecosystem_jobs('eco:ecosystem-job');
  IF ecosystem_job2->>'deduplicated'<>'true' THEN RAISE EXCEPTION 'FAIL ecosystem job idempotency: %',ecosystem_job2; END IF;
+ IF has_function_privilege('authenticated','public.mpm_grant_credits(uuid,text,numeric,text,uuid,text,jsonb)','EXECUTE')
+   OR has_function_privilege('authenticated','public.mpm_reverse_ledger_entry(uuid,text,text)','EXECUTE')
+   OR has_function_privilege('authenticated','public.accrue_partner_commission(uuid,uuid,text,text)','EXECUTE')
+   OR has_function_privilege('authenticated','public.record_validated_delivery_proof(uuid,text,uuid,numeric,timestamptz,jsonb,text)','EXECUTE')
+ THEN RAISE EXCEPTION 'FAIL critical economic RPC exposed to authenticated'; END IF;
+ IF EXISTS(
+   SELECT 1 FROM public.platform_settings
+   WHERE (key IN ('inventory_v2','wallet_mpm_v2','settlement_v2','matching_v2','partner_programs_v2','creator_v2','events_v2','dynamic_pricing_v2') AND value<>'true'::jsonb)
+      OR (key IN ('social_v2','payout_v2','cashout_enabled') AND value<>'false'::jsonb)
+ ) THEN RAISE EXCEPTION 'FAIL feature flag state changed'; END IF;
 END
 $test$;
 
@@ -125,7 +158,7 @@ BEGIN
  PERFORM set_config('request.jwt.claim.role','authenticated',true);
  EXECUTE 'SET LOCAL ROLE authenticated';
  SELECT count(*) INTO visible_count FROM public.creator_score_history WHERE creator_id=cid;
- IF visible_count<>1 THEN RAISE EXCEPTION 'FAIL creator self RLS'; END IF;
+ IF visible_count<>2 THEN RAISE EXCEPTION 'FAIL creator self RLS/history versions: %',visible_count; END IF;
  SELECT count(*) INTO visible_count FROM public.social_connections WHERE provider_account_id='eco-account';
  IF visible_count<>0 THEN RAISE EXCEPTION 'FAIL creator accessed company social token metadata'; END IF;
  denied:=false; BEGIN PERFORM encrypted_access_token FROM public.social_connections LIMIT 1; EXCEPTION WHEN insufficient_privilege THEN denied:=true; END;

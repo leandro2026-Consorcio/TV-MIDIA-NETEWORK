@@ -12,31 +12,6 @@ export type Database = {
   __InternalSupabase: {
     PostgrestVersion: "14.5"
   }
-  graphql_public: {
-    Tables: {
-      [_ in never]: never
-    }
-    Views: {
-      [_ in never]: never
-    }
-    Functions: {
-      graphql: {
-        Args: {
-          extensions?: Json
-          operationName?: string
-          query?: string
-          variables?: Json
-        }
-        Returns: Json
-      }
-    }
-    Enums: {
-      [_ in never]: never
-    }
-    CompositeTypes: {
-      [_ in never]: never
-    }
-  }
   public: {
     Tables: {
       acquisition_attributions: {
@@ -1907,6 +1882,7 @@ export type Database = {
       }
       creator_score_history: {
         Row: {
+          configuration_fingerprint: string
           created_at: string
           creator_id: string
           creator_score: number
@@ -1919,6 +1895,7 @@ export type Database = {
           tier: string
         }
         Insert: {
+          configuration_fingerprint: string
           created_at?: string
           creator_id: string
           creator_score: number
@@ -1931,6 +1908,7 @@ export type Database = {
           tier: string
         }
         Update: {
+          configuration_fingerprint?: string
           created_at?: string
           creator_id?: string
           creator_score?: number
@@ -1953,7 +1931,7 @@ export type Database = {
           {
             foreignKeyName: "creator_score_history_snapshot_id_fkey"
             columns: ["snapshot_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "creator_metric_snapshots"
             referencedColumns: ["id"]
           },
@@ -5277,8 +5255,12 @@ export type Database = {
           created_at: string
           id: string
           idempotency_key: string
+          outstanding_debit_credits: number
           period_reference: string
           program_id: string
+          reversal_ledger_id: string | null
+          reversal_reason: string | null
+          reversed_at: string | null
           source_id: string
           source_type: string
           status: string
@@ -5292,8 +5274,12 @@ export type Database = {
           created_at?: string
           id?: string
           idempotency_key: string
+          outstanding_debit_credits?: number
           period_reference: string
           program_id: string
+          reversal_ledger_id?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
           source_id: string
           source_type: string
           status?: string
@@ -5307,8 +5293,12 @@ export type Database = {
           created_at?: string
           id?: string
           idempotency_key?: string
+          outstanding_debit_credits?: number
           period_reference?: string
           program_id?: string
+          reversal_ledger_id?: string | null
+          reversal_reason?: string | null
+          reversed_at?: string | null
           source_id?: string
           source_type?: string
           status?: string
@@ -5326,6 +5316,13 @@ export type Database = {
             columns: ["program_id"]
             isOneToOne: false
             referencedRelation: "partner_programs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "recurring_commissions_reversal_ledger_id_fkey"
+            columns: ["reversal_ledger_id"]
+            isOneToOne: false
+            referencedRelation: "wallet_ledger"
             referencedColumns: ["id"]
           },
         ]
@@ -8016,6 +8013,14 @@ export type Database = {
         }
         Returns: Json
       }
+      reverse_partner_commissions_for_settlement: {
+        Args: {
+          p_idempotency_key: string
+          p_reason: string
+          p_settlement_id: string
+        }
+        Returns: Json
+      }
       run_campaign_matching: {
         Args: {
           p_campaign_id: string
@@ -8211,9 +8216,6 @@ export type CompositeTypes<
     : never
 
 export const Constants = {
-  graphql_public: {
-    Enums: {},
-  },
   public: {
     Enums: {},
   },
