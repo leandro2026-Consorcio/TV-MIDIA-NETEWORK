@@ -233,7 +233,7 @@ export async function GET(request: NextRequest) {
           status: 'active',
           metadata: { env: 'homologation' },
         });
-        if (relErr) {
+        if (relErr && !relErr.message?.includes('uq_creator_active_leader') && relErr.code !== '23505') {
           return NextResponse.json({ success: false, step: 'affiliate_relationships', error: relErr.message }, { status: 500 });
         }
       }
@@ -437,13 +437,23 @@ export async function GET(request: NextRequest) {
         subscriptionId = existingSub.id;
         await db.from('company_plan_subscriptions').update(subPayload).eq('id', subscriptionId);
       } else {
-        const { data: newSub, error: se } = await db.from('company_plan_subscriptions').insert(subPayload).select('id').single();
-        if (se) return NextResponse.json({ success: false, step: 'company_plan_subscriptions', error: se.message }, { status: 500 });
-        subscriptionId = newSub?.id;
+        const { data: newSub, error: se } = await db.from('company_plan_subscriptions').insert(subPayload).select('id').maybeSingle();
+        if (se) {
+          if (se.code === '23505' || se.message?.includes('uq_company_active_expansion_subscription')) {
+            const { data: matchedSub } = await db.from('company_plan_subscriptions').select('id').eq('company_id', companyId).maybeSingle();
+            subscriptionId = matchedSub?.id || null;
+          } else {
+            return NextResponse.json({ success: false, step: 'company_plan_subscriptions', error: se.message }, { status: 500 });
+          }
+        } else {
+          subscriptionId = newSub?.id || null;
+        }
       }
 
       if (subscriptionId && screensCreated.length === 3) {
         await db.from('subscription_screen_slots').delete().eq('subscription_id', subscriptionId);
+        const screenIds = screensCreated.map((s: any) => s.id);
+        await db.from('subscription_screen_slots').delete().in('screen_id', screenIds);
 
         const { error: slotErr } = await db.from('subscription_screen_slots').insert([
           { subscription_id: subscriptionId, slot_index: 1, slot_type: 'included', economic_weight_cents: 9967, screen_id: screensCreated[0].id, status: 'active', creator_affiliate_id: creatorAffiliateId, leader_affiliate_id: leaderAffiliateId, activated_at: new Date().toISOString() },
@@ -459,34 +469,29 @@ export async function GET(request: NextRequest) {
 
     // 9. Pessoa Física / Rede Orgânica (1 Tela Residencial Protegida)
     let organicParticipantId: string | null = null;
-    const { data: existingOrgPart } = await db
+    const { data: opData, error: ope } = await db
       .from('organic_participants')
-      .select('id')
-      .eq('user_id', userIds.org)
-      .maybeSingle();
-
-    if (existingOrgPart) {
-      organicParticipantId = existingOrgPart.id;
-    } else {
-      const { data: newOP, error: ope } = await db.from('organic_participants').insert({
+      .upsert({
         user_id: userIds.org,
         display_name: 'HOMOLOGAÇÃO MPM — Orgânico Teste',
         city: 'Cuiabá',
         state: 'MT',
         status: 'active',
-      }).select('id').single();
-      if (ope) return NextResponse.json({ success: false, step: 'organic_participants', error: ope.message }, { status: 500 });
-      organicParticipantId = newOP?.id;
-    }
+      }, { onConflict: 'user_id' })
+      .select('id')
+      .single();
+
+    if (ope) return NextResponse.json({ success: false, step: 'organic_participants', error: ope.message }, { status: 500 });
+    organicParticipantId = opData?.id;
 
     let organicScreenName = '';
     if (organicParticipantId) {
-      const { data: existingOS } = await db
+      const { data: existingOSs } = await db
         .from('organic_screens')
         .select('id, name')
-        .eq('participant_id', organicParticipantId)
-        .eq('name', 'HOMOLOGAÇÃO MPM — Tela Residencial Sala')
-        .maybeSingle();
+        .eq('participant_id', organicParticipantId);
+
+      const existingOS = existingOSs?.find((s: any) => s.name === 'HOMOLOGAÇÃO MPM — Tela Residencial Sala') || existingOSs?.[0];
 
       if (existingOS) {
         organicScreenName = existingOS.name;
