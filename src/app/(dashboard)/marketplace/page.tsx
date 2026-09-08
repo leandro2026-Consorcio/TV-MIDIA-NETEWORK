@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -30,6 +30,8 @@ import {
   ExternalLink,
   ShieldCheck,
   Check,
+  Inbox,
+  ShoppingCart,
 } from 'lucide-react';
 
 export default function MarketplacePage() {
@@ -197,38 +199,64 @@ export default function MarketplacePage() {
           Contrate espaços de exibição em TVs comerciais da sua cidade ou campanhas em redes sociais com Creators verificados.
         </p>
 
-        {/* Tab Navigation */}
-        <div className="flex items-center gap-2 pt-2 border-t border-slate-800">
-          <button
-            onClick={() => setActiveTab('tvs')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'tvs'
-                ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
-                : 'text-slate-400 hover:text-white bg-slate-950/60'
-            }`}
-          >
-            <Tv className="w-4 h-4" /> TVs & Telas Indoor
-          </button>
-          <button
-            onClick={() => setActiveTab('creators')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'creators'
-                ? 'bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/20'
-                : 'text-slate-400 hover:text-white bg-slate-950/60'
-            }`}
-          >
-            <Sparkles className="w-4 h-4" /> Creators & Redes Sociais
-          </button>
-          <button
-            onClick={() => setActiveTab('offers')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'offers'
-                ? 'bg-slate-800 text-white'
-                : 'text-slate-400 hover:text-white bg-slate-950/60'
-            }`}
-          >
-            <Tag className="w-4 h-4" /> Planos de Mídia da Rede
-          </button>
+        {/* Tab Navigation & Subnav de Gestão de Mídia */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 border-t border-slate-800">
+          <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+            <button
+              onClick={() => setActiveTab('tvs')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'tvs'
+                  ? 'bg-purple-600 text-white shadow-lg shadow-purple-600/20'
+                  : 'text-slate-400 hover:text-white bg-slate-950/60'
+              }`}
+            >
+              <Tv className="w-4 h-4" /> TVs & Telas Indoor
+            </button>
+            <button
+              onClick={() => setActiveTab('creators')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'creators'
+                  ? 'bg-fuchsia-600 text-white shadow-lg shadow-fuchsia-600/20'
+                  : 'text-slate-400 hover:text-white bg-slate-950/60'
+              }`}
+            >
+              <Sparkles className="w-4 h-4" /> Creators & Redes Sociais
+            </button>
+            <button
+              onClick={() => setActiveTab('offers')}
+              className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                activeTab === 'offers'
+                  ? 'bg-slate-800 text-white'
+                  : 'text-slate-400 hover:text-white bg-slate-950/60'
+              }`}
+            >
+              <Tag className="w-4 h-4" /> Planos de Mídia da Rede
+            </button>
+          </div>
+
+          <div className="flex items-center gap-1.5 text-xs overflow-x-auto pb-1 sm:pb-0">
+            <Link
+              href="/media-requests"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-950/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition flex items-center gap-1.5 whitespace-nowrap text-[11px]"
+            >
+              <Inbox className="w-3.5 h-3.5 text-purple-400" />
+              <span>Solicitações</span>
+            </Link>
+            <Link
+              href="/ad-offer-orders"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-950/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition flex items-center gap-1.5 whitespace-nowrap text-[11px]"
+            >
+              <ShoppingCart className="w-3.5 h-3.5 text-amber-400" />
+              <span>Pedidos</span>
+            </Link>
+            <Link
+              href="/ad-offers"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-950/60 hover:bg-slate-800 text-slate-300 hover:text-white border border-slate-800 transition flex items-center gap-1.5 whitespace-nowrap text-[11px]"
+            >
+              <Tag className="w-3.5 h-3.5 text-emerald-400" />
+              <span>Minhas Ofertas</span>
+            </Link>
+          </div>
         </div>
 
         {/* Barra de Pesquisa */}

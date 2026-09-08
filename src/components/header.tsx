@@ -1,14 +1,15 @@
-'use client';
+﻿'use client';
 
 import { Profile, Company } from '@/types';
 import { CompanySwitcher } from './company-switcher';
-import { User, ShieldCheck } from 'lucide-react';
+import { User, ShieldCheck, Menu } from 'lucide-react';
 
 interface HeaderProps {
   profile: Profile;
   companies: Company[];
   activeCompany: Company | null;
   onSelectCompany: (company: Company) => void;
+  onOpenMobileMenu?: () => void;
 }
 
 export function Header({
@@ -16,11 +17,22 @@ export function Header({
   companies,
   activeCompany,
   onSelectCompany,
+  onOpenMobileMenu,
 }: HeaderProps) {
   return (
-    <header className="h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur px-6 flex items-center justify-between sticky top-0 z-40">
-      {/* Active Company Selector */}
-      <div className="flex items-center gap-4">
+    <header className="h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+      {/* Active Company Selector & Mobile Hamburger */}
+      <div className="flex items-center gap-2 sm:gap-4">
+        {onOpenMobileMenu && (
+          <button
+            type="button"
+            onClick={onOpenMobileMenu}
+            className="md:hidden p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            aria-label="Abrir menu de navegação"
+          >
+            <Menu className="w-5 h-5" />
+          </button>
+        )}
         <CompanySwitcher
           companies={companies}
           activeCompany={activeCompany}

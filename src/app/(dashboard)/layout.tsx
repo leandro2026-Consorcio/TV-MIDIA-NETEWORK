@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
@@ -17,11 +17,19 @@ export default function DashboardLayout({
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
   const [isTrial, setIsTrial] = useState(false);
+  const [isCreator, setIsCreator] = useState(false);
+  const [isLeader, setIsLeader] = useState(false);
+  const [isOrganicOnly, setIsOrganicOnly] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const router = useRouter();
   const pathname = usePathname();
   const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     async function loadUserData() {
@@ -45,7 +53,18 @@ export default function DashboardLayout({
           setProfile(profileData as Profile);
         }
 
-        // 2. Carregar Empresas Acessíveis
+        // 2. Carregar Roles e Afiliações
+        const [{ data: creatorData }, { data: affiliateData }, { data: organicData }] = await Promise.all([
+          (supabase.from('creator_profiles') as any).select('id, status').eq('user_id', user.id).maybeSingle(),
+          (supabase.from('affiliate_profiles') as any).select('id, role, status').eq('user_id', user.id).eq('status', 'active').maybeSingle(),
+          (supabase.from('organic_participants') as any).select('id, status').eq('user_id', user.id).maybeSingle(),
+        ]);
+
+        setIsCreator(Boolean(creatorData?.id));
+        setIsLeader(Boolean(affiliateData?.role === 'leader'));
+        setIsOrganicOnly(Boolean(organicData?.id));
+
+        // 3. Carregar Empresas Acessíveis
         let companiesQuery;
         if (profileData?.is_master_admin) {
           companiesQuery = (supabase.from('companies') as any).select('*').order('trade_name');
@@ -115,8 +134,39 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
-      {/* Sidebar Fixo */}
-      <Sidebar isMasterAdmin={Boolean(profile.is_master_admin)} hasCompany={companies.length > 0} isTrial={isTrial} />
+      {/* Mobile Drawer Overlay */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 md:hidden flex">
+          <div
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity"
+            onClick={() => setIsMobileMenuOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative z-50 shadow-2xl h-full">
+            <Sidebar
+              isMasterAdmin={Boolean(profile.is_master_admin)}
+              hasCompany={companies.length > 0}
+              isTrial={isTrial}
+              isCreator={isCreator}
+              isLeader={isLeader}
+              isOrganicOnly={isOrganicOnly && companies.length === 0}
+              onClose={() => setIsMobileMenuOpen(false)}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Sidebar Fixo Desktop */}
+      <div className="hidden md:block shrink-0">
+        <Sidebar
+          isMasterAdmin={Boolean(profile.is_master_admin)}
+          hasCompany={companies.length > 0}
+          isTrial={isTrial}
+          isCreator={isCreator}
+          isLeader={isLeader}
+          isOrganicOnly={isOrganicOnly && companies.length === 0}
+        />
+      </div>
 
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col min-w-0">
@@ -125,9 +175,10 @@ export default function DashboardLayout({
           companies={companies}
           activeCompany={activeCompany}
           onSelectCompany={(company) => setActiveCompany(company)}
+          onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        <main className="p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
           {children}
         </main>
       </div>
