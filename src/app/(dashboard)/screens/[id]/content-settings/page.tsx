@@ -182,6 +182,21 @@ export default function ScreenContentSettingsPage() {
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5 rounded-2xl border border-slate-800 bg-slate-950 p-4">
+              <button
+                type="button"
+                onClick={() => setSelectedSlugs([])}
+                className={`flex items-center gap-2.5 rounded-xl border p-3 text-left text-xs font-semibold transition ${
+                  selectedSlugs.length === 0
+                    ? 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300'
+                    : 'border-slate-800/80 bg-slate-900/50 text-slate-400 hover:text-white'
+                }`}
+              >
+                <span className={`flex h-4 w-4 items-center justify-center rounded border ${selectedSlugs.length === 0 ? 'border-emerald-400 bg-emerald-500 text-white' : 'border-slate-700'}`}>
+                  {selectedSlugs.length === 0 ? '✓' : ''}
+                </span>
+                <span>Todas as categorias</span>
+              </button>
+
               {officialCategories.map((cat) => {
                 const isChecked = selectedSlugs.includes(cat.slug) || selectedSlugs.includes(cat.name);
                 return (
@@ -203,6 +218,12 @@ export default function ScreenContentSettingsPage() {
                   </label>
                 );
               })}
+
+              {officialCategories.length === 0 && (
+                <p className="col-span-full text-xs text-amber-300">
+                  Nenhuma categoria cadastrada. A opção “Todas as categorias” exibirá qualquer notícia ativa disponível.
+                </p>
+              )}
             </div>
           </div>
 

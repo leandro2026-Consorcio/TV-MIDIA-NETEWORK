@@ -7,6 +7,10 @@
     {
       "path": "/api/cron/mpm-maintenance",
       "schedule": "20 * * * *"
+    },
+    {
+      "path": "/api/cron/rss",
+      "schedule": "10 * * * *"
     }
   ]
 }
