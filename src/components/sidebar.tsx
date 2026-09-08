@@ -1,17 +1,18 @@
-'use client';
+﻿'use client';
 
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  Building2, 
-  Tv, 
+import { usePathname, useRouter } from 'next/navigation';
+import {
+  LayoutDashboard,
+  Building2,
+  Tv,
   Image as ImageIcon,
   ListVideo,
   Megaphone,
   Gift,
   Play,
-  Wallet, 
+  Wallet,
   CreditCard,
   Sliders,
   Settings2,
@@ -23,16 +24,13 @@ import {
   CheckSquare,
   Package,
   PlusCircle,
-  ShieldAlert, 
+  ShieldAlert,
   LogOut,
   Receipt,
   DollarSign,
-  Send,
-  Share2,
   Network,
   MonitorPlay,
   ShieldCheck,
-  Crown,
   FileText,
   Newspaper,
   Rss,
@@ -41,20 +39,79 @@ import {
   Sparkles,
   BarChart3,
   Users,
+  ChevronDown,
+  ChevronRight,
+  X,
+  ExternalLink,
+  ChevronUp
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+
+export type UserRolePerspective = 'master' | 'company' | 'creator' | 'leader' | 'organic';
+
+interface NavSubItem {
+  name: string;
+  href: string;
+  badge?: string;
+}
+
+interface NavItem {
+  name: string;
+  href: string;
+  icon: any;
+  badge?: string;
+  badgeType?: 'warning' | 'info' | 'success';
+  external?: boolean;
+  subItems?: NavSubItem[];
+}
+
+interface NavGroup {
+  id: string;
+  title: string;
+  icon?: any;
+  items: NavItem[];
+}
 
 interface SidebarProps {
   isMasterAdmin: boolean;
   hasCompany: boolean;
   isTrial: boolean;
+  isCreator?: boolean;
+  isLeader?: boolean;
+  isOrganicOnly?: boolean;
+  onClose?: () => void;
 }
 
-export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
+export function Sidebar({
+  isMasterAdmin,
+  hasCompany,
+  isTrial,
+  isCreator = false,
+  isLeader = false,
+  isOrganicOnly = false,
+  onClose
+}: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const supabase = createClient();
+
+  // Determinar perspectiva inicial padrão
+  const defaultPerspective: UserRolePerspective = useMemo(() => {
+    if (isMasterAdmin) return 'master';
+    if (isLeader) return 'leader';
+    if (isCreator && !hasCompany) return 'creator';
+    if (hasCompany) return 'company';
+    if (isOrganicOnly) return 'organic';
+    return 'company';
+  }, [isMasterAdmin, isLeader, isCreator, hasCompany, isOrganicOnly]);
+
+  const [activePerspective, setActivePerspective] = useState<UserRolePerspective>(defaultPerspective);
+
+  // Grupos abertos
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+
+  // Subitens expandidos
+  const [expandedSubItems, setExpandedSubItems] = useState<Record<string, boolean>>({});
 
   const handleLogout = async () => {
     await supabase.auth.signOut();
@@ -62,310 +119,527 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
     router.refresh();
   };
 
-  let navItems = [
+  const handleItemClick = () => {
+    if (onClose) {
+      onClose();
+    }
+  };
+
+  // 1. Definição dos Grupos para MASTER ADMIN (7 Grupos Coesos)
+  const masterGroups: NavGroup[] = useMemo(() => [
     {
-      name: 'Dashboard',
-      href: '/dashboard',
+      id: 'inicio',
+      title: 'INÍCIO',
       icon: LayoutDashboard,
+      items: [
+        { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Ecossistema MPM', href: '/ecosystem', icon: BarChart3 },
+        { name: 'Central de Operações', href: '/admin/mpm', icon: Sliders },
+      ]
     },
     {
-      name: 'Rede Orgânica',
-      href: '/organic',
-      icon: MonitorPlay,
-    },
-    {
-      name: 'Marketplace de Mídia',
-      href: '/marketplace',
-      icon: Store,
-    },
-    {
-      name: 'Solicitações de Mídia',
-      href: '/media-requests',
-      icon: Inbox,
-    },
-    {
-      name: 'Empresas',
-      href: '/companies',
-      icon: Building2,
-    },
-    {
-      name: 'TVs & Telas',
-      href: '/screens',
+      id: 'rede-telas',
+      title: 'REDE & TELAS',
       icon: Tv,
+      items: [
+        { name: 'Empresas', href: '/companies', icon: Building2 },
+        { name: 'TVs & Telas', href: '/screens', icon: Tv },
+        {
+          name: 'Rede Orgânica',
+          href: '/organic',
+          icon: MonitorPlay,
+          subItems: [
+            { name: 'Prêmios da Rede Orgânica', href: '/organic-rewards' },
+          ]
+        },
+        { name: 'Inventário da Rede', href: '/network-inventory', icon: Layers },
+        { name: 'Preferências da Rede', href: '/network-settings', icon: Settings2 },
+        { name: 'Comprovantes de Exibição', href: '/playback-logs', icon: Play },
+        { name: 'Políticas da Rede', href: '/admin/credit-policies', icon: Sliders },
+      ]
     },
     {
-      name: 'Biblioteca de Mídias',
-      href: '/media',
-      icon: ImageIcon,
-    },
-    {
-      name: 'Playlists',
-      href: '/playlists',
-      icon: ListVideo,
-    },
-    {
-      name: 'Campanhas Internas',
-      href: '/campaigns',
+      id: 'midia-campanhas',
+      title: 'MÍDIA & CAMPANHAS',
       icon: Megaphone,
+      items: [
+        {
+          name: 'Marketplace',
+          href: '/marketplace',
+          icon: Store,
+          subItems: [
+            { name: 'Solicitações de Mídia', href: '/media-requests' },
+            { name: 'Pedidos de Mídia', href: '/ad-offer-orders' },
+            { name: 'Planos de Mídia', href: '/ad-offers' },
+            { name: 'Revisão de Ofertas (Admin)', href: '/admin/ad-offers' },
+          ]
+        },
+        { name: 'Campanhas', href: '/campaigns', icon: Megaphone },
+        { name: 'Biblioteca de Mídias', href: '/media', icon: ImageIcon },
+        { name: 'Playlists', href: '/playlists', icon: ListVideo },
+        { name: 'Categorias de Conteúdo', href: '/admin/content-categories', icon: Tag },
+        { name: 'Fontes RSS', href: '/admin/content-sources', icon: Rss },
+      ]
     },
     {
-      name: 'Extrato Financeiro',
-      href: '/seller-statement',
-      icon: Receipt,
-    },
-    {
-      name: 'Trial & Convites VIP',
-      href: '/trials',
-      icon: Gift,
-    },
-    {
-      name: 'Proof of Play (Logs)',
-      href: '/playback-logs',
-      icon: Play,
-    },
-    {
-      name: 'Carteira & Créditos',
-      href: '/wallet',
-      icon: Wallet,
-    },
-    {
-      name: 'Ecossistema MPM',
-      href: '/ecosystem',
-      icon: BarChart3,
-    },
-    {
-      name: 'Creator MPM',
-      href: '/creator',
+      id: 'creators-expansao',
+      title: 'CREATORS & EXPANSÃO',
       icon: Sparkles,
+      items: [
+        { name: 'Creator MPM', href: '/creator', icon: Sparkles },
+        { name: 'Líder MPM', href: '/leader', icon: Users },
+        { name: 'Planos de Expansão', href: '/admin/mpm/expansion', icon: Network },
+        { name: 'Ativações / Onboarding', href: '/onboarding', icon: CheckSquare },
+        {
+          name: 'Convites / Indicações',
+          href: '/trials',
+          icon: Gift,
+          subItems: [
+            { name: 'Convites VIP', href: '/company/invites' }
+          ]
+        },
+      ]
     },
     {
-      name: 'Líder MPM',
-      href: '/leader',
-      icon: Users,
+      id: 'financeiro',
+      title: 'FINANCEIRO',
+      icon: Wallet,
+      items: [
+        { name: 'Visão Financeira', href: '/admin/financial-reports', icon: BarChart3 },
+        {
+          name: 'Carteira & Créditos',
+          href: '/wallet',
+          icon: Wallet,
+          subItems: [
+            { name: 'Pacotes de Crédito', href: '/credit-packages' },
+            { name: 'Atribuição de Créditos', href: '/admin/credits' },
+          ]
+        },
+        { name: 'Cobranças & Asaas', href: '/admin/asaas-reconciliation', icon: ShieldCheck },
+        {
+          name: 'Repasses',
+          href: '/seller-statement',
+          icon: Receipt,
+          subItems: [
+            { name: 'Histórico de Repasses', href: '/seller-payout-history' },
+          ]
+        },
+        {
+          name: 'Contas de Recebimento',
+          href: '/admin/seller-financial-profiles',
+          icon: Building2,
+          subItems: [
+            { name: 'Cadastro Financeiro', href: '/seller-financial-profile' },
+          ]
+        },
+        {
+          name: 'Payout',
+          href: '/admin/seller-payouts',
+          icon: DollarSign,
+          subItems: [
+            { name: 'Transferências Payout (Master)', href: '/admin/seller-payout-transfers' },
+            { name: 'Simulação de Payout', href: '/seller-payouts' },
+          ]
+        },
+      ]
     },
     {
-      name: 'Inventário Cedido',
-      href: '/network-inventory',
-      icon: Layers,
-    },
-    {
-      name: 'Cadastro Financeiro',
-      href: '/seller-financial-profile',
-      icon: CreditCard,
-    },
-    {
-      name: 'Simulação de Payout',
-      href: '/seller-payouts',
-      icon: DollarSign,
-    },
-    {
-      name: 'Histórico de Repasses',
-      href: '/seller-payout-history',
-      icon: Receipt,
-    },
-    {
-      name: 'Conformidade & Termos',
-      href: '/company-compliance',
-      icon: ShieldCheck,
-    },
-    {
-      name: 'Preferências da Rede',
-      href: '/network-settings',
-      icon: Settings2,
-    },
-    {
-      name: 'Meus Planos de Mídia',
-      href: '/ad-offers',
-      icon: Tag,
-    },
-    {
-      name: 'Pedidos de Mídia',
-      href: '/ad-offer-orders',
-      icon: ShoppingCart,
-    },
-    {
-      name: 'Brindes da Rede Orgânica',
-      href: '/organic-rewards',
-      icon: Gift,
-    },
-  ];
-
-  if (!isMasterAdmin && !hasCompany) {
-    navItems = [
-      navItems[0],
-      navItems[1],
-      { name: 'Completar cadastro', href: '/empresa/cadastro', icon: Building2 },
-    ];
-  } else if (!isMasterAdmin && isTrial) {
-    const trialRoutes = new Set([
-      '/dashboard', '/organic', '/screens', '/media', '/playlists', '/campaigns',
-    ]);
-    navItems = navItems.filter((item) => trialRoutes.has(item.href));
-    navItems.push(
-      { name: 'Empresas da Rede', href: '/network/companies', icon: Building2 },
-      { name: 'Convites VIP', href: '/company/invites', icon: Gift },
-      { name: 'Primeiros passos', href: '/onboarding', icon: CheckSquare },
-      { name: 'Planos & atendimento', href: '/plans', icon: CreditCard },
-    );
-  }
-
-  if (hasCompany && !navItems.some((item) => item.href === '/help/getting-started')) {
-    navItems.push({ name: 'Central de Ajuda', href: '/help/getting-started', icon: CircleHelp });
-  }
-
-  if (isMasterAdmin) {
-    navItems.push(
-      {
-        name: 'Segurança da Conta',
-        href: '/admin/account-security',
-        icon: KeyRound,
-      },
-      {
-        name: 'Configurações da Plataforma',
-        href: '/admin/platform-settings',
-        icon: Sliders,
-      },
-      {
-        name: 'Operação MPM',
-        href: '/admin/mpm',
-        icon: BarChart3,
-      },
-      {
-        name: 'Planos de Expansão',
-        href: '/admin/mpm/expansion',
-        icon: Network,
-      },
-      {
-        name: 'Categorias de Conteúdo',
-        href: '/admin/content-categories',
-        icon: Tag,
-      },
-      {
-        name: 'Biblioteca Informativa',
-        href: '/admin/informative-content',
-        icon: Newspaper,
-      },
-      {
-        name: 'Fontes RSS',
-        href: '/admin/content-sources',
-        icon: Rss,
-      },
-      {
-        name: 'Transferências Payout (Master)',
-        href: '/admin/seller-payout-transfers',
-        icon: Receipt,
-      },
-      {
-        name: 'Elegibilidade Payout (Master)',
-        href: '/admin/seller-payouts',
-        icon: DollarSign,
-      },
-      {
-        name: 'Perfis Financeiros Exibidores',
-        href: '/admin/seller-financial-profiles',
-        icon: Building2,
-      },
-      {
-        name: 'Conciliação Asaas',
-        href: '/admin/asaas-reconciliation',
-        icon: ShieldCheck,
-      },
-      {
-        name: 'Financeiro da Plataforma',
-        href: '/admin/financial-reports',
-        icon: DollarSign,
-      },
-      {
-        name: 'Gestão de Termos de Uso',
-        href: '/admin/terms',
-        icon: FileText,
-      },
-      {
-        name: 'Revisão de Ofertas',
-        href: '/admin/ad-offers',
-        icon: CheckSquare,
-      },
-      {
-        name: 'Políticas da Rede',
-        href: '/admin/credit-policies',
-        icon: Sliders,
-      },
-      {
-        name: 'Pacotes de Crédito',
-        href: '/credit-packages',
-        icon: Package,
-      },
-      {
-        name: 'Atribuição de Créditos',
-        href: '/admin/credits',
-        icon: PlusCircle,
-      }
-    );
-  }
-
-  if (isMasterAdmin || (hasCompany && !isTrial)) {
-    navItems.push({
-      name: 'Logs de Auditoria',
-      href: '/audit-logs',
+      id: 'administracao',
+      title: 'ADMINISTRAÇÃO',
       icon: ShieldAlert,
+      items: [
+        { name: 'Configurações da Plataforma', href: '/admin/platform-settings', icon: Sliders },
+        {
+          name: 'Social / Meta',
+          href: '/creator',
+          icon: Sparkles,
+          badge: 'Bloqueio Meta',
+          badgeType: 'warning'
+        },
+        {
+          name: 'Vitrine Pública',
+          href: '/onde-anunciar',
+          icon: Store,
+          subItems: [
+            { name: 'Ver Vitrine Pública ao vivo', href: '/' }
+          ]
+        },
+        {
+          name: 'Termos & Conformidade',
+          href: '/admin/terms',
+          icon: FileText,
+          subItems: [
+            { name: 'Conformidade da Empresa', href: '/company-compliance' }
+          ]
+        },
+        { name: 'Biblioteca Informativa', href: '/admin/informative-content', icon: Newspaper },
+        { name: 'Logs de Auditoria', href: '/audit-logs', icon: ShieldAlert },
+      ]
+    },
+    {
+      id: 'ajuda-conta',
+      title: 'AJUDA & CONTA',
+      icon: CircleHelp,
+      items: [
+        { name: 'Central de Ajuda', href: '/help/getting-started', icon: CircleHelp },
+        { name: 'Segurança da Conta', href: '/admin/account-security', icon: KeyRound },
+      ]
+    }
+  ], []);
+
+  // 2. Definição para EMPRESA
+  const companyGroups: NavGroup[] = useMemo(() => [
+    {
+      id: 'principal-empresa',
+      title: 'MENU EMPRESA',
+      items: [
+        { name: 'Início', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Minhas TVs', href: '/screens', icon: Tv },
+        {
+          name: 'Minha Mídia',
+          href: '/media',
+          icon: ImageIcon,
+          subItems: [
+            { name: 'Playlists de Vídeo', href: '/playlists' },
+          ]
+        },
+        {
+          name: 'Marketplace',
+          href: '/marketplace',
+          icon: Store,
+          subItems: [
+            { name: 'Solicitações Recebidas', href: '/media-requests' },
+            { name: 'Meus Planos & Ofertas', href: '/ad-offers' },
+            { name: 'Pedidos de Mídia', href: '/ad-offer-orders' },
+          ]
+        },
+        { name: 'Campanhas', href: '/campaigns', icon: Megaphone },
+        { name: 'Meu Plano', href: '/plans', icon: CreditCard },
+        {
+          name: 'Carteira & Créditos',
+          href: '/wallet',
+          icon: Wallet,
+          subItems: [
+            { name: 'Extrato Financeiro', href: '/seller-statement' },
+            { name: 'Cadastro Bancário', href: '/seller-financial-profile' },
+          ]
+        },
+        { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
+        { name: 'Segurança da Conta', href: '/admin/account-security', icon: KeyRound },
+      ]
+    }
+  ], []);
+
+  // 3. Definição para CREATOR
+  const creatorGroups: NavGroup[] = useMemo(() => [
+    {
+      id: 'principal-creator',
+      title: 'MENU CREATOR',
+      items: [
+        { name: 'Início (Painel Creator)', href: '/creator', icon: Sparkles },
+        { name: 'Campanhas & Propostas', href: '/creator', icon: Megaphone },
+        { name: 'Marketplace de Creators', href: '/marketplace', icon: Store },
+        { name: 'Programa de Expansão', href: '/creator', icon: Network },
+        { name: 'Comissões & Extrato', href: '/seller-statement', icon: Receipt },
+        { name: 'Meu Perfil & Preços', href: '/creator', icon: Building2 },
+        { name: 'Ajuda & Onboarding', href: '/help/getting-started', icon: CircleHelp },
+      ]
+    }
+  ], []);
+
+  // 4. Definição para LÍDER MPM
+  const leaderGroups: NavGroup[] = useMemo(() => [
+    {
+      id: 'principal-lider',
+      title: 'LÍDER MPM',
+      items: [
+        { name: 'Início (Painel Líder)', href: '/leader', icon: Users },
+        { name: 'Minha Equipe', href: '/leader', icon: Users },
+        { name: 'Creators Parceiros', href: '/leader', icon: Sparkles },
+        { name: 'Empresas & TVs', href: '/leader', icon: Building2 },
+        { name: 'Comissões de Expansão', href: '/seller-statement', icon: Receipt },
+        { name: 'Convidar Parceiro', href: '/company/invites', icon: Gift },
+        { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
+      ]
+    }
+  ], []);
+
+  // 5. Definição para REDE ORGÂNICA / PESSOA FÍSICA
+  const organicGroups: NavGroup[] = useMemo(() => [
+    {
+      id: 'principal-organico',
+      title: 'REDE ORGÂNICA',
+      items: [
+        { name: 'Início', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Minhas Telas', href: '/screens', icon: Tv },
+        { name: 'Rede Orgânica', href: '/organic', icon: MonitorPlay },
+        { name: 'Créditos & Benefícios', href: '/wallet', icon: Wallet },
+        { name: 'Prêmios Orgânicos', href: '/organic-rewards', icon: Gift },
+        { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
+      ]
+    }
+  ], []);
+
+  // Seleciona os grupos ativos baseado na perspectiva
+  const activeGroups: NavGroup[] = useMemo(() => {
+    switch (activePerspective) {
+      case 'master':
+        return masterGroups;
+      case 'company':
+        return companyGroups;
+      case 'creator':
+        return creatorGroups;
+      case 'leader':
+        return leaderGroups;
+      case 'organic':
+        return organicGroups;
+      default:
+        return masterGroups;
+    }
+  }, [activePerspective, masterGroups, companyGroups, creatorGroups, leaderGroups, organicGroups]);
+
+  // Expandir automaticamente o grupo que contém a rota atual
+  useEffect(() => {
+    let matchedGroupId: string | null = null;
+    let matchedSubitemHref: string | null = null;
+
+    for (const group of activeGroups) {
+      for (const item of group.items) {
+        if (pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(item.href))) {
+          matchedGroupId = group.id;
+        }
+        if (item.subItems) {
+          for (const sub of item.subItems) {
+            if (pathname === sub.href || pathname.startsWith(sub.href)) {
+              matchedGroupId = group.id;
+              matchedSubitemHref = item.href;
+            }
+          }
+        }
+      }
+    }
+
+    if (matchedGroupId) {
+      setOpenGroups((prev) => {
+        // No mobile (drawer com onClose), manter apenas 1 grupo aberto
+        if (onClose) {
+          return { [matchedGroupId!]: true };
+        }
+        return { ...prev, [matchedGroupId!]: true };
+      });
+    }
+
+    if (matchedSubitemHref) {
+      setExpandedSubItems((prev) => ({ ...prev, [matchedSubitemHref!]: true }));
+    }
+  }, [pathname, activeGroups, onClose]);
+
+  // Alternar grupo
+  const toggleGroup = (groupId: string) => {
+    setOpenGroups((prev) => {
+      const isCurrentlyOpen = Boolean(prev[groupId]);
+      if (onClose) {
+        // Mobile accordion: só 1 aberto por vez
+        return isCurrentlyOpen ? {} : { [groupId]: true };
+      }
+      return {
+        ...prev,
+        [groupId]: !isCurrentlyOpen,
+      };
     });
-  }
+  };
+
+  // Alternar subitens
+  const toggleSubItem = (href: string) => {
+    setExpandedSubItems((prev) => ({
+      ...prev,
+      [href]: !prev[href],
+    }));
+  };
 
   return (
-    <aside className="w-64 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0">
-      <div>
+    <aside className="w-64 sm:w-72 bg-slate-900 border-r border-slate-800 flex flex-col justify-between shrink-0 h-screen sticky top-0 z-30 select-none">
+      <div className="flex flex-col min-h-0 flex-1">
         {/* Brand Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <div className="bg-purple-500 p-2 rounded-xl text-white shadow-md shadow-purple-500/20">
-            <Tv className="w-6 h-6" />
+        <div className="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="bg-purple-600 p-2 rounded-xl text-white shadow-md shadow-purple-600/30">
+              <Tv className="w-5 h-5" />
+            </div>
+            <div>
+              <h1 className="font-bold text-white tracking-tight leading-none text-sm sm:text-base">Mídia por Mídia</h1>
+              <span className="text-[11px] font-semibold text-purple-400">Rede Omnichannel MPM</span>
+            </div>
           </div>
-          <div>
-            <h1 className="font-bold text-white tracking-tight leading-none text-base">Rede Indoor</h1>
-            <span className="text-xs font-semibold text-purple-400">SaaS Multi-tenant</span>
-          </div>
+
+          {/* Botão de Fechar no Mobile */}
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              aria-label="Fechar menu"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          )}
         </div>
 
-        {/* Master Badge */}
-        {isMasterAdmin && (
-          <div className="mx-4 mt-4 px-3 py-1.5 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-center justify-between text-amber-400 text-xs font-semibold">
-            <span>Perfil Ativo:</span>
-            <span className="bg-amber-500 text-slate-950 px-2 py-0.5 rounded font-bold uppercase text-[10px]">
-              Master Admin
+        {/* Seletor de Perspectiva (Master Admin & Usuários Híbridos) */}
+        {isMasterAdmin ? (
+          <div className="p-3 bg-slate-950/60 border-b border-slate-800/80">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Visualização:</span>
+              <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30 uppercase">
+                Master Admin
+              </span>
+            </div>
+            <div className="grid grid-cols-5 gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+              {(['master', 'company', 'creator', 'leader', 'organic'] as UserRolePerspective[]).map((role) => (
+                <button
+                  key={role}
+                  onClick={() => setActivePerspective(role)}
+                  className={`py-1 rounded-lg text-[10px] font-bold transition text-center capitalize ${
+                    activePerspective === role
+                      ? 'bg-purple-600 text-white shadow'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                  title={`Alternar visão para ${role}`}
+                >
+                  {role === 'master' ? 'Master' : role === 'company' ? 'Empresa' : role === 'creator' ? 'Creator' : role === 'leader' ? 'Líder' : 'Org'}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="px-4 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between text-xs font-semibold">
+            <span className="text-slate-400 text-[11px]">Perfil:</span>
+            <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-[11px] font-bold capitalize">
+              {activePerspective === 'company' ? 'Empresa Anunciante' : activePerspective === 'creator' ? 'Creator' : activePerspective === 'leader' ? 'Líder MPM' : 'Rede Orgânica'}
             </span>
           </div>
         )}
 
-        {/* Navigation Links */}
-        <nav className="p-4 space-y-1 mt-2 overflow-y-auto max-h-[calc(100vh-160px)]">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href || (item.href !== '/dashboard' && pathname.startsWith(`${item.href}`));
+        {/* Grupos e Links de Navegação */}
+        <nav className="p-3 space-y-1.5 overflow-y-auto flex-1 scrollbar-thin scrollbar-thumb-slate-800 scrollbar-track-transparent">
+          {activeGroups.map((group) => {
+            const isOpen = Boolean(openGroups[group.id] ?? true);
+            const GroupIcon = group.icon;
 
             return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-medium transition ${
-                  isActive
-                    ? 'bg-purple-500 text-white shadow-lg shadow-purple-500/20 font-bold'
-                    : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
-                }`}
-              >
-                <Icon className="w-4 h-4" />
-                <span>{item.name}</span>
-              </Link>
+              <div key={group.id} className="rounded-xl overflow-hidden">
+                {/* Cabeçalho do Grupo (Recolhível) */}
+                <button
+                  type="button"
+                  onClick={() => toggleGroup(group.id)}
+                  className="w-full flex items-center justify-between px-3 py-2 text-[11px] font-bold text-slate-400 hover:text-slate-200 hover:bg-slate-800/50 rounded-lg transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    {GroupIcon && <GroupIcon className="w-3.5 h-3.5 text-purple-400/80" />}
+                    <span className="tracking-wider uppercase">{group.title}</span>
+                  </div>
+                  {isOpen ? (
+                    <ChevronDown className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-transform" />
+                  ) : (
+                    <ChevronRight className="w-3.5 h-3.5 text-slate-500 group-hover:text-slate-300 transition-transform" />
+                  )}
+                </button>
+
+                {/* Conteúdo do Grupo */}
+                {isOpen && (
+                  <div className="mt-1 space-y-0.5 pl-1">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      const isActive = pathname === item.href || (item.href !== '/dashboard' && item.href !== '/' && pathname.startsWith(item.href));
+                      const hasSub = Boolean(item.subItems && item.subItems.length > 0);
+                      const isSubExpanded = Boolean(expandedSubItems[item.href]);
+
+                      return (
+                        <div key={item.name} className="space-y-0.5">
+                          <div className="flex items-center gap-1">
+                            <Link
+                              href={item.href}
+                              onClick={handleItemClick}
+                              className={`flex-1 flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition-all ${
+                                isActive
+                                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20 font-bold'
+                                  : 'text-slate-300 hover:text-white hover:bg-slate-800/70'
+                              }`}
+                            >
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                                <span className="truncate">{item.name}</span>
+                              </div>
+
+                              {item.badge && (
+                                <span
+                                  className={`ml-1 px-1.5 py-0.2 text-[9px] font-black rounded uppercase tracking-wider shrink-0 ${
+                                    item.badgeType === 'warning'
+                                      ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                                      : 'bg-purple-500/20 text-purple-300'
+                                  }`}
+                                >
+                                  {item.badge}
+                                </span>
+                              )}
+                            </Link>
+
+                            {/* Botão de Toggle de Subitens se existirem */}
+                            {hasSub && (
+                              <button
+                                type="button"
+                                onClick={() => toggleSubItem(item.href)}
+                                className="p-2 text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-lg transition"
+                                title="Ver páginas relacionadas"
+                              >
+                                {isSubExpanded ? (
+                                  <ChevronUp className="w-3.5 h-3.5" />
+                                ) : (
+                                  <ChevronDown className="w-3.5 h-3.5" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+
+                          {/* Subitens da Rota */}
+                          {hasSub && isSubExpanded && (
+                            <div className="ml-5 pl-2 border-l border-slate-800 space-y-0.5 py-1">
+                              {item.subItems!.map((sub) => {
+                                const isSubActive = pathname === sub.href;
+                                return (
+                                  <Link
+                                    key={sub.name}
+                                    href={sub.href}
+                                    onClick={handleItemClick}
+                                    className={`block px-2.5 py-1.5 rounded-lg text-[11px] transition-colors truncate ${
+                                      isSubActive
+                                        ? 'bg-purple-500/20 text-purple-300 font-bold border-l-2 border-purple-500'
+                                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/50'
+                                    }`}
+                                  >
+                                    {sub.name}
+                                  </Link>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             );
           })}
         </nav>
       </div>
 
       {/* Footer / Logout */}
-      <div className="p-4 border-t border-slate-800">
+      <div className="p-3 border-t border-slate-800 bg-slate-950/40">
         <button
           onClick={handleLogout}
-          className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-xs font-medium text-rose-400 hover:bg-rose-500/10 transition"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition"
         >
-          <LogOut className="w-4 h-4" />
+          <LogOut className="w-3.5 h-3.5" />
           <span>Sair da Conta</span>
         </button>
       </div>

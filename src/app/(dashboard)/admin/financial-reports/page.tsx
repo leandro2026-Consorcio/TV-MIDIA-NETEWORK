@@ -1,12 +1,13 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  getMasterFinancialSummaryAction, 
-  applySellerMonthlyDiscountAction 
+import {
+  getMasterFinancialSummaryAction,
+  applySellerMonthlyDiscountAction
 } from '@/app/actions/financial-reports';
 import { DollarSign, ShieldAlert, TrendingUp, Percent, Clock, CheckCircle2, AlertCircle, Loader2, Filter, Receipt, MinusCircle, Building2, Calendar, FileText } from 'lucide-react';
+import { FinancialSubnav } from '@/components/financial-subnav';
 
 export default function MasterFinancialReportsPage() {
   const [summary, setSummary] = useState<any>(null);
@@ -103,6 +104,9 @@ export default function MasterFinancialReportsPage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
+      {/* Subnavegação Unificada do Módulo Financeiro */}
+      <FinancialSubnav isMasterAdmin={true} />
+
       {/* Header */}
       <div className="flex items-center justify-between border-b border-slate-800 pb-5">
         <div>
