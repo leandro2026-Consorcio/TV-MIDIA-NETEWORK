@@ -353,7 +353,14 @@ BEGIN
  platform_total:=p_amount_cents-creator_total-leader_total;
  INSERT INTO public.expansion_commission_entries(payment_id,subscription_id,beneficiary_role,entry_kind,amount_cents,status,rule_version_id,idempotency_key,available_at)
  VALUES(payid,s.id,'platform',p_payment_kind,platform_total,'available_pending_transfer',r.id,'commission:'||payid||':platform',now());
- SELECT sum(economic_weight_cents),max(id) INTO total_weight,last_slot FROM public.subscription_screen_slots WHERE subscription_id=s.id AND status<>'cancelled';
+ SELECT sum(economic_weight_cents) INTO total_weight
+ FROM public.subscription_screen_slots
+ WHERE subscription_id=s.id AND status<>'cancelled';
+ SELECT id INTO last_slot
+ FROM public.subscription_screen_slots
+ WHERE subscription_id=s.id AND status<>'cancelled'
+ ORDER BY slot_index DESC
+ LIMIT 1;
  FOR sl IN SELECT * FROM public.subscription_screen_slots WHERE subscription_id=s.id AND status<>'cancelled' ORDER BY slot_index LOOP
   creator_part:=CASE WHEN sl.id=last_slot THEN creator_total-creator_alloc ELSE round(creator_total*sl.economic_weight_cents/total_weight) END;
   leader_part:=CASE WHEN sl.id=last_slot THEN leader_total-leader_alloc ELSE round(leader_total*sl.economic_weight_cents/total_weight) END;
@@ -380,8 +387,8 @@ BEGIN
   VALUES(program,enrollment,'company',s.company_id,planv.company_included_insertions,'monthly',planv.unused_insertions_policy,now(),NULL,jsonb_build_object('subscription_id',s.id,'scope',planv.company_insertions_scope,'separate_from_creator',true));
  END IF;
  UPDATE public.company_plan_subscriptions SET status='active',first_paid_at=COALESCE(first_paid_at,now()),
-  next_charge_at=CASE WHEN first_paid_at IS NULL THEN now()+make_interval(days=COALESCE((frozen_snapshot->>'days_until_second_charge')::int,60)) ELSE now()+interval '1 month' END,
-  commission_ends_at=COALESCE(commission_ends_at,now()+make_interval(months=r.duration_months)),updated_at=now() WHERE id=s.id;
+  next_charge_at=CASE WHEN first_paid_at IS NULL THEN now()+make_interval(days => COALESCE((frozen_snapshot->>'days_until_second_charge')::int,60)) ELSE now()+interval '1 month' END,
+  commission_ends_at=COALESCE(commission_ends_at,now()+make_interval(months => r.duration_months)),updated_at=now() WHERE id=s.id;
  INSERT INTO public.product_help_events(company_id,event_name,subject_type,subject_id,idempotency_key) VALUES(s.company_id,'first_payment_paid','payment',payid,'payment-paid:'||payid) ON CONFLICT(idempotency_key) DO NOTHING;
  RETURN payid;
 END $$;
@@ -476,7 +483,7 @@ BEGIN
   VALUES(program,'affiliate',sl.creator_affiliate_id,s.attribution_id,'active',jsonb_build_object('subscription_id',s.id))
   ON CONFLICT(program_id,participant_type,participant_id) DO UPDATE SET status='active' RETURNING id INTO enrollment;
   INSERT INTO public.inventory_entitlements(program_id,enrollment_id,inventory_id,beneficiary_type,beneficiary_id,insertion_quantity,recurrence,unused_policy,starts_at,ends_at,metadata)
-  SELECT program,enrollment,mi.id,'affiliate',sl.creator_affiliate_id,v.creator_insertions_per_screen,'monthly',v.unused_insertions_policy,now(),now()+make_interval(months=v.creator_entitlement_months),jsonb_build_object('slot_id',sl.id,'separate_from_company',true)
+  SELECT program,enrollment,mi.id,'affiliate',sl.creator_affiliate_id,v.creator_insertions_per_screen,'monthly',v.unused_insertions_policy,now(),now()+make_interval(months => v.creator_entitlement_months),jsonb_build_object('slot_id',sl.id,'separate_from_company',true)
   FROM public.media_inventory mi WHERE mi.source_type IN ('screen','company_screen') AND mi.source_id=p_screen ON CONFLICT DO NOTHING;
  END IF;
  INSERT INTO public.product_help_events(company_id,event_name,subject_type,subject_id,idempotency_key) VALUES(s.company_id,'screen_activated','screen_slot',sl.id,COALESCE(p_idempotency_key,'slot-activated:'||sl.id)) ON CONFLICT(idempotency_key) DO NOTHING;

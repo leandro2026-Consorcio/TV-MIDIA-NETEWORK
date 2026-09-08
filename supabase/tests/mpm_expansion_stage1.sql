@@ -29,7 +29,9 @@ BEGIN
   IF slot.slot_index<=2 THEN PERFORM public.activate_expansion_screen_slot(slot.id,screen_id,creator,'stage1:activate:'||slot.id); END IF;
  END LOOP;
  SELECT sum(amount_cents) INTO available_creator FROM public.expansion_commission_entries WHERE payment_id=payment AND beneficiary_role='creator' AND status='available_pending_transfer';
- IF available_creator<>13378 THEN RAISE EXCEPTION 'FAIL ativação parcial: %',available_creator; END IF;
+ -- Cada slot recebe a proporção de seu peso econômico real; o último absorve
+ -- os resíduos de centavos tanto do plano quanto da comissão.
+ IF available_creator<>13376 THEN RAISE EXCEPTION 'FAIL ativação parcial: %',available_creator; END IF;
  SELECT id INTO slot FROM public.subscription_screen_slots WHERE subscription_id=sub AND status='pending' ORDER BY slot_index LIMIT 1;
  INSERT INTO public.screens(company_id,name,orientation,status) VALUES(company,'Expansion TV 3 final','horizontal','online') RETURNING id INTO screen_id;
  PERFORM public.activate_expansion_screen_slot(slot.id,screen_id,creator,'stage1:activate:last');
