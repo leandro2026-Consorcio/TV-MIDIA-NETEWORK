@@ -147,15 +147,9 @@ export async function GET(request: NextRequest) {
     }
     stepsDone.creatorAffiliateId = creatorAffiliateId;
 
-    // Creator Profile
+    // Creator Profile (Tentativa completa e fallback resiliente)
     let creatorProfileId: string | null = null;
-    const { data: existingCreatorProf } = await db
-      .from('creator_profiles')
-      .select('id')
-      .eq('user_id', userIds.creator)
-      .maybeSingle();
-
-    const creatorPayload = {
+    const creatorFullPayload = {
       user_id: userIds.creator,
       display_name: 'HOMOLOGAÇÃO MPM — Creator Teste',
       slug: 'creator-teste-homologacao',
@@ -173,17 +167,58 @@ export async function GET(request: NextRequest) {
       creator_score: 88.5,
       media_value_score: 125.0,
       tier: 'tier_b',
+      metadata: { env: 'homologation' },
     };
+
+    const creatorBasePayload = {
+      user_id: userIds.creator,
+      display_name: 'HOMOLOGAÇÃO MPM — Creator Teste',
+      bio: 'Perfil oficial de homologação controlada da rede Mídia por Mídia.',
+      city: 'Cuiabá',
+      state: 'MT',
+      niches: ['Lifestyle', 'Varejo'],
+      status: 'active',
+      creator_score: 88.5,
+      media_value_score: 125.0,
+      tier: 'tier_b',
+      metadata: {
+        slug: 'creator-teste-homologacao',
+        is_public_profile: true,
+        show_followers_publicly: true,
+        show_scores_publicly: true,
+        show_pricing_publicly: true,
+        is_verified: true,
+        pricing_mode: 'dynamic',
+        env: 'homologation',
+      },
+    };
+
+    const { data: existingCreatorProf } = await db
+      .from('creator_profiles')
+      .select('id')
+      .eq('user_id', userIds.creator)
+      .maybeSingle();
 
     if (existingCreatorProf) {
       creatorProfileId = existingCreatorProf.id;
-      await db.from('creator_profiles').update(creatorPayload).eq('id', creatorProfileId);
-    } else {
-      const { data: newCP, error: cpErr } = await db.from('creator_profiles').insert(creatorPayload).select('id').single();
-      if (cpErr) {
-        return NextResponse.json({ success: false, step: 'creator_profiles', error: cpErr.message }, { status: 500 });
+      const { error: cpErrFull } = await db.from('creator_profiles').update(creatorFullPayload).eq('id', creatorProfileId);
+      if (cpErrFull) {
+        const { error: cpErrBase } = await db.from('creator_profiles').update(creatorBasePayload).eq('id', creatorProfileId);
+        if (cpErrBase) {
+          return NextResponse.json({ success: false, step: 'creator_profiles update', error: cpErrBase.message }, { status: 500 });
+        }
       }
-      creatorProfileId = newCP?.id;
+    } else {
+      const { data: newCPFull, error: cpErrFull } = await db.from('creator_profiles').insert(creatorFullPayload).select('id').maybeSingle();
+      if (!cpErrFull && newCPFull) {
+        creatorProfileId = newCPFull.id;
+      } else {
+        const { data: newCPBase, error: cpErrBase } = await db.from('creator_profiles').insert(creatorBasePayload).select('id').single();
+        if (cpErrBase) {
+          return NextResponse.json({ success: false, step: 'creator_profiles insert', error: cpErrBase.message }, { status: 500 });
+        }
+        creatorProfileId = newCPBase?.id;
+      }
     }
     stepsDone.creatorProfileId = creatorProfileId;
 
@@ -219,7 +254,7 @@ export async function GET(request: NextRequest) {
       .eq('cnpj', '11222333000199')
       .maybeSingle();
 
-    const companyPayload = {
+    const companyFullPayload = {
       trade_name: 'HOMOLOGAÇÃO MPM — Empresa Teste',
       corporate_name: 'HOMOLOGAÇÃO MPM — Empresa Teste LTDA',
       cnpj: '11222333000199',
@@ -233,15 +268,33 @@ export async function GET(request: NextRequest) {
       allow_automatic_campaigns: false,
     };
 
+    const companyBasePayload = {
+      trade_name: 'HOMOLOGAÇÃO MPM — Empresa Teste',
+      corporate_name: 'HOMOLOGAÇÃO MPM — Empresa Teste LTDA',
+      cnpj: '11222333000199',
+      city: 'Cuiabá',
+      state: 'MT',
+      accepts_external_media: true,
+      accepts_exchange: true,
+    };
+
     if (existingComp) {
       companyId = existingComp.id;
-      await db.from('companies').update(companyPayload).eq('id', companyId);
-    } else {
-      const { data: newComp, error: compErr } = await db.from('companies').insert(companyPayload).select('id').single();
-      if (compErr) {
-        return NextResponse.json({ success: false, step: 'companies', error: compErr.message }, { status: 500 });
+      const { error: ceFull } = await db.from('companies').update(companyFullPayload).eq('id', companyId);
+      if (ceFull) {
+        await db.from('companies').update(companyBasePayload).eq('id', companyId);
       }
-      companyId = newComp?.id;
+    } else {
+      const { data: newCompFull, error: compErrFull } = await db.from('companies').insert(companyFullPayload).select('id').maybeSingle();
+      if (!compErrFull && newCompFull) {
+        companyId = newCompFull.id;
+      } else {
+        const { data: newCompBase, error: compErrBase } = await db.from('companies').insert(companyBasePayload).select('id').single();
+        if (compErrBase) {
+          return NextResponse.json({ success: false, step: 'companies', error: compErrBase.message }, { status: 500 });
+        }
+        companyId = newCompBase?.id;
+      }
     }
 
     if (companyId) {
@@ -298,7 +351,7 @@ export async function GET(request: NextRequest) {
         if (existingScreen) {
           screensCreated.push(existingScreen);
         } else {
-          const { data: newScreen, error: scrErr } = await db.from('screens').insert({
+          const screenFullPayload = {
             company_id: companyId,
             name: sdef.name,
             venue_type: 'commercial',
@@ -308,12 +361,24 @@ export async function GET(request: NextRequest) {
             show_on_map: true,
             indicative_price_credits: sdef.price,
             status: 'online',
-          }).select('id, name').single();
+          };
+          const screenBasePayload = {
+            company_id: companyId,
+            name: sdef.name,
+            orientation: sdef.orientation,
+            status: 'online',
+          };
 
-          if (scrErr) {
-            return NextResponse.json({ success: false, step: `screen ${sdef.name}`, error: scrErr.message }, { status: 500 });
+          const { data: newScreenFull, error: scrErrFull } = await db.from('screens').insert(screenFullPayload).select('id, name').maybeSingle();
+          if (!scrErrFull && newScreenFull) {
+            screensCreated.push(newScreenFull);
+          } else {
+            const { data: newScreenBase, error: scrErrBase } = await db.from('screens').insert(screenBasePayload).select('id, name').single();
+            if (scrErrBase) {
+              return NextResponse.json({ success: false, step: `screen ${sdef.name}`, error: scrErrBase.message }, { status: 500 });
+            }
+            if (newScreenBase) screensCreated.push(newScreenBase);
           }
-          if (newScreen) screensCreated.push(newScreen);
         }
       }
     }
