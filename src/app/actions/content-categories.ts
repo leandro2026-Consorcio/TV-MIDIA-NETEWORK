@@ -37,7 +37,7 @@ async function getActor() {
 export async function getContentCategoriesAction(onlyActive = false) {
   try {
     const supabase = createClient();
-    let query = (supabase.from('content_categories') as any)
+    let query = (supabase.from as any)('content_categories')
       .select('*')
       .order('sort_order', { ascending: true })
       .order('name', { ascending: true });
@@ -81,13 +81,13 @@ export async function saveContentCategoryAction(input: ContentCategoryInput) {
 
   let result;
   if (input.id) {
-    result = await (admin.from('content_categories') as any)
+    result = await (admin.from as any)('content_categories')
       .update(payload)
       .eq('id', input.id)
       .select('*')
       .single();
   } else {
-    result = await (admin.from('content_categories') as any)
+    result = await (admin.from as any)('content_categories')
       .insert(payload)
       .select('*')
       .single();
@@ -112,7 +112,7 @@ export async function toggleContentCategoryAction(id: string, isActive: boolean)
   }
 
   const admin = createAdminClient();
-  const { error } = await (admin.from('content_categories') as any)
+  const { error } = await (admin.from as any)('content_categories')
     .update({ is_active: isActive })
     .eq('id', id);
 

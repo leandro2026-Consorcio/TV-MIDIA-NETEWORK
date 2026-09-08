@@ -75,7 +75,7 @@ export default function AuditLogsPage() {
                 {logs.map((log) => (
                   <tr key={log.id} className="hover:bg-slate-800/40 transition">
                     <td className="p-3 whitespace-nowrap text-slate-400 font-mono">
-                      {new Date(log.created_at).toLocaleString('pt-BR')}
+                      {log.created_at ? new Date(log.created_at).toLocaleString('pt-BR') : '—'}
                     </td>
                     <td className="p-3 font-bold text-sky-400 whitespace-nowrap">
                       <span className="bg-sky-500/10 border border-sky-500/20 px-2 py-0.5 rounded text-[11px]">

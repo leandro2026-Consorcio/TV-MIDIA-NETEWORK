@@ -58,8 +58,8 @@ export default function EditCompanyPage() {
         setState(comp.state);
         setNeighborhood(comp.neighborhood || '');
         setAddress(comp.address || '');
-        setAcceptsExternalMedia(comp.accepts_external_media);
-        setAcceptsExchange(comp.accepts_exchange);
+        setAcceptsExternalMedia(Boolean(comp.accepts_external_media));
+        setAcceptsExchange(Boolean(comp.accepts_exchange));
 
         // 2. Carregar Segmentos Globais
         const { data: segmentsData } = await (supabase.from('segments') as any).select('*').order('name');

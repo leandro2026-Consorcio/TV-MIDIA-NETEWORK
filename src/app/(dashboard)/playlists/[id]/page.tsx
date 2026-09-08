@@ -79,8 +79,8 @@ export default function PlaylistMontadorPage() {
       setPlaylist(pl);
       setName(pl.name);
       setDescription(pl.description || '');
-      setOrientation(pl.orientation);
-      setStatus(pl.status);
+      setOrientation(pl.orientation as 'horizontal' | 'vertical' | 'mixed');
+      setStatus(pl.status as 'draft' | 'active' | 'inactive' | 'archived');
 
       // 2. Buscar Itens da Playlist
       const { data: rawItems } = await (supabase.from('playlist_items') as any)

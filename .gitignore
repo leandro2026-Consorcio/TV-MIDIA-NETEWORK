@@ -18,6 +18,8 @@ node_modules/
 *.pem
 *.log
 npm-debug.log*
+.npm-cache/
+supabase/backups/
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*

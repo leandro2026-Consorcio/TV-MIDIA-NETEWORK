@@ -116,7 +116,7 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex">
       {/* Sidebar Fixo */}
-      <Sidebar isMasterAdmin={profile.is_master_admin} hasCompany={companies.length > 0} isTrial={isTrial} />
+      <Sidebar isMasterAdmin={Boolean(profile.is_master_admin)} hasCompany={companies.length > 0} isTrial={isTrial} />
 
       {/* Main Layout Area */}
       <div className="flex-1 flex flex-col min-w-0">

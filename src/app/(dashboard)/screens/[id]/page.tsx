@@ -321,8 +321,11 @@ export default function ScreenDetailPage() {
           </div>
         </div>
 
-        {isAdminOrMaster && screen.status !== 'inactive' && (
-          <div className="flex items-center gap-2">
+          {isAdminOrMaster && screen.status !== 'inactive' && (
+            <div className="flex items-center gap-2">
+            <Link href={`/screens/${screenId}/inventory`} className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition">
+              Inventário e Capacidade
+            </Link>
             <Link href={`/screens/${screenId}/content-settings`} className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition">
               Conteúdo de Respiro
             </Link>

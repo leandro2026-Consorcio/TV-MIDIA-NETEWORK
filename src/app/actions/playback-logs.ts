@@ -174,28 +174,24 @@ export async function recordPlaybackLogAction(
     ? payload.failure_reason || 'Erro indeterminado de reprodução ou mídia corrompida'
     : payload.failure_reason || null;
 
-  const { data: inserted, error } = await (supabase.from('playback_logs') as any)
-    .insert({
-      company_id: screen.company_id,
-      screen_id: screen.id,
-      playlist_id: payload.playlist_id || null,
-      playlist_item_id: payload.playlist_item_id || null,
-      media_asset_id: payload.media_asset_id,
-      media_type: payload.media_type,
-      planned_duration_seconds: payload.planned_duration_seconds,
-      actual_duration_seconds: payload.actual_duration_seconds ?? null,
-      started_at: payload.started_at,
-      ended_at: payload.ended_at || null,
-      played_at: new Date().toISOString(),
-      status: payload.status,
-      failure_reason: failureReason,
-      idempotency_key: payload.idempotency_key,
-      player_session_id: payload.player_session_id || null,
-      device_token_hash: tokenHash,
-      synced_at: new Date().toISOString(),
-    })
-    .select('id')
-    .single();
+  // A regra final vive no banco para que service_role não se torne um bypass
+  // irrestrito de campanhas cross-company. A RPC revalida playlist/campanha,
+  // pedido pago/aprovado, anunciante, mídia, exibidora e idempotência.
+  const { data: inserted, error } = await (supabase.rpc as any)('record_playback_log', {
+    p_device_token_hash: tokenHash,
+    p_media_asset_id: payload.media_asset_id,
+    p_playlist_id: payload.playlist_id || null,
+    p_playlist_item_id: payload.playlist_item_id || null,
+    p_media_type: payload.media_type,
+    p_planned_duration_seconds: payload.planned_duration_seconds,
+    p_actual_duration_seconds: payload.actual_duration_seconds ?? null,
+    p_started_at: payload.started_at,
+    p_ended_at: payload.ended_at || null,
+    p_status: payload.status,
+    p_failure_reason: failureReason,
+    p_idempotency_key: payload.idempotency_key,
+    p_player_session_id: payload.player_session_id || null,
+  });
 
   if (error) {
     if (error.code === '23505') {
@@ -206,8 +202,8 @@ export async function recordPlaybackLogAction(
 
   return {
     success: true,
-    deduplicated: false,
-    logId: inserted?.id || null,
+    deduplicated: Boolean(inserted?.deduplicated),
+    logId: inserted?.playback_log_id || null,
     message: null,
   };
 }

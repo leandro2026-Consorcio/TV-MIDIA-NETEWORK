@@ -6,7 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "test": "node --test tests/*.test.ts",
+    "homologation:assert": "node scripts/assert-not-production.mjs",
+    "homologation:migrations:list": "node scripts/assert-not-production.mjs && supabase migration list --linked",
+    "homologation:db:push": "node scripts/assert-not-production.mjs && supabase db push --linked --include-all"
   },
   "dependencies": {
     "@supabase/ssr": "^0.5.2",
@@ -27,6 +31,7 @@
     "eslint": "^8.57.1",
     "eslint-config-next": "14.2.23",
     "postcss": "^8.5.1",
+    "supabase": "^2.65.5",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.3"
   }

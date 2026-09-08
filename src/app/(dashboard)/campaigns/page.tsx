@@ -116,7 +116,7 @@ export default function CampaignsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {campaigns.map((c) => {
             const pct = c.target_insertions && c.target_insertions > 0
-              ? Math.min(100, Math.round((c.delivered_insertions / c.target_insertions) * 100))
+              ? Math.min(100, Math.round((Number(c.delivered_insertions) / c.target_insertions) * 100))
               : 0;
 
             return (

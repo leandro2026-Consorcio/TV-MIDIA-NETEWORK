@@ -226,12 +226,12 @@ export default function AdOffersPage() {
 
                   <div className="bg-slate-950 p-2 rounded-xl border border-slate-800">
                     <span className="text-[10px] text-slate-500 block font-sans">Taxa ({offer.platform_fee_percentage}%)</span>
-                    <strong className="text-rose-400">R$ {(offer.platform_fee_cents / 100).toFixed(2)}</strong>
+                    <strong className="text-rose-400">R$ {(Number(offer.platform_fee_cents) / 100).toFixed(2)}</strong>
                   </div>
 
                   <div className="bg-slate-950 p-2 rounded-xl border border-purple-500/30">
                     <span className="text-[10px] text-purple-400 block font-sans font-bold">Líquido Empresa</span>
-                    <strong className="text-emerald-400 font-extrabold">R$ {(offer.seller_net_cents / 100).toFixed(2)}</strong>
+                    <strong className="text-emerald-400 font-extrabold">R$ {(Number(offer.seller_net_cents) / 100).toFixed(2)}</strong>
                   </div>
                 </div>
               </div>

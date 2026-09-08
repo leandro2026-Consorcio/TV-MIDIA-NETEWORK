@@ -355,3 +355,78 @@ export async function processCampaignCreditChargesAction(campaignId: string) {
     },
   };
 }
+
+export async function getMpmWalletAction(companyId: string) {
+  const supabase = createClient();
+  const [{ data: summary, error: summaryError }, { data: ledger, error: ledgerError }, { data: settlements }] = await Promise.all([
+    (supabase.rpc as any)('mpm_wallet_summary', { p_company_id: companyId }),
+    (supabase.from('wallet_ledger') as any)
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false })
+      .limit(100),
+    (supabase.from('settlement_entries') as any)
+      .select('*')
+      .or(`buyer_company_id.eq.${companyId},seller_company_id.eq.${companyId}`)
+      .order('created_at', { ascending: false })
+      .limit(50),
+  ]);
+
+  if (summaryError || ledgerError) {
+    return { success: false, error: summaryError?.message || ledgerError?.message || 'Erro ao carregar Carteira MPM.' };
+  }
+  return { success: true, summary: summary || { available: 0, pending: 0, reserved: 0, by_class: {} }, ledger: ledger || [], settlements: settlements || [] };
+}
+
+export async function paySubscriptionWithMpmAction(payload: {
+  companyId: string;
+  amount: number;
+  billingCycle: 'monthly' | 'annual';
+  billingReference: string;
+  idempotencyKey: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await (supabase.rpc as any)('mpm_pay_subscription', {
+    p_company_id: payload.companyId,
+    p_amount: payload.amount,
+    p_billing_cycle: payload.billingCycle,
+    p_billing_reference: payload.billingReference,
+    p_idempotency_key: payload.idempotencyKey,
+  });
+  if (error) return { success: false, error: error.message };
+  return { success: true, paymentId: data };
+}
+
+export async function purchaseMediaWithMpmCreditsAction(payload: {
+  orderId: string;
+  inventoryId: string;
+  capacityPeriodId: string;
+  bucketPolicyId: string;
+  idempotencyKey: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await (supabase.rpc as any)('mpm_purchase_media_with_credits', {
+    p_order_id: payload.orderId,
+    p_inventory_id: payload.inventoryId,
+    p_capacity_period_id: payload.capacityPeriodId,
+    p_bucket_policy_id: payload.bucketPolicyId,
+    p_idempotency_key: payload.idempotencyKey,
+  });
+  if (error) return { success: false, error: error.message };
+  return data;
+}
+
+export async function cancelMediaPurchaseWithMpmReversalAction(payload: {
+  orderId: string;
+  reason: string;
+  idempotencyKey: string;
+}) {
+  const supabase = createClient();
+  const { data, error } = await (supabase.rpc as any)('mpm_cancel_media_purchase', {
+    p_order_id: payload.orderId,
+    p_reason: payload.reason,
+    p_idempotency_key: payload.idempotencyKey,
+  });
+  if (error) return { success: false, error: error.message };
+  return data;
+}

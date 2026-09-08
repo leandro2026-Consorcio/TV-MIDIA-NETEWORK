@@ -37,7 +37,9 @@ import {
   Newspaper,
   Rss,
   KeyRound,
-  CircleHelp
+  CircleHelp,
+  Sparkles,
+  BarChart3,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -126,6 +128,16 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
       icon: Wallet,
     },
     {
+      name: 'Ecossistema MPM',
+      href: '/ecosystem',
+      icon: BarChart3,
+    },
+    {
+      name: 'Creator MPM',
+      href: '/creator',
+      icon: Sparkles,
+    },
+    {
       name: 'Inventário Cedido',
       href: '/network-inventory',
       icon: Layers,
@@ -206,6 +218,11 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
         name: 'Configurações da Plataforma',
         href: '/admin/platform-settings',
         icon: Sliders,
+      },
+      {
+        name: 'Operação MPM',
+        href: '/admin/mpm',
+        icon: BarChart3,
       },
       {
         name: 'Categorias de Conteúdo',
