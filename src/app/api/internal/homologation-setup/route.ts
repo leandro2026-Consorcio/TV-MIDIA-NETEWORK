@@ -195,32 +195,24 @@ export async function GET(request: NextRequest) {
       },
     };
 
-    const { data: existingCreatorProf } = await db
+    const { data: cpData, error: cpErrFull } = await db
       .from('creator_profiles')
+      .upsert(creatorFullPayload, { onConflict: 'user_id' })
       .select('id')
-      .eq('user_id', userIds.creator)
       .maybeSingle();
 
-    if (existingCreatorProf) {
-      creatorProfileId = existingCreatorProf.id;
-      const { error: cpErrFull } = await db.from('creator_profiles').update(creatorFullPayload).eq('id', creatorProfileId);
-      if (cpErrFull) {
-        const { error: cpErrBase } = await db.from('creator_profiles').update(creatorBasePayload).eq('id', creatorProfileId);
-        if (cpErrBase) {
-          return NextResponse.json({ success: false, step: 'creator_profiles update', error: cpErrBase.message }, { status: 500 });
-        }
+    if (cpErrFull) {
+      const { data: cpBaseData, error: cpErrBase } = await db
+        .from('creator_profiles')
+        .upsert(creatorBasePayload, { onConflict: 'user_id' })
+        .select('id')
+        .single();
+      if (cpErrBase) {
+        return NextResponse.json({ success: false, step: 'creator_profiles upsert', error: cpErrBase.message }, { status: 500 });
       }
+      creatorProfileId = cpBaseData?.id;
     } else {
-      const { data: newCPFull, error: cpErrFull } = await db.from('creator_profiles').insert(creatorFullPayload).select('id').maybeSingle();
-      if (!cpErrFull && newCPFull) {
-        creatorProfileId = newCPFull.id;
-      } else {
-        const { data: newCPBase, error: cpErrBase } = await db.from('creator_profiles').insert(creatorBasePayload).select('id').single();
-        if (cpErrBase) {
-          return NextResponse.json({ success: false, step: 'creator_profiles insert', error: cpErrBase.message }, { status: 500 });
-        }
-        creatorProfileId = newCPBase?.id;
-      }
+      creatorProfileId = cpData?.id;
     }
     stepsDone.creatorProfileId = creatorProfileId;
 
