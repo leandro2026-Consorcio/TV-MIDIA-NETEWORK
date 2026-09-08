@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
@@ -150,6 +150,7 @@ export function Sidebar({
           icon: MonitorPlay,
           subItems: [
             { name: 'Prêmios da Rede Orgânica', href: '/organic-rewards' },
+            { name: 'Gestão de Benefícios', href: '/admin/organic-benefits' },
           ]
         },
         { name: 'Inventário da Rede', href: '/network-inventory', icon: Layers },
@@ -186,10 +187,10 @@ export function Sidebar({
       title: 'CREATORS & EXPANSÃO',
       icon: Sparkles,
       items: [
-        { name: 'Creator MPM', href: '/creator', icon: Sparkles },
-        { name: 'Líder MPM', href: '/leader', icon: Users },
+        { name: 'Creators', href: '/creator', icon: Sparkles },
+        { name: 'Líderes', href: '/leader', icon: Users },
         { name: 'Planos de Expansão', href: '/admin/mpm/expansion', icon: Network },
-        { name: 'Ativações / Onboarding', href: '/onboarding', icon: CheckSquare },
+        { name: 'Ativações', href: '/onboarding', icon: CheckSquare },
         {
           name: 'Convites / Indicações',
           href: '/trials',
@@ -250,10 +251,10 @@ export function Sidebar({
       items: [
         { name: 'Configurações da Plataforma', href: '/admin/platform-settings', icon: Sliders },
         {
-          name: 'Social / Meta',
+          name: 'Integrações Sociais',
           href: '/creator',
           icon: Sparkles,
-          badge: 'Bloqueio Meta',
+          badge: 'Meta pendente',
           badgeType: 'warning'
         },
         {
@@ -301,6 +302,17 @@ export function Sidebar({
           icon: ImageIcon,
           subItems: [
             { name: 'Playlists de Vídeo', href: '/playlists' },
+          ]
+        },
+        {
+          name: 'Benefícios & Prêmios',
+          href: '/benefits',
+          icon: Gift,
+          subItems: [
+            { name: 'Meus Benefícios', href: '/benefits' },
+            { name: 'Cadastrar Benefício', href: '/benefits/new' },
+            { name: 'Cupons & Resgates', href: '/benefits/coupons' },
+            { name: 'Divulgação Gerada', href: '/benefits/media' },
           ]
         },
         {
@@ -355,10 +367,7 @@ export function Sidebar({
       items: [
         { name: 'Início (Painel Líder)', href: '/leader', icon: Users },
         { name: 'Minha Equipe', href: '/leader', icon: Users },
-        { name: 'Creators Parceiros', href: '/leader', icon: Sparkles },
-        { name: 'Empresas & TVs', href: '/leader', icon: Building2 },
         { name: 'Comissões de Expansão', href: '/seller-statement', icon: Receipt },
-        { name: 'Convidar Parceiro', href: '/company/invites', icon: Gift },
         { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
       ]
     }

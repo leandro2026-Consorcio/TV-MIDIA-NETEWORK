@@ -15,6 +15,7 @@ export const onboardingTourSteps = [
   { title: 'Crie sua programação', text: 'Depois de enviar a mídia, crie uma playlist e vincule-a à TV cadastrada.', icon: ListVideo, href: '/playlists/new', action: 'Criar programação' },
   { title: 'Inicie a apresentação na TV', text: 'Na TV, clique em “Iniciar apresentação” para tentar abrir em tela cheia. O player continua funcionando mesmo se o navegador mantiver alguma barra visível.', icon: Maximize },
   { title: 'Convide parceiros estratégicos', text: 'Você recebeu 3 convites VIP para chamar empresas parceiras. Elas também ganham 60 dias gratuitos.', icon: Gift, href: '/company/invites', action: 'Ver meus convites' },
+  { title: 'Ofereça Benefícios e Ganhe Divulgação', text: 'Cadastre produtos ou serviços da sua empresa na Rede Orgânica. O sistema calcula a pontuação para resgate e converte sua contribuição em direitos de divulgação em telas parceiras. Quando o cliente visitar seu estabelecimento, basta validar o cupom nominal.', icon: Gift, href: '/benefits/new', action: 'Cadastrar benefício' },
 ];
 
 interface TourProps {
