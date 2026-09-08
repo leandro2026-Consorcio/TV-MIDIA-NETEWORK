@@ -40,6 +40,7 @@ import {
   CircleHelp,
   Sparkles,
   BarChart3,
+  Users,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
@@ -138,6 +139,11 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
       icon: Sparkles,
     },
     {
+      name: 'Líder MPM',
+      href: '/leader',
+      icon: Users,
+    },
+    {
       name: 'Inventário Cedido',
       href: '/network-inventory',
       icon: Layers,
@@ -223,6 +229,11 @@ export function Sidebar({ isMasterAdmin, hasCompany, isTrial }: SidebarProps) {
         name: 'Operação MPM',
         href: '/admin/mpm',
         icon: BarChart3,
+      },
+      {
+        name: 'Planos de Expansão',
+        href: '/admin/mpm/expansion',
+        icon: Network,
       },
       {
         name: 'Categorias de Conteúdo',
