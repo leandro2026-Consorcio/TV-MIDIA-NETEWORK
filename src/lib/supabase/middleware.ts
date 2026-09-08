@@ -23,7 +23,14 @@ export async function updateSession(request: NextRequest) {
   // como pública, mas ainda aguardava auth.getUser(), causando o timeout 504 da
   // Vercel antes que o formulário pudesse ser exibido.
   if (isPublicRoute) {
-    return NextResponse.next();
+    const response = NextResponse.next();
+    const referral = request.nextUrl.searchParams.get('ref')?.trim();
+    if (referral && /^[A-Za-z0-9_-]{3,64}$/.test(referral)) {
+      response.cookies.set('mpm_ref', referral.toUpperCase(), {
+        httpOnly: true, sameSite: 'lax', secure: request.nextUrl.protocol === 'https:', maxAge: 60 * 60 * 24 * 90, path: '/',
+      });
+    }
+    return response;
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

@@ -65,6 +65,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Cobranças de assinatura usam a mesma integração e o mesmo webhook,
+    // identificadas sem colisão com pedidos de mídia legados.
+    if (externalReference?.startsWith('expansion:')) {
+      const expansionPaymentId = externalReference.slice('expansion:'.length);
+      const { data: intent } = await (supabaseAdmin.from('expansion_payments') as any)
+        .select('id,subscription_id,payment_kind,period_reference,amount_cents,idempotency_key,provider_payment_id')
+        .eq('id', expansionPaymentId).maybeSingle();
+      if (!intent || (intent.provider_payment_id && intent.provider_payment_id !== asaasPaymentId)) {
+        return NextResponse.json({ success: false, error: 'Cobrança de expansão não localizada ou divergente.' }, { status: 409 });
+      }
+      if (Math.abs(paymentValue - Number(intent.amount_cents) / 100) > 0.01) {
+        return NextResponse.json({ success: false, error: 'Valor divergente na cobrança de expansão.' }, { status: 409 });
+      }
+      const confirmed = ['PAYMENT_RECEIVED','PAYMENT_CONFIRMED'].includes(eventType) || ['RECEIVED','CONFIRMED','RECEIVED_IN_CASH'].includes(paymentStatus);
+      const reversed = ['PAYMENT_REFUNDED','PAYMENT_CHARGEBACK','PAYMENT_DELETED'].includes(eventType) || ['REFUNDED','CHARGEBACK','CANCELLED'].includes(paymentStatus);
+      if (confirmed) {
+        const { error: expansionError } = await (supabaseAdmin.rpc as any)('record_expansion_payment', {
+          p_subscription: intent.subscription_id, p_payment_kind: intent.payment_kind, p_period_reference: intent.period_reference,
+          p_amount_cents: intent.amount_cents, p_provider_payment_id: asaasPaymentId, p_idempotency_key: intent.idempotency_key,
+        });
+        if (expansionError) throw expansionError;
+      } else if (reversed) {
+        const { error: reversalError } = await (supabaseAdmin.rpc as any)('reverse_expansion_payment', {
+          p_payment: intent.id, p_reason: `${eventType}:${paymentStatus}`, p_idempotency_key: `asaas:${idempotencyKey}`,
+        });
+        if (reversalError) throw reversalError;
+      } else {
+        await (supabaseAdmin.from('expansion_payments') as any).update({ status: paymentStatus === 'OVERDUE' ? 'overdue' : 'pending', updated_at: new Date().toISOString() }).eq('id', intent.id);
+      }
+      await supabaseAdmin.from('asaas_payment_events').insert({
+        webhook_idempotency_key: idempotencyKey, asaas_event_id: payload.id || null, asaas_payment_id: asaasPaymentId,
+        ad_offer_order_id: null, event_type: eventType, payment_status: paymentStatus, raw_payload: payload,
+        processing_status: 'processed', error_message: `expansion_payment:${intent.id}`,
+      });
+      return NextResponse.json({ success: true, processing_status: 'processed', expansion_payment_id: intent.id });
+    }
+
     // 4. Localizar pedido obrigatoriamente por externalReference (ad_offer_order_id) ou asaas_payment_id
     let matchedOrder: any = null;
 

@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { WhatsAppButton } from '@/components/whatsapp-button';
 import { getPublicSignupSettingsAction } from '@/app/actions/onboarding';
 import { formatPrice } from '@/lib/platform-pricing';
+import { createClient } from '@/lib/supabase/server';
 import {
   ArrowRight,
   BadgeCheck,
@@ -398,24 +399,36 @@ function SectionTitle({
 
 export default async function Home() {
   const { settings } = await getPublicSignupSettingsAction();
+  const supabase = createClient();
+  const { data: expansionPlans } = await (supabase.from('expansion_plans') as any)
+    .select('code,name,description,featured,expansion_plan_versions(included_screens,monthly_price_cents,extra_screen_price_cents,effective_to)')
+    .eq('status','active').eq('public_available',true).order('display_order');
+  const expansionByScreens = new Map<number, any>((expansionPlans || []).map((plan:any) => {
+    const version=(plan.expansion_plan_versions||[]).find((item:any)=>!item.effective_to); return [Number(version?.included_screens),{...plan,version}];
+  }));
+  const currentPrices:Record<string,number>={'1-tv':14900,'2-tvs':22900,'3-tvs':29900,'4-tvs':39900,'5-tvs':44900,'additional-tv':5900};
+  for(const [screens,plan] of expansionByScreens){currentPrices[`${screens}-tv${screens>1?'s':''}`]=Number(plan.version.monthly_price_cents);currentPrices['additional-tv']=Number(plan.version.extra_screen_price_cents)}
   const displayedPricingPlans = pricingPlans.map((plan) => ({
     ...plan,
-    price: formatPrice(settings.planPrices[plan.id as keyof typeof settings.planPrices]),
+    title: expansionByScreens.get(Number(plan.id.split('-')[0]))?.name || plan.title,
+    subtitle: expansionByScreens.get(Number(plan.id.split('-')[0]))?.description || plan.subtitle,
+    popular: expansionByScreens.get(Number(plan.id.split('-')[0]))?.featured ?? plan.popular,
+    price: formatPrice(currentPrices[plan.id]),
     additionalTv: plan.id === '5-tvs'
-      ? `+ ${formatPrice(settings.planPrices['additional-tv'])} por TV adicional`
+      ? `+ ${formatPrice(currentPrices['additional-tv'])} por TV adicional`
       : undefined,
   }));
   const displayedFaqs = faqs.map((faq) => faq.question === 'Quais são os planos e mensalidades disponíveis?'
     ? {
         ...faq,
-        answer: `Possuímos planos flexíveis de 1 a 5 TVs com vantagens acumulativas: 1 TV por ${formatPrice(settings.planPrices['1-tv'])}/mês, 2 TVs por ${formatPrice(settings.planPrices['2-tvs'])}/mês, 3 TVs por ${formatPrice(settings.planPrices['3-tvs'])}/mês, 4 TVs por ${formatPrice(settings.planPrices['4-tvs'])}/mês e 5 TVs por ${formatPrice(settings.planPrices['5-tvs'])}/mês (+ ${formatPrice(settings.planPrices['additional-tv'])} por TV adicional). Todos iniciam com ${settings.trialDays} dias grátis.`,
+        answer: `Possuímos planos flexíveis de 1 a 5 TVs: 1 TV por ${formatPrice(currentPrices['1-tv'])}/mês, 2 TVs por ${formatPrice(currentPrices['2-tvs'])}/mês, 3 TVs por ${formatPrice(currentPrices['3-tvs'])}/mês, 4 TVs por ${formatPrice(currentPrices['4-tvs'])}/mês e 5 TVs por ${formatPrice(currentPrices['5-tvs'])}/mês (+ ${formatPrice(currentPrices['additional-tv'])} por TV adicional).`,
       }
     : faq);
   const displayedStructuredData = {
     ...structuredData,
     '@graph': structuredData['@graph'].map((entry) => {
       if (entry['@type'] === 'Organization') {
-        const highestPrice = Math.max(...Object.values(settings.planPrices));
+        const highestPrice = Math.max(...Object.values(currentPrices));
         return { ...entry, priceRange: `R$ 0,00 - ${formatPrice(highestPrice)}` };
       }
       if (entry['@type'] === 'SoftwareApplication') {
