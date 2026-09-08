@@ -167,7 +167,7 @@ export async function GET(request: NextRequest) {
       pricing_mode: 'dynamic',
       status: 'active',
       creator_score: 88.5,
-      media_value_score: 125.0,
+      media_value_score: 95.0,
       tier: 'tier_b',
       metadata: { env: 'homologation' },
     };
@@ -181,7 +181,7 @@ export async function GET(request: NextRequest) {
       niches: ['Lifestyle', 'Varejo'],
       status: 'active',
       creator_score: 88.5,
-      media_value_score: 125.0,
+      media_value_score: 95.0,
       tier: 'tier_b',
       metadata: {
         slug: 'creator-teste-homologacao',

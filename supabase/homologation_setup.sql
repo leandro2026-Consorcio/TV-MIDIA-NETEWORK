@@ -143,7 +143,7 @@ BEGIN
       v_creator_user_id, 'HOMOLOGAÇÃO MPM — Creator Teste', 'creator-teste-homologacao',
       'Perfil oficial de homologação controlada da rede Mídia por Mídia.', 'Cuiabá', 'MT', ARRAY['Lifestyle', 'Varejo'],
       true, true, true, true,
-      true, 'dynamic', 'active', 88.5, 125.0, 'tier_b'
+      true, 'dynamic', 'active', 88.5, 95.0, 'tier_b'
     )
     RETURNING id INTO v_creator_profile_id;
   ELSE
@@ -159,7 +159,7 @@ BEGIN
         pricing_mode = 'dynamic',
         status = 'active',
         creator_score = 88.5,
-        media_value_score = 125.0,
+        media_value_score = 95.0,
         tier = 'tier_b'
     WHERE id = v_creator_profile_id;
   END IF;
