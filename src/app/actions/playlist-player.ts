@@ -1,6 +1,11 @@
 'use server';
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import {
+  contentCityMatches,
+  contentRegionMatchesState,
+  normalizeContentLocation,
+} from '@/lib/content-location';
 import crypto from 'crypto';
 
 function hashToken(token: string): string {
@@ -16,25 +21,6 @@ function currentBusinessDate(): string {
   }).formatToParts(new Date());
   const value = Object.fromEntries(parts.map((part) => [part.type, part.value]));
   return `${value.year}-${value.month}-${value.day}`;
-}
-
-function normalizeLocation(value: unknown): string {
-  return String(value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
-}
-
-function regionMatchesState(region: unknown, state: unknown): boolean {
-  const normalizedRegion = normalizeLocation(region);
-  const normalizedState = normalizeLocation(state);
-  if (!normalizedRegion || normalizedRegion === normalizedState) return true;
-  const macroRegions: Record<string, string[]> = {
-    norte: ['ac', 'ap', 'am', 'pa', 'ro', 'rr', 'to'],
-    nordeste: ['al', 'ba', 'ce', 'ma', 'pb', 'pe', 'pi', 'rn', 'se'],
-    'centro-oeste': ['df', 'go', 'mt', 'ms'],
-    centrooeste: ['df', 'go', 'mt', 'ms'],
-    sudeste: ['es', 'mg', 'rj', 'sp'],
-    sul: ['pr', 'rs', 'sc'],
-  };
-  return (macroRegions[normalizedRegion] || []).includes(normalizedState);
 }
 
 function greatestCommonDivisor(left: number, right: number): number {
@@ -325,10 +311,10 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
 
     const today = currentBusinessDate();
     const nowMs = Date.now();
-    const allowedCategories = (contentSettings.allowed_categories || []).map(normalizeLocation);
+    const allowedCategories = (contentSettings.allowed_categories || []).map(normalizeContentLocation);
     const company = screen.companies as any;
-    const screenCity = normalizeLocation(company?.city);
-    const screenRegion = normalizeLocation(company?.state);
+    const screenCity = normalizeContentLocation(company?.city);
+    const screenRegion = normalizeContentLocation(company?.state);
     const eligible = (informativeItems || []).filter((item: any) => {
       if (item.content_origin === 'manual' && !contentSettings.enable_manual_content) return false;
       if (item.content_origin === 'rss' && !contentSettings.enable_rss_content) return false;
@@ -339,9 +325,9 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
       if (item.start_date && item.start_date > today) return false;
       if (item.end_date && item.end_date < today) return false;
       if (item.expires_at && new Date(item.expires_at).getTime() <= nowMs) return false;
-      if (allowedCategories.length > 0 && !allowedCategories.includes(normalizeLocation(item.category))) return false;
-      if (item.city && normalizeLocation(item.city) !== screenCity) return false;
-      if (item.region && !regionMatchesState(item.region, screenRegion)) return false;
+      if (allowedCategories.length > 0 && !allowedCategories.includes(normalizeContentLocation(item.category))) return false;
+      if (!contentCityMatches(item.city, screenCity)) return false;
+      if (!contentRegionMatchesState(item.region, screenRegion)) return false;
       return true;
     });
 
