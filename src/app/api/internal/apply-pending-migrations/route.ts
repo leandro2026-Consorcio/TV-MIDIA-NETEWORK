@@ -175,7 +175,7 @@ export async function GET(request: NextRequest) {
         };
 
         const rewardRes = await client.query(`
-          SELECT id, title, category, announced_unit_value, quantity, remaining_quantity,
+          SELECT id, title, category, announced_unit_value, quantity_available, quantity_reserved, quantity_redeemed,
                  suggested_points, promotional_value, granted_insertions, status, unit_locations, allowed_weekdays
           FROM public.organic_campaign_rewards
           WHERE company_id = $1 AND title = 'Rodízio de Pizza'
