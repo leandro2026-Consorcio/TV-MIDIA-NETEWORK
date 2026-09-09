@@ -137,10 +137,15 @@ export async function GET(request: NextRequest) {
       }
 
       if (companyId) {
-        // Define claims para que auth.uid() reconheça o usuário na transação
-        await client.query("SELECT set_config('request.jwt.claims', $1, true)", [
+        // Define claims para que auth.uid() reconheça o usuário na sessão
+        await client.query("SELECT set_config('request.jwt.claim.sub', $1, false)", [companyInfo.user_id]);
+        await client.query("SELECT set_config('request.jwt.claim.role', 'authenticated', false)");
+        await client.query("SELECT set_config('request.jwt.claims', $1, false)", [
           JSON.stringify({ sub: companyInfo.user_id, role: 'authenticated' })
         ]);
+
+        const uidCheck = await client.query("SELECT auth.uid() as uid;");
+        results.verifiedAuthUid = uidCheck.rows[0]?.uid;
 
         const subRes = await client.query(`
           SELECT * FROM public.submit_or_update_organic_benefit(
