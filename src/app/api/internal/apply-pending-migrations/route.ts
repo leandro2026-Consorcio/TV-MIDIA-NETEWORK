@@ -302,7 +302,7 @@ export async function GET(request: NextRequest) {
               true, true, false, false, false,
               'ready_for_campaigns', 'Instagram profissional pronto (Feed e Reels).'
             )
-            ON CONFLICT (connection_id, provider_channel_id)
+            ON CONFLICT (provider, provider_channel_id)
             DO UPDATE SET diagnostic_status = 'ready_for_campaigns', updated_at = now()
             RETURNING id, display_name, auth_flow, diagnostic_status, feed_publish_capable, reel_publish_capable, story_publish_capable, metrics_capable;
           `, [igConnId, cProfileId]);
@@ -336,7 +336,7 @@ export async function GET(request: NextRequest) {
               true, false, false, false, false,
               'ready_for_campaigns', 'Página do Facebook pronta para veiculação no feed.'
             )
-            ON CONFLICT (connection_id, provider_channel_id)
+            ON CONFLICT (provider, provider_channel_id)
             DO UPDATE SET diagnostic_status = 'ready_for_campaigns', updated_at = now()
             RETURNING id, display_name, auth_flow, diagnostic_status;
           `, [fbConnId, companyId]);
