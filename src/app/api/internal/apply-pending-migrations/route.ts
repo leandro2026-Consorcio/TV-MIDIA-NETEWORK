@@ -109,7 +109,7 @@ export async function GET(request: NextRequest) {
     // 7. Test submitting mandatory benefit if requested
     if (request.nextUrl.searchParams.get('create_mandatory_benefit') === 'true') {
       const compRes = await client.query(`
-        SELECT cu.company_id as id, c.trade_name as name, u.email
+        SELECT cu.company_id as id, c.trade_name as name, u.email, u.id as user_id
         FROM public.company_users cu
         JOIN public.companies c ON c.id = cu.company_id
         JOIN auth.users u ON u.id = cu.user_id
@@ -124,7 +124,7 @@ export async function GET(request: NextRequest) {
       } else {
         // Fallback para qualquer empresa de teste vinculada
         const anyComp = await client.query(`
-          SELECT cu.company_id as id, c.trade_name as name, u.email
+          SELECT cu.company_id as id, c.trade_name as name, u.email, u.id as user_id
           FROM public.company_users cu
           JOIN public.companies c ON c.id = cu.company_id
           JOIN auth.users u ON u.id = cu.user_id
@@ -137,6 +137,11 @@ export async function GET(request: NextRequest) {
       }
 
       if (companyId) {
+        // Define claims para que auth.uid() reconheça o usuário na transação
+        await client.query("SELECT set_config('request.jwt.claims', $1, true)", [
+          JSON.stringify({ sub: companyInfo.user_id, role: 'authenticated' })
+        ]);
+
         const subRes = await client.query(`
           SELECT * FROM public.submit_or_update_organic_benefit(
             NULL::uuid,
