@@ -174,24 +174,18 @@ export async function GET(request: NextRequest) {
           benefit: subRes.rows[0],
         };
 
-        const rewardRes = await client.query(`
-          SELECT id, title, category, announced_unit_value, quantity_available, quantity_reserved, quantity_redeemed,
-                 suggested_points, promotional_value, granted_insertions, status, unit_locations, allowed_weekdays
-          FROM public.organic_campaign_rewards
-          WHERE company_id = $1 AND title = 'Rodízio de Pizza'
-          ORDER BY created_at DESC
-          LIMIT 1;
-        `, [companyId]);
-        results.savedRewardRecord = rewardRes.rows[0];
+        const benefitId = subRes.rows[0]?.submit_or_update_organic_benefit?.id;
+        if (benefitId) {
+          const rewardRes = await client.query(`
+            SELECT * FROM public.organic_campaign_rewards WHERE id = $1;
+          `, [benefitId]);
+          results.savedRewardRecord = rewardRes.rows[0];
 
-        const entRes = await client.query(`
-          SELECT id, approved_promotional_value, granted_insertions, remaining_insertions, status
-          FROM public.organic_benefit_media_entitlements
-          WHERE company_id = $1
-          ORDER BY created_at DESC
-          LIMIT 1;
-        `, [companyId]);
-        results.savedEntitlementRecord = entRes.rows[0];
+          const entRes = await client.query(`
+            SELECT * FROM public.organic_benefit_media_entitlements WHERE reward_id = $1;
+          `, [benefitId]);
+          results.savedEntitlementRecord = entRes.rows[0];
+        }
       } else {
         results.createdMandatoryBenefit = { error: 'No company found in database' };
       }
