@@ -109,14 +109,34 @@ export async function GET(request: NextRequest) {
     // 7. Test submitting mandatory benefit if requested
     if (request.nextUrl.searchParams.get('create_mandatory_benefit') === 'true') {
       const compRes = await client.query(`
-        SELECT c.id, c.name, u.email
-        FROM public.companies c
-        JOIN auth.users u ON u.id = c.owner_id
+        SELECT cu.company_id as id, c.trade_name as name, u.email
+        FROM public.company_users cu
+        JOIN public.companies c ON c.id = cu.company_id
+        JOIN auth.users u ON u.id = cu.user_id
         WHERE u.email = 'homolog.empresa@msdeducacao.com.br'
         LIMIT 1;
       `);
+      let companyId: string | null = null;
+      let companyInfo: any = null;
       if (compRes.rows.length > 0) {
-        const companyId = compRes.rows[0].id;
+        companyId = compRes.rows[0].id;
+        companyInfo = compRes.rows[0];
+      } else {
+        // Fallback para qualquer empresa de teste vinculada
+        const anyComp = await client.query(`
+          SELECT cu.company_id as id, c.trade_name as name, u.email
+          FROM public.company_users cu
+          JOIN public.companies c ON c.id = cu.company_id
+          JOIN auth.users u ON u.id = cu.user_id
+          LIMIT 1;
+        `);
+        if (anyComp.rows.length > 0) {
+          companyId = anyComp.rows[0].id;
+          companyInfo = anyComp.rows[0];
+        }
+      }
+
+      if (companyId) {
         const subRes = await client.query(`
           SELECT * FROM public.submit_or_update_organic_benefit(
             NULL::uuid,
@@ -140,7 +160,7 @@ export async function GET(request: NextRequest) {
           );
         `, [companyId]);
         results.createdMandatoryBenefit = {
-          company: compRes.rows[0],
+          company: companyInfo,
           benefit: subRes.rows[0],
         };
 
@@ -163,7 +183,7 @@ export async function GET(request: NextRequest) {
         `, [companyId]);
         results.savedEntitlementRecord = entRes.rows[0];
       } else {
-        results.createdMandatoryBenefit = { error: 'Company homolog.empresa@msdeducacao.com.br not found' };
+        results.createdMandatoryBenefit = { error: 'No company found in database' };
       }
     }
 
