@@ -1,6 +1,6 @@
-import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/admin';
 import { CreatorDashboardClient } from './creator-dashboard-client';
 
 export const dynamic = 'force-dynamic';
@@ -10,10 +10,27 @@ export default async function CreatorPage() {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect('/login');
 
-  const [{ data: creator }, { data: affiliate }] = await Promise.all([
+  const admin = createAdminClient();
+
+  // 1. Busca perfil Creator ou Afiliado
+  let [{ data: creator }, { data: affiliate }] = await Promise.all([
     (supabase.from('creator_profiles') as any).select('*').eq('user_id', user.id).maybeSingle(),
     (supabase.from('affiliate_profiles') as any).select('*').eq('user_id', user.id).eq('status', 'active').maybeSingle(),
   ]);
+
+  // Se não possui creator_profiles mas é afiliado creator ou está na página creator, auto-provisiona canonicamente
+  if (!creator) {
+    const { data: canonId } = await (admin.rpc as any)('ensure_canonical_creator_profile', {
+      p_user_id: user.id,
+    });
+    if (canonId) {
+      const { data: reloadedCreator } = await (supabase.from('creator_profiles') as any)
+        .select('*')
+        .eq('id', canonId)
+        .maybeSingle();
+      if (reloadedCreator) creator = reloadedCreator;
+    }
+  }
 
   const creatorId = creator?.id;
   const affiliateId = affiliate?.id;
@@ -32,6 +49,8 @@ export default async function CreatorPage() {
     { data: relationship },
     { data: pricingRule },
     { data: masterSetting },
+    { data: socialConnSetting },
+    { data: socialMetricsSetting },
   ] = await Promise.all([
     creatorId
       ? (supabase.from('social_channels') as any).select('*, social_connections(*)').eq('owner_type', 'creator').eq('owner_id', creatorId).order('created_at', { ascending: false })
@@ -68,6 +87,8 @@ export default async function CreatorPage() {
       : Promise.resolve({ data: null }),
     (supabase.from('creator_pricing_rules') as any).select('*').eq('is_active', true).order('version', { ascending: false }).limit(1).maybeSingle(),
     (supabase.from('platform_settings') as any).select('value').eq('key', 'social_auto_publish_master_enabled').maybeSingle(),
+    (supabase.from('platform_settings') as any).select('value').eq('key', 'social_connection_enabled').maybeSingle(),
+    (supabase.from('platform_settings') as any).select('value').eq('key', 'social_metrics_enabled').maybeSingle(),
   ]);
 
   return (
@@ -88,6 +109,8 @@ export default async function CreatorPage() {
       relationship={relationship}
       pricingRule={pricingRule}
       masterAutoPublishEnabled={masterSetting?.value === true || masterSetting?.value === 'true'}
+      socialConnectionEnabled={socialConnSetting ? Boolean(socialConnSetting.value) : true}
+      socialMetricsEnabled={Boolean(socialMetricsSetting?.value)}
     />
   );
 }

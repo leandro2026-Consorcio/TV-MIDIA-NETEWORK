@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Sparkles,
   Share2,
@@ -60,6 +60,8 @@ interface Props {
   relationship: any;
   pricingRule: any;
   masterAutoPublishEnabled: boolean;
+  socialConnectionEnabled?: boolean;
+  socialMetricsEnabled?: boolean;
 }
 
 const money = (cents: number) =>
@@ -82,6 +84,8 @@ export function CreatorDashboardClient({
   relationship,
   pricingRule,
   masterAutoPublishEnabled,
+  socialConnectionEnabled = true,
+  socialMetricsEnabled = false,
 }: Props) {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'resumo' | 'social' | 'campanhas' | 'marketplace' | 'expansao' | 'ajuda'>('resumo');
@@ -210,7 +214,37 @@ export function CreatorDashboardClient({
     setLoading(false);
   };
 
-  const connectUrl = `/api/social/meta/start?owner_type=creator&owner_id=${creator?.id || affiliate?.id || ''}`;
+  const searchParams = useSearchParams();
+  const instagramConnectUrl = `/api/social/meta/start?provider=instagram&owner_type=creator&owner_id=${creator?.id || ''}&return_to=${encodeURIComponent('/creator?tab=social')}`;
+  const facebookConnectUrl = `/api/social/meta/start?provider=facebook&owner_type=creator&owner_id=${creator?.id || ''}&return_to=${encodeURIComponent('/creator?tab=social')}`;
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'social') {
+      setActiveTab('social');
+    }
+    const socialParam = searchParams.get('social');
+    if (socialParam === 'connected') {
+      setFeedback('Conta social conectada com sucesso!');
+    } else if (socialParam === 'error') {
+      const reason = searchParams.get('reason');
+      const message = searchParams.get('message');
+      if (reason === 'disabled' || reason === 'not_configured') {
+        setFeedback('A conexão com esta rede social ainda não está disponível no ambiente.');
+      } else if (reason === 'ineligible_account') {
+        setFeedback('Esta conta não é uma conta profissional compatível.');
+      } else if (reason === 'cancelled' || reason === 'permissions') {
+        setFeedback('Não recebemos todas as permissões necessárias. Tente conectar novamente.');
+      } else {
+        setFeedback(message || 'Não foi possível concluir a conexão agora. Tente novamente.');
+      }
+    }
+  }, [searchParams]);
+
+  const instagramChannels = channels.filter((c) => c.provider === 'instagram' || c.channel_type === 'instagram_professional');
+  const facebookChannels = channels.filter((c) => c.provider === 'facebook' || c.channel_type === 'facebook_page');
+  const hasInstagram = instagramChannels.length > 0;
+  const hasFacebook = facebookChannels.length > 0;
   const shareLink = affiliate ? `https://midiapormidia.com.br/?ref=${encodeURIComponent(affiliate.attribution_code)}` : '';
 
   return (
@@ -429,33 +463,151 @@ export function CreatorDashboardClient({
       {/* TAB 2: SOCIAL & CONEXÃO META */}
       {activeTab === 'social' && (
         <div className="space-y-8">
-          {/* Guided Connection Wizard Banner */}
-          <div className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-r from-fuchsia-950/40 via-slate-900 to-slate-900 p-6 sm:p-8 space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <span className="text-xs font-bold uppercase tracking-wider text-fuchsia-400">
-                  Passo a Passo de Conexão
-                </span>
-                <h2 className="text-2xl font-black text-white mt-1">Conexão Social Guiada</h2>
-                <p className="text-xs text-slate-300 mt-1 max-w-2xl">
-                  Conecte suas Páginas do Facebook e contas do Instagram Profissional através do OAuth oficial da Meta.
-                  Seus tokens permanecem criptografados no servidor.
-                </p>
+          {/* Status Geral dos Canais Sociais */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-gradient-to-tr from-amber-500/20 via-rose-500/20 to-fuchsia-500/20 text-fuchsia-400 border border-fuchsia-500/30">
+                  <Instagram className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold uppercase text-slate-500">Instagram Profissional</span>
+                  <div className="text-base font-black text-white mt-0.5">
+                    {hasInstagram ? (
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4" /> {instagramChannels[0].username ? `@${instagramChannels[0].username}` : 'Conectado'}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Não conectado</span>
+                    )}
+                  </div>
+                </div>
               </div>
-
-              <a
-                href={connectUrl}
-                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 hover:bg-fuchsia-500 px-6 py-3.5 text-xs font-black text-white transition-all shadow-lg shadow-fuchsia-600/30 shrink-0"
-              >
-                <Share2 className="w-4 h-4" /> Conectar Facebook / Instagram
-              </a>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full ${hasInstagram ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'}`}>
+                {hasInstagram ? 'Ativo' : 'Pendente'}
+              </span>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-3 text-[11px] text-slate-400 border-t border-slate-800">
-              <span>1. Autenticação Meta</span>
-              <span>2. Detecção de Canais</span>
-              <span>3. Validação de Capacidades</span>
-              <span>4. Ativação de Regras</span>
+            <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-blue-500/10 text-blue-400 border border-blue-500/20">
+                  <Facebook className="w-6 h-6" />
+                </div>
+                <div>
+                  <span className="text-[11px] font-bold uppercase text-slate-500">Facebook Pages</span>
+                  <div className="text-base font-black text-white mt-0.5">
+                    {hasFacebook ? (
+                      <span className="text-emerald-400 flex items-center gap-1">
+                        <CheckCircle2 className="w-4 h-4" /> {facebookChannels[0].display_name}
+                      </span>
+                    ) : (
+                      <span className="text-slate-400">Não conectado</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+              <span className={`text-xs font-bold px-3 py-1 rounded-full ${hasFacebook ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-slate-800 text-slate-400'}`}>
+                {hasFacebook ? 'Ativo' : 'Pendente'}
+              </span>
+            </div>
+          </div>
+
+          {/* Cards de Conexão Distintos: Instagram x Facebook */}
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Card Instagram Direto */}
+            <div className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/30 via-slate-900 to-slate-900 p-6 sm:p-7 flex flex-col justify-between space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="p-3 rounded-2xl bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/30">
+                    <Instagram className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-fuchsia-500/10 text-fuchsia-300 border border-fuchsia-500/20">
+                    Instagram Direct Login
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">Instagram</h3>
+                  <p className="text-xs text-slate-300 font-semibold mt-1">Conecte sua conta profissional.</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Compatível com contas profissionais <strong>Creator</strong> e <strong>Business</strong>. Não exige Página no Facebook vinculada.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-3">
+                {hasInstagram ? (
+                  <div className="flex items-center gap-2 w-full justify-between">
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                      <Check className="w-4 h-4" /> Conectado ({instagramChannels.length} canal)
+                    </span>
+                    <button
+                      onClick={() => handleDisconnect(instagramChannels[0].connection_id)}
+                      className="text-xs font-bold text-rose-400 hover:text-rose-300 underline"
+                    >
+                      Desconectar
+                    </button>
+                  </div>
+                ) : socialConnectionEnabled ? (
+                  <a
+                    href={instagramConnectUrl}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-pink-600 hover:from-fuchsia-500 hover:to-pink-500 px-5 py-3 text-xs font-black text-white transition-all shadow-lg shadow-fuchsia-600/20"
+                  >
+                    <Instagram className="w-4 h-4" /> CONECTAR INSTAGRAM
+                  </a>
+                ) : (
+                  <div className="w-full text-center py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-amber-400">
+                    Integração em homologação
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Card Facebook Pages */}
+            <div className="rounded-3xl border border-blue-500/30 bg-gradient-to-br from-blue-950/30 via-slate-900 to-slate-900 p-6 sm:p-7 flex flex-col justify-between space-y-6">
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="p-3 rounded-2xl bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                    <Facebook className="w-6 h-6" />
+                  </div>
+                  <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                    Facebook Pages
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-black text-white">Facebook</h3>
+                  <p className="text-xs text-slate-300 font-semibold mt-1">Conecte as Páginas que você administra.</p>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Use para disponibilizar páginas empresariais e suas capacidades compatíveis de divulgação.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 border-t border-slate-800 flex items-center justify-between gap-3">
+                {hasFacebook ? (
+                  <div className="flex items-center gap-2 w-full justify-between">
+                    <span className="text-xs text-emerald-400 font-bold flex items-center gap-1">
+                      <Check className="w-4 h-4" /> Conectado ({facebookChannels.length} páginas)
+                    </span>
+                    <button
+                      onClick={() => handleDisconnect(facebookChannels[0].connection_id)}
+                      className="text-xs font-bold text-rose-400 hover:text-rose-300 underline"
+                    >
+                      Desconectar
+                    </button>
+                  </div>
+                ) : socialConnectionEnabled ? (
+                  <a
+                    href={facebookConnectUrl}
+                    className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-500 px-5 py-3 text-xs font-black text-white transition-all shadow-lg shadow-blue-600/20"
+                  >
+                    <Facebook className="w-4 h-4" /> CONECTAR FACEBOOK
+                  </a>
+                ) : (
+                  <div className="w-full text-center py-2.5 px-4 rounded-xl bg-slate-950 border border-slate-800 text-xs font-bold text-amber-400">
+                    Integração em homologação
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

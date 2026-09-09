@@ -37,6 +37,7 @@ import {
   KeyRound,
   CircleHelp,
   Sparkles,
+  Share2,
   BarChart3,
   Users,
   ChevronDown,
@@ -335,6 +336,7 @@ export function Sidebar({
           ]
         },
         { name: 'Minhas Campanhas', href: '/campaigns', icon: Megaphone },
+        { name: 'Redes Sociais', href: '/company/social', icon: Share2 },
         { name: 'Convites VIP', href: '/company/invites', icon: Gift },
         { name: 'Meu Plano', href: '/plans', icon: CreditCard },
         {

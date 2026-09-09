@@ -1,22 +1,97 @@
 import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
-export interface MetaConfig {
+export type SocialProvider = 'instagram' | 'facebook';
+export type SocialAuthFlow = 'instagram_login' | 'facebook_login';
+
+export interface ProviderConfig {
+  provider: SocialProvider;
+  authFlow: SocialAuthFlow;
   appId: string;
   appSecret: string;
   graphVersion: string;
   redirectUri: string;
+  dialogUrl: string;
+  tokenUrl: string;
+  scopes: string[];
 }
 
-export function getMetaConfig(): MetaConfig | null {
+export function getStateSecret(): string {
+  const secret = process.env.SOCIAL_OAUTH_STATE_SECRET;
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+
+  if (!secret) {
+    if (isProd) {
+      throw new Error('SOCIAL_OAUTH_STATE_SECRET é obrigatório em ambiente de produção (fail-closed).');
+    }
+    // Em desenvolvimento estrito, exige chave ou usa secret local avisando no log
+    const fallback = process.env.META_APP_SECRET || 'dev_social_oauth_state_secret_min_32_chars_ok';
+    return fallback;
+  }
+  return secret;
+}
+
+export function getGraphVersion(): string {
+  const version = process.env.META_GRAPH_VERSION;
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+
+  if (!version) {
+    if (isProd) {
+      throw new Error('META_GRAPH_VERSION é obrigatório em ambiente de produção. Não é permitido fallback silencioso.');
+    }
+    return 'v21.0';
+  }
+  return version;
+}
+
+export function getProviderConfig(provider: SocialProvider): ProviderConfig | null {
+  const graphVersion = getGraphVersion();
+
+  if (provider === 'instagram') {
+    const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
+    const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
+    const redirectUri = process.env.INSTAGRAM_REDIRECT_URI || process.env.META_REDIRECT_URI || 'https://midiapormidia.com.br/api/social/meta/callback?provider=instagram';
+
+    if (!appId || !appSecret || !redirectUri) return null;
+
+    return {
+      provider: 'instagram',
+      authFlow: 'instagram_login',
+      appId,
+      appSecret,
+      graphVersion,
+      redirectUri,
+      dialogUrl: 'https://www.instagram.com/oauth/authorize',
+      tokenUrl: 'https://api.instagram.com/oauth/access_token',
+      scopes: [
+        'instagram_business_basic',
+        'instagram_business_content_publish',
+        'instagram_business_manage_insights',
+      ],
+    };
+  }
+
+  // provider === 'facebook'
   const appId = process.env.META_APP_ID;
   const appSecret = process.env.META_APP_SECRET;
-  const graphVersion = process.env.META_GRAPH_VERSION || 'v19.0';
-  const redirectUri = process.env.META_REDIRECT_URI || 'https://midiapormidia.com.br/api/social/meta/callback';
+  const redirectUri = process.env.FACEBOOK_REDIRECT_URI || process.env.META_REDIRECT_URI || 'https://midiapormidia.com.br/api/social/meta/callback?provider=facebook';
 
-  if (!appId || !appSecret) {
-    return null;
-  }
-  return { appId, appSecret, graphVersion, redirectUri };
+  if (!appId || !appSecret || !redirectUri) return null;
+
+  return {
+    provider: 'facebook',
+    authFlow: 'facebook_login',
+    appId,
+    appSecret,
+    graphVersion,
+    redirectUri,
+    dialogUrl: `https://www.facebook.com/${graphVersion}/dialog/oauth`,
+    tokenUrl: `https://graph.facebook.com/${graphVersion}/oauth/access_token`,
+    scopes: [
+      'pages_show_list',
+      'pages_read_engagement',
+      'pages_manage_posts',
+    ],
+  };
 }
 
 export interface OAuthStatePayload {
@@ -24,10 +99,16 @@ export interface OAuthStatePayload {
   userId: string;
   ownerType: 'company' | 'organic_participant' | 'creator';
   ownerId: string;
+  provider: SocialProvider;
+  returnTo: string;
   exp: number;
 }
 
-export function generateOAuthState(payload: Omit<OAuthStatePayload, 'nonce' | 'exp'>, appSecret: string): string {
+export function generateOAuthState(
+  payload: Omit<OAuthStatePayload, 'nonce' | 'exp'>,
+  secretOverride?: string
+): string {
+  const secret = secretOverride || getStateSecret();
   const nonce = randomBytes(18).toString('base64url');
   const fullPayload: OAuthStatePayload = {
     ...payload,
@@ -35,19 +116,20 @@ export function generateOAuthState(payload: Omit<OAuthStatePayload, 'nonce' | 'e
     exp: Date.now() + 10 * 60_000, // 10 minutos de validade
   };
   const json = Buffer.from(JSON.stringify(fullPayload)).toString('base64url');
-  const signature = createHmac('sha256', appSecret).update(json).digest('base64url');
+  const signature = createHmac('sha256', secret).update(json).digest('base64url');
   return `${json}.${signature}`;
 }
 
-export function verifyOAuthState(stateString: string, appSecret: string): OAuthStatePayload {
+export function verifyOAuthState(stateString: string, secretOverride?: string): OAuthStatePayload {
+  const secret = secretOverride || getStateSecret();
   const [payloadRaw, signature] = stateString.split('.');
   if (!payloadRaw || !signature) {
     throw new Error('State OAuth mal formatado.');
   }
 
-  const expected = createHmac('sha256', appSecret).update(payloadRaw).digest('base64url');
+  const expected = createHmac('sha256', secret).update(payloadRaw).digest('base64url');
   if (signature.length !== expected.length || !timingSafeEqual(Buffer.from(signature), Buffer.from(expected))) {
-    throw new Error('Assinatura de state OAuth inválida.');
+    throw new Error('Assinatura de state OAuth inválida ou violada.');
   }
 
   const payload = JSON.parse(Buffer.from(payloadRaw, 'base64url').toString('utf8')) as OAuthStatePayload;
@@ -71,16 +153,14 @@ export interface DetectedCapabilities {
 export function detectChannelCapabilities(
   channelType: 'facebook_page' | 'instagram_professional',
   grantedScopes: string[],
-  accountMetadata: Record<string, any> = {}
+  accountMetadata: Record<string, any> = {},
+  metricsGlobalFlag: boolean = false
 ): DetectedCapabilities {
-  const hasPagePublish = grantedScopes.includes('pages_manage_posts');
-  const hasInstaPublish = grantedScopes.includes('instagram_content_publish');
-  const hasEngagement = grantedScopes.includes('pages_read_engagement') || grantedScopes.includes('instagram_basic');
-
   if (channelType === 'facebook_page') {
-    const feed = hasPagePublish;
-    const insights = hasEngagement;
-    const ready = feed && insights;
+    const feed = grantedScopes.includes('pages_manage_posts');
+    const hasRead = grantedScopes.includes('pages_read_engagement');
+    const insights = hasRead && metricsGlobalFlag;
+    const ready = feed;
 
     return {
       feedPublishCapable: feed,
@@ -88,19 +168,25 @@ export function detectChannelCapabilities(
       storyPublishCapable: false,
       insightsCapable: insights,
       metricsCapable: insights,
-      diagnosticStatus: ready ? 'ready_for_campaigns' : (hasEngagement ? 'partial_permission' : 'connected'),
+      diagnosticStatus: ready ? 'ready_for_campaigns' : (hasRead ? 'partial_permission' : 'connected'),
       diagnosticMessage: ready
-        ? 'Página pronta para publicação no feed e coleta de métricas.'
-        : 'Permissão parcial: necessária autorização de publicação para veicular anúncios.',
+        ? 'Página do Facebook pronta para veiculação no feed.'
+        : 'Permissão de publicação pendente na Página.',
     };
   } else {
     // instagram_professional
-    const feed = hasInstaPublish;
-    const reel = hasInstaPublish && (accountMetadata.is_business_account !== false);
-    // Story requer suporte explícito da API Meta e conta Business elegível
-    const story = hasInstaPublish && Boolean(accountMetadata.story_eligible);
-    const insights = hasEngagement;
-    const ready = feed && insights;
+    const hasPublish =
+      grantedScopes.includes('instagram_business_content_publish') ||
+      grantedScopes.includes('instagram_content_publish');
+    const hasInsightsScope =
+      grantedScopes.includes('instagram_business_manage_insights') ||
+      grantedScopes.includes('instagram_manage_insights');
+    const feed = hasPublish;
+    const reel = hasPublish;
+    const story =
+      hasPublish && (Boolean(accountMetadata.story_capable) || Boolean(accountMetadata.story_eligible));
+    const insights = hasInsightsScope && metricsGlobalFlag;
+    const ready = feed;
 
     return {
       feedPublishCapable: feed,
@@ -108,10 +194,10 @@ export function detectChannelCapabilities(
       storyPublishCapable: story,
       insightsCapable: insights,
       metricsCapable: insights,
-      diagnosticStatus: ready ? 'ready_for_campaigns' : (hasEngagement ? 'partial_permission' : 'connected'),
+      diagnosticStatus: ready ? 'ready_for_campaigns' : 'connected',
       diagnosticMessage: ready
-        ? `Instagram profissional pronto (${reel ? 'Feed e Reels' : 'Feed'}).${story ? ' Stories habilitado.' : ' Stories aguarda liberação de permissão Meta.'}`
-        : 'Permissão de publicação do Instagram pendente de concessão no login da Meta.',
+        ? `Instagram profissional pronto (Feed e Reels).${story ? ' Stories habilitado.' : ' Stories aguarda elegibilidade de conta.'}`
+        : 'Permissão de publicação pendente no Instagram.',
     };
   }
 }
