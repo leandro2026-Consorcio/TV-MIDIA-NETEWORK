@@ -1,5 +1,8 @@
 'use client';
 
+import { AdDistributionView } from '@/components/ad-distribution-view';
+import { CampaignFunnel } from '@/components/campaign-funnel';
+
 import { useState, useMemo } from 'react';
 import {
   Gift,
@@ -73,6 +76,48 @@ export function BenefitsDashboardClient({
 }: BenefitsDashboardClientProps) {
   const [tab, setTab] = useState<'meus' | 'cadastrar' | 'cupons' | 'divulgacao' | 'caixa'>(initialTab);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(companies[0]?.id || '');
+  const [selectedBenefitForDetail, setSelectedBenefitForDetail] = useState<any | null>(null);
+  const [benefitDetailFunnel, setBenefitDetailFunnel] = useState<any | null>(null);
+  const [loadingBenefitDetail, setLoadingBenefitDetail] = useState(false);
+
+  const handleOpenBenefitDetail = async (benefitOrEntitlement: any) => {
+    const rewardId = benefitOrEntitlement.reward_id || benefitOrEntitlement.organic_campaign_rewards?.id || benefitOrEntitlement.id;
+    const title = benefitOrEntitlement.organic_campaign_rewards?.title || benefitOrEntitlement.title || 'Campanha de Benefício';
+    setSelectedBenefitForDetail({
+      ...benefitOrEntitlement,
+      title,
+      rewardId,
+    });
+    setLoadingBenefitDetail(true);
+    try {
+      const res = await getAdDistributionLocationsAction({
+        companyId: selectedCompanyId,
+        rewardId,
+      });
+      if (res.success && res.report) {
+        setBenefitDetailFunnel(res.report.funnel);
+      } else {
+        setBenefitDetailFunnel({
+          validated_displays: benefitOrEntitlement.executed_insertions || 0,
+          interests: null,
+          coupons_issued: null,
+          confirmed_visits: null,
+          hasFunnelData: false,
+        });
+      }
+    } catch (err) {
+      console.error(err);
+      setBenefitDetailFunnel({
+        validated_displays: benefitOrEntitlement.executed_insertions || 0,
+        interests: null,
+        coupons_issued: null,
+        confirmed_visits: null,
+        hasFunnelData: false,
+      });
+    } finally {
+      setLoadingBenefitDetail(false);
+    }
+  };
   const [benefitsList, setBenefitsList] = useState<any[]>(initialBenefits);
   const [couponsList, setCouponsList] = useState<any[]>(initialCoupons);
 
@@ -1212,159 +1257,7 @@ export function BenefitsDashboardClient({
 
           {/* SUB-TAB 2: ONDE ESTÁ PASSANDO */}
           {subTabDivulgacao === 'onde_passando' && (
-            <div className="space-y-6">
-              <div className="flex flex-wrap items-center justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-black text-white">Onde Minha Publicidade Está Passando</h2>
-                  <p className="mt-1 text-xs text-slate-400">
-                    Transparência total dos pontos comerciais e distribuição por região da Rede Orgânica.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={() => loadAdReport()}
-                  disabled={loadingReport}
-                  className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-300 hover:text-white disabled:opacity-40"
-                >
-                  {loadingReport ? 'Atualizando...' : 'Atualizar Dados'}
-                </button>
-              </div>
-
-              {/* 1. Pontos Comerciais com Detalhes Públicos */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-black text-white">TVs e Monitores Comerciais (Locais Autorizados)</h3>
-                  <span className="text-xs text-slate-400">
-                    {(adReport?.commercial_points || []).length} estabelecimentos
-                  </span>
-                </div>
-
-                <div className="mt-4 overflow-x-auto">
-                  <table className="w-full text-left text-xs">
-                    <thead className="border-b border-slate-800 bg-slate-950/60 text-slate-400">
-                      <tr>
-                        <th className="p-3">Estabelecimento</th>
-                        <th className="p-3">Cidade / Bairro / Endereço</th>
-                        <th className="p-3">Tipo da Tela</th>
-                        <th className="p-3">Exibições Validadas</th>
-                        <th className="p-3">Planejado x Realizado</th>
-                        <th className="p-3">Última Exibição</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-800">
-                      {(adReport?.commercial_points || [
-                        {
-                          establishment_name: 'Restaurante Central & Grill',
-                          city: 'Sinop/MT',
-                          neighborhood: 'Centro',
-                          address: 'Av. das Figueiras, 1420',
-                          screen_type: 'tv',
-                          validated_displays: 1240,
-                          planned: 2000,
-                          realized: 1240,
-                          delivery_percent: 62,
-                          last_display_at: new Date().toISOString(),
-                        },
-                        {
-                          establishment_name: 'Academia Corpo Ativo',
-                          city: 'Sinop/MT',
-                          neighborhood: 'Jardim Primaveras',
-                          address: 'Rua das Primaveras, 830',
-                          screen_type: 'windows_monitor',
-                          validated_displays: 980,
-                          planned: 1500,
-                          realized: 980,
-                          delivery_percent: 65,
-                          last_display_at: new Date().toISOString(),
-                        }
-                      ]).map((pt: any, idx: number) => (
-                        <tr key={idx} className="hover:bg-slate-950/40">
-                          <td className="p-3 font-bold text-white">{pt.establishment_name}</td>
-                          <td className="p-3 text-slate-300">
-                            <div>{pt.address}</div>
-                            <div className="text-[11px] text-slate-500">{pt.neighborhood}, {pt.city}</div>
-                          </td>
-                          <td className="p-3">
-                            <span className="rounded-lg bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
-                              {pt.screen_type === 'tv' ? '📺 TV Comercial' : '💻 Monitor Windows'}
-                            </span>
-                          </td>
-                          <td className="p-3 font-mono font-bold text-emerald-400">
-                            {(pt.validated_displays || pt.realized || 0).toLocaleString('pt-BR')}
-                          </td>
-                          <td className="p-3">
-                            <div className="flex items-center gap-2">
-                              <div className="h-1.5 w-16 rounded-full bg-slate-800 overflow-hidden">
-                                <div
-                                  className="h-full bg-emerald-500"
-                                  style={{ width: `${pt.delivery_percent || 50}%` }}
-                                />
-                              </div>
-                              <span className="font-mono text-[11px] text-slate-400">
-                                {pt.realized} / {pt.planned} ({pt.delivery_percent}%)
-                              </span>
-                            </div>
-                          </td>
-                          <td className="p-3 text-[11px] text-slate-400">
-                            {pt.last_display_at ? new Date(pt.last_display_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Hoje'}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              {/* 2. Rede Residencial - Proteção Rigorosa de Privacidade */}
-              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="text-base font-black text-white">Rede Residencial (Distribuição Agrupada)</h3>
-                    <p className="mt-0.5 text-xs text-slate-400">
-                      Telas domésticas participantes da Rede Orgânica.
-                    </p>
-                  </div>
-                  <span className="rounded-full bg-purple-500/10 border border-purple-500/30 px-3 py-1 text-[11px] font-bold text-purple-300">
-                    Privacidade Preservada
-                  </span>
-                </div>
-
-                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-xs text-slate-400 flex items-start gap-3">
-                  <ShieldCheck className="h-5 w-5 text-purple-400 shrink-0 mt-0.5" />
-                  <p>
-                    <strong>Proteção de Dados Residenciais:</strong> Para garantir a segurança e a privacidade dos moradores, a localização de telas residenciais é apresentada estritamente agrupada por bairro ou região quando houver 3 ou mais telas ativas. Nunca são exibidos nomes, ruas ou números residenciais.
-                  </p>
-                </div>
-
-                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-                  {(adReport?.residential_aggregated || [
-                    { city: 'Sinop/MT', neighborhood: 'Jardim Itália', screen_count: 14, validated_displays: 2840 },
-                    { city: 'Sinop/MT', neighborhood: 'Setor Comercial', screen_count: 8, validated_displays: 1450 },
-                  ]).map((resGroup: any, idx: number) => (
-                    <div key={idx} className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="font-bold text-white text-sm">
-                          {resGroup.neighborhood}
-                        </span>
-                        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-400">
-                          {resGroup.city}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs pt-1">
-                        <span className="text-slate-400">Telas Residenciais:</span>
-                        <strong className="text-purple-300">{resGroup.screen_count} ativas</strong>
-                      </div>
-                      <div className="flex items-center justify-between text-xs border-t border-slate-800/80 pt-2">
-                        <span className="text-slate-400">Exibições Validadas:</span>
-                        <strong className="font-mono text-emerald-400">
-                          {resGroup.validated_displays?.toLocaleString('pt-BR')}
-                        </strong>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
+            <AdDistributionView companyId={selectedCompanyId} />
           )}
 
           {/* SUB-TAB 3: RESULTADOS */}
