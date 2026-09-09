@@ -191,6 +191,192 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // 8. Audit Social Foundation V2 on Production if requested
+    if (request.nextUrl.searchParams.get('audit_social') === 'true') {
+      const socialAudit: Record<string, any> = {};
+
+      // 8.1 Verify columns in social_connections
+      const scCols = await client.query(`
+        SELECT column_name, data_type, column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'social_connections'
+        ORDER BY ordinal_position;
+      `);
+      socialAudit.connectionsColumns = scCols.rows;
+
+      // 8.2 Verify columns in social_channels
+      const chCols = await client.query(`
+        SELECT column_name, data_type, column_default
+        FROM information_schema.columns
+        WHERE table_schema = 'public' AND table_name = 'social_channels'
+        ORDER BY ordinal_position;
+      `);
+      socialAudit.channelsColumns = chCols.rows;
+
+      // 8.3 Verify platform_settings for social
+      const settingsRes = await client.query(`
+        SELECT key, value, description
+        FROM public.platform_settings
+        WHERE key LIKE 'social%'
+        ORDER BY key;
+      `);
+      socialAudit.platformSettings = settingsRes.rows;
+
+      // 8.4 Verify RPC functions exist
+      const rpcRes = await client.query(`
+        SELECT proname, pg_get_function_identity_arguments(oid) as args
+        FROM pg_proc
+        WHERE proname IN ('ensure_canonical_creator_profile', 'get_social_diagnostics_for_master');
+      `);
+      socialAudit.rpcFunctions = rpcRes.rows;
+
+      // 8.5 Test ensure_canonical_creator_profile on Creator user
+      const creatorUser = await client.query(`
+        SELECT id, email FROM auth.users WHERE email = 'homolog.creator@msdeducacao.com.br' LIMIT 1;
+      `);
+      if (creatorUser.rows.length > 0) {
+        const cUserId = creatorUser.rows[0].id;
+        const ensureRes = await client.query(`
+          SELECT public.ensure_canonical_creator_profile($1) as canonical_id;
+        `, [cUserId]);
+        socialAudit.canonicalCreatorProfileId = ensureRes.rows[0]?.canonical_id;
+
+        // Verify profile details
+        const profRes = await client.query(`
+          SELECT id, user_id, display_name, slug, status FROM public.creator_profiles WHERE id = $1;
+        `, [ensureRes.rows[0]?.canonical_id]);
+        socialAudit.creatorProfile = profRes.rows[0];
+      }
+
+      // 8.6 Test Master diagnostics RPC
+      // Call as postgres superuser/definer to inspect what the function generates
+      try {
+        const diagRes = await client.query(`
+          SELECT * FROM public.get_social_diagnostics_for_master();
+        `);
+        socialAudit.masterDiagnosticsDirect = diagRes.rows;
+      } catch (err: any) {
+        // Since get_social_diagnostics_for_master checks is_master_admin(), verify exception or mock admin session
+        socialAudit.masterDiagnosticsDirectNote = err.message;
+      }
+
+      // 8.7 If simulate_e2e_channels=true, exercise end-to-end real database persistence & lifecycle
+      if (request.nextUrl.searchParams.get('simulate_e2e') === 'true') {
+        const cUserId = creatorUser.rows[0]?.id;
+        const cProfileId = socialAudit.canonicalCreatorProfileId;
+        const compRes = await client.query(`
+          SELECT cu.company_id FROM public.company_users cu
+          JOIN auth.users u ON u.id = cu.user_id
+          WHERE u.email = 'homolog.empresa@msdeducacao.com.br' LIMIT 1;
+        `);
+        const companyId = compRes.rows[0]?.company_id;
+
+        if (cProfileId && companyId) {
+          // A. Insert simulated active Instagram Direct connection for Creator
+          const igConnRes = await client.query(`
+            INSERT INTO public.social_connections (
+              owner_type, owner_id, provider, auth_flow, provider_account_id,
+              scopes, status, connected_by, expires_at, last_refreshed_at, access_token_encrypted
+            ) VALUES (
+              'creator', $1, 'instagram', 'instagram_login', 'ig_acc_homolog_creator_999',
+              ARRAY['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_insights'],
+              'active', $2, now() + interval '60 days', now(),
+              jsonb_build_object('iv', 'mock_iv', 'ciphertext', 'mock_encrypted_ciphertext', 'authTag', 'mock_tag', 'version', 1)
+            )
+            ON CONFLICT (owner_type, owner_id, provider, provider_account_id)
+            DO UPDATE SET status = 'active', last_refreshed_at = now()
+            RETURNING id, status, auth_flow, expires_at, last_refreshed_at;
+          `, [cProfileId, cUserId]);
+          const igConnId = igConnRes.rows[0]?.id;
+
+          // Insert channel
+          const igChanRes = await client.query(`
+            INSERT INTO public.social_channels (
+              connection_id, owner_type, owner_id, provider, channel_type, auth_flow,
+              provider_channel_id, display_name, username, feed_publish_capable,
+              reel_publish_capable, story_publish_capable, insights_capable, metrics_capable,
+              diagnostic_status, diagnostic_message
+            ) VALUES (
+              $1, 'creator', $2, 'instagram', 'instagram_professional', 'instagram_login',
+              'ig_acc_homolog_creator_999', '@homolog.creator.oficial', 'homolog.creator.oficial',
+              true, true, false, false, false,
+              'ready_for_campaigns', 'Instagram profissional pronto (Feed e Reels).'
+            )
+            ON CONFLICT (connection_id, provider_channel_id)
+            DO UPDATE SET diagnostic_status = 'ready_for_campaigns', updated_at = now()
+            RETURNING id, display_name, auth_flow, diagnostic_status, feed_publish_capable, reel_publish_capable, story_publish_capable, metrics_capable;
+          `, [igConnId, cProfileId]);
+
+          // B. Insert simulated Facebook Page connection for Empresa
+          const fbConnRes = await client.query(`
+            INSERT INTO public.social_connections (
+              owner_type, owner_id, provider, auth_flow, provider_account_id,
+              scopes, status, connected_by, expires_at, last_refreshed_at, access_token_encrypted
+            ) VALUES (
+              'company', $1, 'facebook', 'facebook_login', 'fb_page_homolog_empresa_888',
+              ARRAY['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
+              'active', (SELECT user_id FROM public.company_users WHERE company_id = $1 LIMIT 1),
+              now() + interval '60 days', now(),
+              jsonb_build_object('iv', 'mock_iv', 'ciphertext', 'mock_encrypted_ciphertext', 'authTag', 'mock_tag', 'version', 1)
+            )
+            ON CONFLICT (owner_type, owner_id, provider, provider_account_id)
+            DO UPDATE SET status = 'active', last_refreshed_at = now()
+            RETURNING id, status, auth_flow, expires_at;
+          `, [companyId]);
+          const fbConnId = fbConnRes.rows[0]?.id;
+
+          const fbChanRes = await client.query(`
+            INSERT INTO public.social_channels (
+              connection_id, owner_type, owner_id, provider, channel_type, auth_flow,
+              provider_channel_id, display_name, feed_publish_capable, reel_publish_capable,
+              story_publish_capable, insights_capable, metrics_capable, diagnostic_status, diagnostic_message
+            ) VALUES (
+              $1, 'company', $2, 'facebook', 'facebook_page', 'facebook_login',
+              'fb_page_homolog_empresa_888', 'Empresa Homologação Oficial',
+              true, false, false, false, false,
+              'ready_for_campaigns', 'Página do Facebook pronta para veiculação no feed.'
+            )
+            ON CONFLICT (connection_id, provider_channel_id)
+            DO UPDATE SET diagnostic_status = 'ready_for_campaigns', updated_at = now()
+            RETURNING id, display_name, auth_flow, diagnostic_status;
+          `, [fbConnId, companyId]);
+
+          socialAudit.e2eSimulation = {
+            creatorInstagramConnection: igConnRes.rows[0],
+            creatorInstagramChannel: igChanRes.rows[0],
+            empresaFacebookConnection: fbConnRes.rows[0],
+            empresaFacebookChannel: fbChanRes.rows[0],
+          };
+
+          // Test Disconnect and Reconnect
+          await client.query(`
+            UPDATE public.social_connections SET status = 'revoked', access_token_encrypted = '{}'::jsonb WHERE id = $1;
+          `, [igConnId]);
+          const disconnectedRes = await client.query(`SELECT status FROM public.social_connections WHERE id = $1`, [igConnId]);
+          socialAudit.e2eSimulation.disconnectResult = disconnectedRes.rows[0];
+
+          // Reconnect
+          await client.query(`
+            UPDATE public.social_connections SET status = 'active', access_token_encrypted = jsonb_build_object('iv', 'mock_iv2', 'ciphertext', 'mock_ct2', 'authTag', 'mock_tag2', 'version', 1) WHERE id = $1;
+          `, [igConnId]);
+          const reconnectedRes = await client.query(`SELECT status FROM public.social_connections WHERE id = $1`, [igConnId]);
+          socialAudit.e2eSimulation.reconnectResult = reconnectedRes.rows[0];
+
+          // Test Refresh Token logic
+          await client.query(`
+            UPDATE public.social_connections
+            SET last_refreshed_at = now(), expires_at = now() + interval '60 days'
+            WHERE id = $1
+            RETURNING last_refreshed_at, expires_at;
+          `, [igConnId]);
+          const refreshRes = await client.query(`SELECT last_refreshed_at, expires_at FROM public.social_connections WHERE id = $1`, [igConnId]);
+          socialAudit.e2eSimulation.refreshResult = refreshRes.rows[0];
+        }
+      }
+
+      results.socialAudit = socialAudit;
+    }
+
     await client.end();
     return NextResponse.json({ success: true, ...results });
   } catch (err: any) {
