@@ -774,7 +774,10 @@ $$;
 REVOKE ALL ON FUNCTION public.expire_organic_redemptions() FROM PUBLIC, anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.expire_organic_redemptions() TO service_role;
 
--- -- 13. SEED DE ARTIGOS NO HELP CENTER (11 artigos solicitados)
+-- 13. SEED DE ARTIGOS NO HELP CENTER (11 artigos solicitados)
+ALTER TABLE public.help_articles DROP CONSTRAINT IF EXISTS help_articles_audience_check;
+ALTER TABLE public.help_articles ADD CONSTRAINT help_articles_audience_check CHECK (audience IN ('company','creator','leader','support','master','organic'));
+
 INSERT INTO public.help_articles (slug, audience, title, objective, expected_result, steps, display_order) VALUES
   ('como-cadastrar-beneficio', 'company', 'Como cadastrar um benefício', 'Cadastrar produto ou serviço na Rede Orgânica para atrair novos clientes.', 'Benefício registrado com estoque e cálculo automático de pontos.', to_jsonb(ARRAY['Acesse o menu Benefícios & Prêmios', 'Clique na aba Cadastrar Benefício', 'Informe título, descrição, valor anunciado e quantidade de estoque', 'Defina os dias e horários permitidos para uso', 'Clique em Salvar para enviar para aprovação']), 50),
   ('como-funciona-pontuacao', 'company', 'Como funciona a pontuação', 'Entender como os pontos dos participantes são calculados.', 'Preço anunciado é convertido em pontos pela regra configurada pelo Master.', to_jsonb(ARRAY['O valor unitário aprovado é multiplicado pelo fator de conversão da rede', 'Por padrão, cada R$ 1,00 equivale a 1 ponto orgânico', 'O participante acumula esses pontos mantendo telas ativas']), 51),
