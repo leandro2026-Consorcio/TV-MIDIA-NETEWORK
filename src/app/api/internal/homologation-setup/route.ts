@@ -65,6 +65,7 @@ export async function GET(request: NextRequest) {
             must_change_password: true,
           },
         });
+      }
     }
     stepsDone.usersAuth = userIds;
 
