@@ -1,7 +1,11 @@
 export interface OrganicBenefitConfig {
   pointsPerBrl: number;
   roundingMode: 'ceil' | 'round' | 'floor';
+  commercialInsertionUnitCost: number;
   mediaInsertionsPerBrl: number;
+  commercialTvWeight: number;
+  windowsMonitorWeight: number;
+  residentialScreenWeight: number;
   maxGrantedInsertions: number;
   suspiciousPriceThreshold: number;
   defaultCouponValidityDays: number;
@@ -12,8 +16,12 @@ export interface OrganicBenefitConfig {
 export const DEFAULT_ORGANIC_CONFIG: OrganicBenefitConfig = {
   pointsPerBrl: 1.0,
   roundingMode: 'round',
-  mediaInsertionsPerBrl: 0.5,
-  maxGrantedInsertions: 5000,
+  commercialInsertionUnitCost: 0.25, // R$ 500 / 2.000 inserções = R$ 0,25
+  mediaInsertionsPerBrl: 4.0, // 4.0 inserções por R$ 1,00
+  commercialTvWeight: 1.00,
+  windowsMonitorWeight: 0.10,
+  residentialScreenWeight: 0.01,
+  maxGrantedInsertions: 50000,
   suspiciousPriceThreshold: 500.0,
   defaultCouponValidityDays: 7,
   defaultPointsRefundPolicy: 'refund_on_expire',
@@ -47,7 +55,9 @@ export function calculateRequiredPoints(
 }
 
 /**
- * Calcula a contribuição promocional total e as inserções de divulgação estimadas.
+ * Calcula a contribuição promocional total e o direito de divulgação gerado em unidades comerciais equivalentes.
+ * Referência canônica: 2.000 inserções comerciais ≈ R$ 500 => R$ 0,25 / inserção equivalente (4.0 inserções / R$ 1).
+ * Pesos de tela: TV Comercial = 1,00 | Windows Monitor = 0,10 | Residencial = 0,01.
  */
 export function calculatePromotionalContribution(
   unitValue: number,
@@ -58,8 +68,11 @@ export function calculatePromotionalContribution(
   const safeQty = Math.max(1, Math.floor(quantity));
   const safeValue = Math.max(0, unitValue);
   const promotionalValue = Number((safeValue * safeQty).toFixed(2));
+  // 1. PONTOS DO CONSUMIDOR/PARTICIPANTE (base unitária: R$ 79,90 -> ~80 pontos. Quantidade não multiplica)
   const suggestedPoints = calculateRequiredPoints(safeValue, merged.pointsPerBrl, merged.roundingMode);
-  const rawInsertions = Math.round(promotionalValue * merged.mediaInsertionsPerBrl);
+  // 2. DIREITO DE DIVULGAÇÃO DA EMPRESA EM UNIDADES COMERCIAIS EQUIVALENTES (R$ 799 / 0,25 = 3.196 unidades)
+  const multiplier = merged.mediaInsertionsPerBrl || (merged.commercialInsertionUnitCost > 0 ? 1 / merged.commercialInsertionUnitCost : 4.0);
+  const rawInsertions = Math.round(promotionalValue * multiplier);
   const grantedInsertions = Math.min(merged.maxGrantedInsertions, Math.max(1, rawInsertions));
   const isSuspicious = safeValue > merged.suspiciousPriceThreshold;
 
@@ -69,6 +82,10 @@ export function calculatePromotionalContribution(
     promotionalValue,
     suggestedPoints,
     grantedInsertions,
+    commercialInsertionUnitCost: merged.commercialInsertionUnitCost,
+    commercialTvWeight: merged.commercialTvWeight,
+    windowsMonitorWeight: merged.windowsMonitorWeight,
+    residentialScreenWeight: merged.residentialScreenWeight,
     isSuspicious,
   };
 }

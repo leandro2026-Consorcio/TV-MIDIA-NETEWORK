@@ -162,7 +162,7 @@ export default function InternalCampaignEditor({ campaignId }: { campaignId: str
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Minha Campanha</span>
+              <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Campanha da Minha Empresa</span>
               <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-slate-800 text-slate-300">{campaign.status}</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">{campaign.name}</h1>
@@ -233,13 +233,13 @@ export default function InternalCampaignEditor({ campaignId }: { campaignId: str
           {/* Card Marketplace */}
           <div className="bg-slate-900 border border-sky-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
             <div>
-              <strong className="text-white text-sm font-bold block">Quer anunciar em outras TVs?</strong>
+              <strong className="text-white text-sm font-bold block">Quer anunciar esta campanha em outras TVs?</strong>
               <p className="text-xs text-slate-400 mt-0.5">
-                Você pode contratar espaço em TVs de outras empresas e parceiros pelo Marketplace.
+                Leve esta campanha para outros pontos comerciais e canais disponíveis na Rede MPM.
               </p>
             </div>
             <Link
-              href="/marketplace"
+              href={`/marketplace?campaign_id=${campaignId}`}
               className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs transition shrink-0 shadow-md shadow-sky-500/20"
             >
               ENCONTRAR TVs NO MARKETPLACE

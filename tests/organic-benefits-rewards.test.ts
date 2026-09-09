@@ -30,7 +30,11 @@ test('1, 2, 3, 4: Cálculo de pontuação e contribuição promocional de benef�
   const contrib = calculatePromotionalContribution(79.9, 10);
   assert.equal(contrib.promotionalValue, 799.0, '10 unidades a R$ 79,90 = R$ 799,00');
   assert.equal(contrib.suggestedPoints, 80);
-  assert.ok(contrib.grantedInsertions > 0, 'Deve conceder inserções de divulgação');
+  assert.equal(contrib.grantedInsertions, 3196, 'R$ 799 x 4.0 (R$ 0,25/unidade comercial) deve resultar exatamente em 3196 unidades equivalentes');
+  assert.equal(DEFAULT_ORGANIC_CONFIG.commercialInsertionUnitCost, 0.25, 'Custo unitário base deve ser R$ 0,25');
+  assert.equal(DEFAULT_ORGANIC_CONFIG.commercialTvWeight, 1.0, 'Peso TV Comercial deve ser 1.00');
+  assert.equal(DEFAULT_ORGANIC_CONFIG.windowsMonitorWeight, 0.10, 'Peso Windows Monitor deve ser 0.10');
+  assert.equal(DEFAULT_ORGANIC_CONFIG.residentialScreenWeight, 0.01, 'Peso Residencial deve ser 0.01');
   assert.equal(contrib.isSuspicious, false, 'Preço de R$ 79,90 não é suspeito');
 });
 

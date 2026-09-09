@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -32,13 +32,17 @@ import {
   Check,
   Inbox,
   ShoppingCart,
+  Megaphone,
 } from 'lucide-react';
 
 export default function MarketplacePage() {
   const searchParams = useSearchParams();
   const initialTab = (searchParams.get('tab') as 'tvs' | 'creators' | 'offers') || 'tvs';
+  const campaignId = searchParams.get('campaign_id');
 
   const [activeTab, setActiveTab] = useState<'tvs' | 'creators' | 'offers'>(initialTab);
+  const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
+  const [organicEntitlementBalance, setOrganicEntitlementBalance] = useState<number | null>(null);
 
   // Offers state
   const [offers, setOffers] = useState<CompanyAdOffer[]>([]);
@@ -123,6 +127,49 @@ export default function MarketplacePage() {
     loadMarketplaceData();
   }, [activeTab, selectedCity, selectedCompanyId, selectedSegmentId, selectedNiche, selectedFormat, verifiedOnly]);
 
+  useEffect(() => {
+    if (!campaignId) return;
+    async function loadCampaign() {
+      const { data } = await (supabase.from('campaigns') as any)
+        .select('id, name, description, start_date, end_date')
+        .eq('id', campaignId)
+        .maybeSingle();
+      if (data) setSelectedCampaign(data);
+    }
+    loadCampaign();
+  }, [campaignId, supabase]);
+
+  useEffect(() => {
+    async function loadEntitlements() {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+        const { data: compUsers } = await (supabase.from('company_users') as any)
+          .select('company_id')
+          .eq('user_id', user.id)
+          .eq('is_active', true)
+          .limit(1);
+        const cid = compUsers?.[0]?.company_id;
+        if (!cid) return;
+
+        const { data: ents } = await (supabase.from('organic_benefit_media_entitlements') as any)
+          .select('granted_insertions, executed_insertions, status')
+          .eq('company_id', cid)
+          .eq('status', 'active');
+
+        if (ents && ents.length > 0) {
+          const totalGranted = ents.reduce((acc: number, e: any) => acc + Number(e.granted_insertions || 0), 0);
+          const totalExecuted = ents.reduce((acc: number, e: any) => acc + Number(e.executed_insertions || 0), 0);
+          const remaining = Math.max(0, totalGranted - totalExecuted);
+          setOrganicEntitlementBalance(remaining);
+        }
+      } catch (e) {
+        console.warn('Error loading entitlements in marketplace:', e);
+      }
+    }
+    loadEntitlements();
+  }, [supabase]);
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     loadMarketplaceData();
@@ -180,6 +227,56 @@ export default function MarketplacePage() {
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
+      {/* Contextual Banner: Distribuição de Campanha */}
+      {selectedCampaign && (
+        <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400">
+              <Megaphone className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Distribuição da Minha Empresa</span>
+              <strong className="text-white text-base font-bold">Você está distribuindo a campanha: {selectedCampaign.name}</strong>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Escolha abaixo as TVs comerciais parceiras ou canais de Creators para veicular seus anúncios.
+              </p>
+            </div>
+          </div>
+          <Link
+            href={`/campaigns/${selectedCampaign.id}`}
+            className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs font-bold text-slate-200 transition shrink-0"
+          >
+            Voltar para a Campanha
+          </Link>
+        </div>
+      )}
+
+      {/* Contextual Banner: Saldo de Direito de Divulgação Orgânica */}
+      {organicEntitlementBalance !== null && organicEntitlementBalance > 0 && (
+        <div className="bg-gradient-to-r from-purple-950/40 via-purple-900/20 to-slate-900 border border-purple-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
+          <div className="flex items-center gap-3">
+            <div className="p-2 rounded-xl bg-purple-500/20 text-purple-300">
+              <Sparkles className="w-5 h-5" />
+            </div>
+            <div>
+              <span className="text-[10px] font-bold uppercase tracking-wider text-purple-300 block">Direito de Divulgação Orgânica Reconhecido</span>
+              <p className="text-xs text-slate-200 mt-0.5">
+                Saldo disponível: <strong className="text-purple-200 font-mono text-sm">{organicEntitlementBalance.toLocaleString('pt-BR')} unidades equivalentes</strong> (gerado por seus Benefícios & Prêmios).
+              </p>
+              <span className="text-[10px] text-purple-400/80 block mt-0.5">
+                Pesos por tela: TV Comercial (1,00) · Monitor Windows (0,10) · Residencial (0,01)
+              </span>
+            </div>
+          </div>
+          <Link
+            href="/benefits"
+            className="px-3 py-1.5 rounded-xl bg-purple-600/30 hover:bg-purple-600/40 border border-purple-500/40 text-xs font-bold text-purple-200 transition shrink-0"
+          >
+            Ver Meus Benefícios
+          </Link>
+        </div>
+      )}
+
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-purple-900/40 via-slate-900 to-slate-900 border border-purple-500/30 rounded-3xl p-6 sm:p-8 space-y-4 shadow-xl">
         <div className="flex items-center gap-3">
@@ -353,7 +450,7 @@ export default function MarketplacePage() {
                     </div>
 
                     <Link
-                      href={`/campaigns/new?screen=${screen.id}`}
+                      href={campaignId ? `/campaigns/new?screen=${screen.id}&campaign_id=${campaignId}` : `/campaigns/new?screen=${screen.id}`}
                       className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
                     >
                       Contratar TV

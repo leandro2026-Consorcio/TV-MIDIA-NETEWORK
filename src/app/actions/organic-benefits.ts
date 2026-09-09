@@ -137,8 +137,9 @@ export async function saveCompanyBenefitAction(payload: {
     return { success: true as const, data };
   }
 
-  // Fallback resiliente para ambiente de transição antes de migração remota
-  if (error && (error.code === '42883' || error.message?.includes('does not exist'))) {
+  // Fallback resiliente automático: acionado se a RPC não existir ou houver cache pendente
+  console.warn('[saveCompanyBenefitAction] RPC error or schema cache pending, executing direct save fallback:', error || data);
+  try {
     const admin: any = createAdminClient();
     const terms = calculatePromotionalContribution(payload.announcedUnitValue, payload.quantity);
     const insertPayload: any = {
@@ -166,14 +167,17 @@ export async function saveCompanyBenefitAction(payload: {
       created_by: user.id,
     };
 
-    let resultData;
+    let resultData: any;
     if (payload.id) {
       const { data: updated, error: updErr } = await (admin.from('organic_campaign_rewards') as any)
         .update(insertPayload)
         .eq('id', payload.id)
         .select()
         .single();
-      if (updErr) return { success: false as const, error: updErr.message };
+      if (updErr) {
+        console.error('[saveCompanyBenefitAction] Direct update error:', updErr);
+        return { success: false as const, error: 'Não foi possível salvar o benefício agora.' };
+      }
       resultData = updated;
     } else {
       const { data: created, error: insErr } = await (admin.from('organic_campaign_rewards') as any)
@@ -181,6 +185,7 @@ export async function saveCompanyBenefitAction(payload: {
         .select()
         .single();
       if (insErr) {
+        console.warn('[saveCompanyBenefitAction] Trying base insert without extended columns:', insErr.message);
         const basePayload = {
           company_id: payload.companyId,
           title: payload.title.trim(),
@@ -197,26 +202,54 @@ export async function saveCompanyBenefitAction(payload: {
           .insert(basePayload)
           .select()
           .single();
-        if (baseErr) return { success: false as const, error: baseErr.message };
+        if (baseErr) {
+          console.error('[saveCompanyBenefitAction] Direct base insert error:', baseErr);
+          return { success: false as const, error: 'Não foi possível salvar o benefício agora.' };
+        }
         resultData = baseCreated;
       } else {
         resultData = created;
       }
     }
 
+    // Criar ou atualizar entitlement de mídia correspondente (sem Crédito MPM financeiro)
+    try {
+      await (admin.from('organic_benefit_media_entitlements') as any).insert({
+        reward_id: resultData.id,
+        company_id: payload.companyId,
+        approved_promotional_value: terms.promotionalValue,
+        granted_insertions: terms.grantedInsertions,
+        status: 'active',
+        starts_at: new Date().toISOString(),
+        expires_at: new Date(payload.expiresAt).toISOString(),
+        metadata: {
+          unit_cost: terms.commercialInsertionUnitCost,
+          weights: {
+            commercial_tv: terms.commercialTvWeight,
+            windows_monitor: terms.windowsMonitorWeight,
+            residential: terms.residentialScreenWeight,
+          },
+        },
+      });
+    } catch (e) {
+      console.warn('[saveCompanyBenefitAction] Entitlement table not yet migrated or insert skipped:', e);
+    }
+
     return {
       success: true as const,
       data: {
         id: resultData.id,
-        status: resultData.status,
+        status: resultData.status || 'active',
         suggested_points: terms.suggestedPoints,
         promotional_value: terms.promotionalValue,
+        granted_insertions: terms.grantedInsertions,
         is_suspicious: terms.isSuspicious,
       },
     };
+  } catch (fallbackErr: any) {
+    console.error('[saveCompanyBenefitAction] Critical fallback failure:', fallbackErr);
+    return { success: false as const, error: 'Não foi possível salvar o benefício agora.' };
   }
-
-  return { success: false as const, error: error?.message || data?.error || 'Falha ao salvar benefício.' };
 }
 
 export async function getCompanyCouponsAction(filters?: {

@@ -60,15 +60,15 @@ export function BenefitsDashboardClient({
   // Form State
   const [form, setForm] = useState({
     id: '',
-    title: '',
-    description: '',
+    title: 'Rodízio de Pizza',
+    description: 'Válido às segundas-feiras das 18h às 22h. Não cumulativo com outras promoções.',
     category: 'Gastronomia',
     imageUrl: '',
     announcedUnitValue: 79.9,
     quantity: 10,
     maxPerUser: 1,
-    unitLocations: '',
-    allowedWeekdays: [1, 2, 3, 4], // Terça a Quinta por padrão, ou seg a qui
+    unitLocations: 'Rua Berena, 3333',
+    allowedWeekdays: [1], // Segunda-feira
     allowedTimeStart: '18:00',
     allowedTimeEnd: '22:00',
     minConsumption: 0,
@@ -78,6 +78,7 @@ export function BenefitsDashboardClient({
 
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
+  const [showCalculationModal, setShowCalculationModal] = useState(false);
 
   // Redemption / Validation State
   const [redemptionCode, setRedemptionCode] = useState('');
@@ -102,8 +103,8 @@ export function BenefitsDashboardClient({
     });
   };
 
-  const handleSaveBenefit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveBenefit = async (e?: React.FormEvent) => {
+    if (e && typeof e.preventDefault === 'function') e.preventDefault();
     if (!selectedCompanyId) {
       setFormMessage({ type: 'err', text: 'Selecione a empresa dona do benefício.' });
       return;
@@ -115,53 +116,43 @@ export function BenefitsDashboardClient({
       ? form.unitLocations.split(',').map((u) => u.trim()).filter(Boolean)
       : [];
 
-    const res = await saveCompanyBenefitAction({
-      id: form.id || undefined,
-      companyId: selectedCompanyId,
-      title: form.title,
-      description: form.description,
-      category: form.category,
-      imageUrl: form.imageUrl || undefined,
-      announcedUnitValue: Number(form.announcedUnitValue),
-      quantity: Number(form.quantity),
-      maxPerUser: Number(form.maxPerUser || 1),
-      unitLocations: units,
-      allowedWeekdays: form.allowedWeekdays,
-      allowedTimeStart: form.allowedTimeStart || null,
-      allowedTimeEnd: form.allowedTimeEnd || null,
-      minConsumption: form.minConsumption ? Number(form.minConsumption) : null,
-      couponValidityDays: Number(form.couponValidityDays || 7),
-      expiresAt: form.expiresAt,
-    });
+    try {
+      const res = await saveCompanyBenefitAction({
+        id: form.id || undefined,
+        companyId: selectedCompanyId,
+        title: form.title,
+        description: form.description,
+        category: form.category,
+        imageUrl: form.imageUrl || undefined,
+        announcedUnitValue: Number(form.announcedUnitValue),
+        quantity: Number(form.quantity),
+        maxPerUser: Number(form.maxPerUser || 1),
+        unitLocations: units,
+        allowedWeekdays: form.allowedWeekdays,
+        allowedTimeStart: form.allowedTimeStart || null,
+        allowedTimeEnd: form.allowedTimeEnd || null,
+        minConsumption: form.minConsumption ? Number(form.minConsumption) : null,
+        couponValidityDays: Number(form.couponValidityDays || 7),
+        expiresAt: form.expiresAt,
+      });
 
-    setSaving(false);
-    if (res.success) {
-      setFormMessage({
-        type: 'ok',
-        text: `Benefício salvo com sucesso! Contribuição: ${money(res.data.promotional_value)}. Status: ${
-          res.data.status === 'active' ? 'Ativo na Rede' : 'Em análise'
-        }.`,
-      });
-      // Reset or redirect
-      setForm({
-        id: '',
-        title: '',
-        description: '',
-        category: 'Gastronomia',
-        imageUrl: '',
-        announcedUnitValue: 79.9,
-        quantity: 10,
-        maxPerUser: 1,
-        unitLocations: '',
-        allowedWeekdays: [1, 2, 3, 4],
-        allowedTimeStart: '18:00',
-        allowedTimeEnd: '22:00',
-        minConsumption: 0,
-        couponValidityDays: 7,
-        expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16),
-      });
-    } else {
-      setFormMessage({ type: 'err', text: res.error || 'Falha ao salvar benefício.' });
+      setSaving(false);
+      if (res.success) {
+        setFormMessage({
+          type: 'ok',
+          text: `Benefício salvo com sucesso! Contribuição: ${money(res.data.promotional_value)}. Status: ${
+            res.data.status === 'active' ? 'Ativo na Rede' : 'Em análise'
+          }.`,
+        });
+      } else {
+        console.error('[handleSaveBenefit] Server error:', res.error);
+        // Nunca exibe mensagens técnicas de banco/RPC ao usuário
+        setFormMessage({ type: 'err', text: 'Não foi possível salvar o benefício agora.' });
+      }
+    } catch (err) {
+      console.error('[handleSaveBenefit] Unexpected exception:', err);
+      setSaving(false);
+      setFormMessage({ type: 'err', text: 'Não foi possível salvar o benefício agora.' });
     }
   };
 
@@ -427,7 +418,19 @@ export function BenefitsDashboardClient({
                     : 'border-rose-500/30 bg-rose-500/10 text-rose-300'
                 }`}
               >
-                {formMessage.text}
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                  <span>{formMessage.text}</span>
+                  {formMessage.type === 'err' && (
+                    <button
+                      type="button"
+                      onClick={() => handleSaveBenefit()}
+                      disabled={saving}
+                      className="px-3 py-1.5 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/30 text-rose-200 text-xs font-bold transition shrink-0"
+                    >
+                      TENTAR NOVAMENTE
+                    </button>
+                  )}
+                </div>
               </div>
             )}
 
@@ -643,12 +646,34 @@ export function BenefitsDashboardClient({
                   </strong>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl border border-purple-500/30 bg-purple-500/10 p-3 text-sm">
-                  <div>
-                    <strong className="block text-purple-200">Divulgação Orgânica Estimada</strong>
-                    <span className="text-[10px] text-purple-400">Em telas residenciais parceiras</span>
+                <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 space-y-2.5">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
+                    <div>
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300 block">
+                        Direito de Divulgação Gerado
+                      </span>
+                      <span className="text-[10px] text-slate-400">
+                        Referência comercial: R$ 0,25 / exibição equivalente
+                      </span>
+                    </div>
+                    <strong className="text-lg font-black text-purple-200 font-mono">
+                      {preview.grantedInsertions.toLocaleString('pt-BR')} unidades equivalentes
+                    </strong>
                   </div>
-                  <strong className="text-lg font-black text-purple-300">~{preview.grantedInsertions} inserções</strong>
+
+                  <p className="text-[11px] text-slate-300">
+                    Na Rede MPM cada tipo de tela possui um peso diferente. Telas residenciais e monitores Windows consomem uma fração menor desse saldo.
+                  </p>
+
+                  <div className="pt-1">
+                    <button
+                      type="button"
+                      onClick={() => setShowCalculationModal(true)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 text-xs font-bold transition"
+                    >
+                      COMO É CALCULADO?
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -919,6 +944,64 @@ export function BenefitsDashboardClient({
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Como é Calculado */}
+      {showCalculationModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-purple-500/30 rounded-3xl max-w-lg w-full p-6 sm:p-7 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div>
+                <span className="text-xs font-bold uppercase tracking-wider text-purple-400">Transparência Econômica MPM</span>
+                <h3 className="text-lg font-black text-white">Como é calculado o Direito de Divulgação?</h3>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCalculationModal(false)}
+                className="p-1.5 text-slate-400 hover:text-white rounded-xl"
+              >
+                ✕
+              </button>
+            </div>
+
+            <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
+              <p>
+                O valor dos produtos ou serviços disponibilizados gera um <strong>direito de divulgação</strong> na Rede MPM.
+              </p>
+              <p>
+                A referência comercial vigente é de <strong>2.000 inserções comerciais ≈ R$ 500,00</strong>, o que equivale a <strong>R$ 0,25 por unidade de exibição comercial equivalente</strong> (ou 4 unidades por R$ 1,00).
+              </p>
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2.5">
+                <strong className="text-white block text-sm font-bold">Pesos Oficiais por Tipo de Tela:</strong>
+                <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                  <span className="text-slate-300 font-medium">📺 TV Comercial</span>
+                  <span className="font-mono text-emerald-400 font-bold">peso 1,00 <span className="text-slate-500 font-normal">(1 exibição = 1 unidade)</span></span>
+                </div>
+                <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
+                  <span className="text-slate-300 font-medium">💻 Monitor Windows Comercial</span>
+                  <span className="font-mono text-sky-400 font-bold">peso 0,10 <span className="text-slate-500 font-normal">(10 exibições = 1 unidade)</span></span>
+                </div>
+                <div className="flex justify-between items-center py-1">
+                  <span className="text-slate-300 font-medium">🏠 Tela Residencial (Rede Orgânica)</span>
+                  <span className="font-mono text-purple-400 font-bold">peso 0,01 <span className="text-slate-500 font-normal">(100 exibições = 1 unidade)</span></span>
+                </div>
+              </div>
+              <p className="text-[11px] text-slate-400">
+                A quantidade efetiva de exibições depende da disponibilidade de inventário e dos tipos de telas onde sua campanha for veiculada. Este direito é consumido exclusivamente por Proof of Play validado e não gera saldo financeiro em dinheiro ou Crédito MPM.
+              </p>
+            </div>
+
+            <div className="pt-2 border-t border-slate-800 flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCalculationModal(false)}
+                className="rounded-xl bg-purple-600 hover:bg-purple-500 text-white px-5 py-2 text-xs font-bold transition"
+              >
+                Entendi
+              </button>
             </div>
           </div>
         </div>
