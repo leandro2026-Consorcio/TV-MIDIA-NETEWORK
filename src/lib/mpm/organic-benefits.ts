@@ -218,15 +218,46 @@ export function calculateNetPointsRequired(
 }
 
 /**
- * Calcula exibições residenciais necessárias para acumular os pontos de um prêmio sem bônus (taxa 0,05)
- * Ex.: R$ 79,90 = 80 pontos base / 0,05 = 1.600 exibições (ou 79,90 / 0,05 = 1.598 exibições)
+ * Calcula exibições residenciais necessárias para acumular os pontos de um prêmio (taxa 0,05)
+ * Padronizado: R$ 79,90 -> 80 pontos base / 0,05 = 1.600 Exibições Validadas (sem bônus).
+ * Com bônus de 95%: 4 pontos líquidos / 0,05 = 80 Exibições Validadas.
+ * 
+ * Se passado valor unitário float (ex.: 79.90), padroniza para os pontos inteiros requeridos (80)
+ * para garantir consistência matemática com o requisito efetivo de resgate do participante.
  */
 export function calculateResidentialDisplaysNeeded(
-  unitValue: number,
+  pointsOrUnitValue: number,
   ratePerDisplay: number = 0.05
 ): number {
-  if (unitValue <= 0 || ratePerDisplay <= 0) return 0;
-  return Math.round(unitValue / ratePerDisplay);
+  if (pointsOrUnitValue <= 0 || ratePerDisplay <= 0) return 0;
+  const points = Math.round(pointsOrUnitValue);
+  return Math.round(points / ratePerDisplay);
+}
+
+/**
+ * Valida se uma quantidade de exibições acumuladas atinge os pontos requeridos do prêmio
+ * Exemplo obrigatório:
+ * prêmio = 80 pontos (saldo = 0)
+ * 1.599 exibições * 0,05 = 79,95 pontos -> NÃO libera (false)
+ * 1.600 exibições * 0,05 = 80,00 pontos -> LIBERA (true)
+ * 
+ * Com bônus 95% (4 pontos):
+ * 79 exibições * 0,05 = 3,95 pontos -> NÃO libera (false)
+ * 80 exibições * 0,05 = 4,00 pontos -> LIBERA (true)
+ */
+export function canRedeemWithDisplays(
+  displaysCount: number,
+  pointsRequired: number,
+  ratePerDisplay: number = 0.05,
+  currentBalance: number = 0
+): { canRedeem: boolean; pointsEarned: number; totalPoints: number } {
+  const pointsEarned = Math.round(displaysCount * ratePerDisplay * 100) / 100;
+  const totalPoints = Math.round((currentBalance + pointsEarned) * 100) / 100;
+  return {
+    canRedeem: totalPoints >= pointsRequired,
+    pointsEarned,
+    totalPoints,
+  };
 }
 
 /**

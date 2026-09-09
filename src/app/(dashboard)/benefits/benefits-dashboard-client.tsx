@@ -39,7 +39,13 @@ import {
   updateCompanyCashierPinAction,
   revokeCashierDeviceAction
 } from '@/app/actions/cashier-portal';
-import { calculatePromotionalContribution, formatAllowedWeekdays, calculateNetPointsRequired, calculateResidentialDeliveryTarget } from '@/lib/mpm/organic-benefits';
+import {
+  calculatePromotionalContribution,
+  formatAllowedWeekdays,
+  calculateNetPointsRequired,
+  calculateResidentialDeliveryTarget,
+  calculateResidentialDisplaysNeeded
+} from '@/lib/mpm/organic-benefits';
 
 const money = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
@@ -845,14 +851,19 @@ export function BenefitsDashboardClient({
 
                 <div className="flex items-center justify-between">
                   <span className="text-slate-400">Pontos Necessários Sem Bônus</span>
-                  <span className="font-mono text-slate-300">{preview.suggestedPoints} pontos</span>
+                  <div className="text-right">
+                    <span className="font-mono text-slate-300 block">{preview.suggestedPoints} pontos</span>
+                    <span className="text-[10px] text-slate-500 font-mono">
+                      {calculateResidentialDisplaysNeeded(preview.suggestedPoints, 0.05).toLocaleString('pt-BR')} exibições
+                    </span>
+                  </div>
                 </div>
 
                 <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
                   <div>
                     <span className="text-emerald-300 font-bold block">Pontos que o Participante Precisará</span>
                     <span className="text-[10px] text-emerald-400/80">
-                      {form.bonusPercentage > 0 ? `Economia promocional de ${form.bonusPercentage}%` : 'Pontuação padrão'}
+                      {form.bonusPercentage > 0 ? `Economia promocional de ${form.bonusPercentage}% (${calculateResidentialDisplaysNeeded(forecast.netPoints, 0.05)} exibições)` : 'Pontuação padrão'}
                     </span>
                   </div>
                   <strong className="font-mono text-xl font-black text-emerald-300">
@@ -1603,15 +1614,55 @@ export function BenefitsDashboardClient({
               </button>
             </div>
 
-            <div className="space-y-4 text-xs text-slate-300 leading-relaxed">
-              <p>
-                O valor dos produtos ou serviços disponibilizados gera um <strong>direito de divulgação</strong> na Rede MPM.
-              </p>
-              <p>
-                A referência comercial vigente é de <strong>2.000 inserções comerciais ≈ R$ 500,00</strong>, o que equivale a <strong>R$ 0,25 por unidade de exibição comercial equivalente</strong> (ou 4 unidades por R$ 1,00).
-              </p>
+            <div className="space-y-4 text-xs text-slate-300 leading-relaxed max-h-[75vh] overflow-y-auto pr-1">
+              {/* 1. Pontos do Participante */}
+              <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <strong className="text-emerald-200 text-sm font-bold">1. Pontos da Rede & Exibições do Participante:</strong>
+                  <span className="rounded-full bg-emerald-500/20 px-2 py-0.5 text-[10px] font-bold text-emerald-300 font-mono">0,05 pt / exibição</span>
+                </div>
+                <p>
+                  O valor anunciado é convertido em pontos base (R$ 1,00 = 1 ponto, arredondado). Para um produto de <strong>R$ 79,90</strong>, o requisito base é de <strong>80 pontos</strong>.
+                </p>
+                <div className="rounded-xl bg-slate-950/80 p-3 space-y-1.5 font-mono text-[11px]">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Sem Bônus (80 pontos):</span>
+                    <strong className="text-emerald-400">80 ÷ 0,05 = 1.600 Exibições Validadas</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-300 border-t border-slate-800 pt-1.5">
+                    <span>Com Bônus de 95% (4 pontos):</span>
+                    <strong className="text-emerald-300">4 ÷ 0,05 = 80 Exibições Validadas</strong>
+                  </div>
+                </div>
+                <p className="text-[11px] text-emerald-300/80">
+                  ⚠️ <strong>Regra de liberação:</strong> 1.599 exibições acumulam 79,95 pontos e <em>ainda não liberam</em> o prêmio. A liberação ocorre exatamente na 1.600ª exibição ao completar 80 pontos.
+                </p>
+              </div>
+
+              {/* 2. Divulgação da Empresa */}
+              <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-4 space-y-2.5">
+                <div className="flex items-center justify-between">
+                  <strong className="text-purple-200 text-sm font-bold">2. Divulgação Gerada para a Empresa:</strong>
+                  <span className="rounded-full bg-purple-500/20 px-2 py-0.5 text-[10px] font-bold text-purple-300 font-mono">Independente</span>
+                </div>
+                <p>
+                  A contribuição promocional total (ex.: 10 unidades × R$ 79,90 = <strong>R$ 799,00</strong>) gera direitos de divulgação proporcionais na Rede MPM:
+                </p>
+                <div className="rounded-xl bg-slate-950/80 p-3 space-y-1.5 font-mono text-[11px]">
+                  <div className="flex justify-between text-slate-300">
+                    <span>Inserções Comerciais Equivalentes:</span>
+                    <strong className="text-purple-300">R$ 799 ÷ R$ 0,25 = 3.196 unidades</strong>
+                  </div>
+                  <div className="flex justify-between text-slate-300 border-t border-slate-800 pt-1.5">
+                    <span>Rede Residencial (Ref. R$ 0,05):</span>
+                    <strong className="text-cyan-400">R$ 799 ÷ R$ 0,05 = 15.980 exibições</strong>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Pesos Históricos */}
               <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2.5">
-                <strong className="text-white block text-sm font-bold">Pesos Oficiais por Tipo de Tela:</strong>
+                <strong className="text-white block text-sm font-bold">Pesos Oficiais por Tipo de Tela Comercial:</strong>
                 <div className="flex justify-between items-center py-1 border-b border-slate-800/60">
                   <span className="text-slate-300 font-medium">📺 TV Comercial</span>
                   <span className="font-mono text-emerald-400 font-bold">peso 1,00 <span className="text-slate-500 font-normal">(1 exibição = 1 unidade)</span></span>
@@ -1626,7 +1677,7 @@ export function BenefitsDashboardClient({
                 </div>
               </div>
               <p className="text-[11px] text-slate-400">
-                A quantidade efetiva de exibições depende da disponibilidade de inventário e dos tipos de telas onde sua campanha for veiculada. Este direito é consumido exclusivamente por Proof of Play validado e não gera saldo financeiro em dinheiro ou Crédito MPM.
+                A quantidade efetiva de exibições depende da disponibilidade de inventário. Este direito é consumido exclusivamente por Exibições Validadas auditadas via Proof of Play e não gera saldo em dinheiro nem Crédito MPM.
               </p>
             </div>
 

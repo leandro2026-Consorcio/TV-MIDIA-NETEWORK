@@ -6,6 +6,7 @@ import {
   calculatePromotionalContribution,
   calculateNetPointsRequired,
   calculateResidentialDisplaysNeeded,
+  canRedeemWithDisplays,
   calculateResidentialDeliveryTarget,
   isPlaybackEligibleForPoints,
   filterPrivacyAggregatedResidential,
@@ -27,12 +28,22 @@ test('1. Exemplo Obrigatório: Rodízio R$ 79,90 com 10 unidades em estoque', ()
   assert.equal(contrib.suggestedPoints, 80, 'Mesmo com 10 unidades em estoque, a meta individual continua 80 pontos e não 800');
   assert.equal(contrib.promotionalValue, 799.0, 'Valor promocional total da empresa = R$ 799,00');
 
-  // Sem bônus, à taxa de 0,05 ponto por exibição validada residencial:
-  const displaysByUnitValue = calculateResidentialDisplaysNeeded(79.9, 0.05);
-  assert.equal(displaysByUnitValue, 1598, '79,90 / 0,05 deve resultar em aproximadamente 1.598 exibições validadas');
+  // Padronização: 80 pontos / 0,05 = 1.600 exibições validadas (elimina 1.598)
+  const displaysNeeded = calculateResidentialDisplaysNeeded(basePoints, 0.05);
+  assert.equal(displaysNeeded, 1600, '80 pontos / 0,05 deve resultar exatamente em 1.600 exibições validadas');
 
-  const displaysByBasePoints = Math.round(basePoints / 0.05);
-  assert.equal(displaysByBasePoints, 1600, '80 pontos / 0,05 resulta em 1.600 exibições validadas');
+  const displaysByFloat = calculateResidentialDisplaysNeeded(79.9, 0.05);
+  assert.equal(displaysByFloat, 1600, 'Mesmo passando float 79,90, deve padronizar em 1.600 exibições validadas');
+
+  // Teste obrigatório: 1.599 exibições * 0,05 = 79,95 pontos -> ainda NÃO libera
+  const check1599 = canRedeemWithDisplays(1599, basePoints, 0.05, 0);
+  assert.equal(check1599.pointsEarned, 79.95);
+  assert.equal(check1599.canRedeem, false, '1.599 exibições geram 79,95 pontos e ainda NÃO liberam o resgate de 80 pontos');
+
+  // 1.600ª exibição -> 80,00 pontos -> libera prêmio
+  const check1600 = canRedeemWithDisplays(1600, basePoints, 0.05, 0);
+  assert.equal(check1600.pointsEarned, 80.0);
+  assert.equal(check1600.canRedeem, true, '1.600ª exibição completa 80 pontos e libera o prêmio com sucesso');
 });
 
 test('2. Bônus de 95% da Empresa: Requisito líquido de 4 pontos e preservação de saldo', () => {
@@ -49,6 +60,19 @@ test('2. Bônus de 95% da Empresa: Requisito líquido de 4 pontos e preservaçã
   assert.equal(totalBonusApplied, 95, 'Bônus aplicado deve ser 95%');
   assert.equal(netPoints, 4, '80 pontos com 95% de bônus exige estritamente 4 pontos da rede');
   assert.equal(promoDiscountPoints, 76, '76 pontos foram subsidiados como bônus da empresa');
+
+  // Requisito líquido de exibições validadas com 95% de bônus: 4 / 0,05 = 80 exibições
+  const displaysWithBonus = calculateResidentialDisplaysNeeded(netPoints, 0.05);
+  assert.equal(displaysWithBonus, 80, '4 pontos / 0,05 = 80 Exibições Validadas necessárias');
+
+  // Teste de liberação com bônus: 79 exibições (3,95 pts) não liberam; 80 exibições (4,00 pts) liberam
+  const check79 = canRedeemWithDisplays(79, netPoints, 0.05, 0);
+  assert.equal(check79.pointsEarned, 3.95);
+  assert.equal(check79.canRedeem, false, '79 exibições geram 3,95 pontos e não liberam meta líquida de 4 pontos');
+
+  const check80 = canRedeemWithDisplays(80, netPoints, 0.05, 0);
+  assert.equal(check80.pointsEarned, 4.0);
+  assert.equal(check80.canRedeem, true, '80 exibições completam 4 pontos e liberam o prêmio');
 
   // Participante possui 30 Pontos da Rede
   const participantBalance = 30;

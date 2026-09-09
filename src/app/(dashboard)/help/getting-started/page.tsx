@@ -10,6 +10,7 @@ const labels: Record<string, string> = {
   leader: 'Líder',
   support: 'Suporte',
   master: 'Master',
+  organic: 'Rede Orgânica & Participantes',
 };
 
 export default async function GettingStartedHelpPage() {
