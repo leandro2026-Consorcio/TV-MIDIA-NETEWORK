@@ -288,10 +288,10 @@ export function GettingStartedChecklist({ context }: { context: ChecklistContext
 
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           <ExplorationCard
-            title="Conteúdo de Respiro & RSS"
-            description="Exiba notícias, previsão do tempo e vídeos de entretenimento quando não houver anúncios ativos."
+            title="Conteúdo Informativo"
+            description="Personalize notícias, previsão do tempo e curiosidades exibidas entre as propagandas das suas TVs."
             icon={Newspaper}
-            href="/admin/content-sources"
+            href="/company/content-sources"
           />
 
           <ExplorationCard
@@ -302,8 +302,8 @@ export function GettingStartedChecklist({ context }: { context: ChecklistContext
           />
 
           <ExplorationCard
-            title="Campanhas Internas"
-            description="Crie campanhas segmentadas com agendamento e horários específicos por exibidor."
+            title="Minhas Campanhas"
+            description="Crie campanhas para divulgar produtos e promoções nas TVs da sua empresa."
             icon={Megaphone}
             href="/campaigns"
           />
@@ -317,7 +317,7 @@ export function GettingStartedChecklist({ context }: { context: ChecklistContext
 
           <ExplorationCard
             title="Convites VIP"
-            description="Compartilhe seus convites com empresas parceiras para liberar 60 dias de trial."
+            description="Compartilhe convites com empresas parceiras e ganhe mensalidades quando elas se tornarem clientes."
             icon={Gift}
             href="/company/invites"
           />

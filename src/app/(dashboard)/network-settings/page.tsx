@@ -49,7 +49,7 @@ export default function NetworkSettingsPage() {
         setBlockedSegments(prefs.blocked_segments || []);
         setNotes(prefs.notes || '');
 
-        setParticipatesInNetwork(prefs.participates_in_network !== false);
+        setParticipatesInNetwork(prefs.accepts_network_ads !== false);
         setShowCompanyName(prefs.show_company_name !== false);
         setShowCity(prefs.show_city !== false);
         setShowSegment(prefs.show_segment !== false);
@@ -122,20 +122,13 @@ export default function NetworkSettingsPage() {
     setSuccess(null);
 
     const res = await updateCompanyNetworkPreferencesAction(selectedCompanyId, {
-      accepts_network_ads: acceptsNetworkAds,
-      max_external_grade_percentage: parseFloat(maxGradePercent),
+      accepts_network_ads: participatesInNetwork && acceptsNetworkAds,
+      max_external_grade_percentage: parseFloat(maxGradePercent) || 10,
       requires_manual_approval: requiresManualApproval,
       blocked_companies: blockedCompanies,
       blocked_segments: blockedSegments,
       notes: notes || null,
-      participates_in_network: participatesInNetwork,
-      show_company_name: showCompanyName,
-      show_city: showCity,
-      show_segment: showSegment,
-      show_whatsapp: showWhatsapp,
-      public_whatsapp: publicWhatsapp || null,
-      public_description: publicDescription || null,
-    } as any);
+    });
 
     if (!res.success) {
       setError(res.error || 'Erro ao salvar preferências da rede.');

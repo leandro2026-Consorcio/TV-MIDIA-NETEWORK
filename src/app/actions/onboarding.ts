@@ -283,11 +283,7 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
     await (admin.from('company_network_preferences') as any)
       .upsert({
         company_id: createdCompanyId,
-        participates_in_network: participates,
-        show_company_name: true,
-        show_city: true,
-        show_segment: true,
-        show_whatsapp: false,
+        accepts_network_ads: participates,
       }, { onConflict: 'company_id' });
   }
 
@@ -341,9 +337,9 @@ export async function getOnboardingContextAction() {
   if (!link) return { success: true as const, hasCompany: false, isMaster: !!profile?.is_master_admin };
 
   const companyId = link.company_id;
-  const [{ data: trial }, { data: invites }, screenResult, pairedScreenResult, mediaResult, playlistResult, playbackResult] = await Promise.all([
+  const admin = createAdminClient();
+  const [{ data: trial }, screenResult, pairedScreenResult, mediaResult, playlistResult, playbackResult] = await Promise.all([
     (supabase.from('company_trials') as any).select('*').eq('company_id', companyId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
-    (supabase.from('referral_invites') as any).select('*').eq('inviter_company_id', companyId).order('created_at'),
     (supabase.from('screens') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId),
     (supabase.from('screens') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId).not('paired_at', 'is', null),
     (supabase.from('media_assets') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId),
@@ -351,7 +347,21 @@ export async function getOnboardingContextAction() {
     (supabase.from('playback_logs') as any).select('*', { count: 'exact', head: true }).eq('company_id', companyId).in('status', ['started', 'completed']),
   ]);
 
-  const admin = createAdminClient();
+  // Garantir pelo menos 3 convites VIP disponíveis para a empresa
+  const invites = await ensureCompanyVipInvites(admin, companyId, user.id);
+
+  const { data: platformSettingsRows } = await (admin.from('platform_settings') as any)
+    .select('key, value')
+    .in('key', [
+      'vip_invite_message_template',
+      'vip_invite_referred_benefit',
+      'vip_invite_referrer_reward',
+    ]);
+  const pRows = platformSettingsRows || [];
+  const messageTemplate = readSetting(pRows, 'vip_invite_message_template', 'Olá! Quero te convidar para conhecer o Mídia por Mídia, uma rede que transforma TVs comerciais em mídia compartilhada e ajuda empresas a divulgar seus negócios em vários pontos da cidade.\n\nUse meu convite para conhecer a plataforma:\n{{link}}');
+  const referredBenefit = readSetting(pRows, 'vip_invite_referred_benefit', { type: 'none', value: 0 });
+  const referrerReward = readSetting(pRows, 'vip_invite_referrer_reward', { type: 'monthly_fee', quantity: 1 });
+
   await (admin.from('company_onboarding_progress') as any)
     .upsert({ company_id: companyId }, { onConflict: 'company_id', ignoreDuplicates: true });
 
@@ -392,6 +402,11 @@ export async function getOnboardingContextAction() {
     role: link.role,
     trial: trial ? { ...trial, status: effectiveStatus, daysRemaining } : null,
     invites: invites || [],
+    vipConfig: {
+      messageTemplate,
+      referredBenefit,
+      referrerReward,
+    },
     progress,
     checklist: {
       screen: (screenResult.count || 0) > 0,
@@ -402,6 +417,51 @@ export async function getOnboardingContextAction() {
       inviteCopied: !!progress?.first_invite_copied_at,
     },
   };
+}
+
+async function ensureCompanyVipInvites(admin: any, companyId: string, userId?: string) {
+  try {
+    const { data: existing } = await (admin.from('referral_invites') as any)
+      .select('*')
+      .eq('inviter_company_id', companyId)
+      .in('status', ['created', 'available', 'sent']);
+
+    const activeCount = existing?.length || 0;
+    const needed = Math.max(0, 3 - activeCount);
+
+    if (needed > 0) {
+      const toInsert = [];
+      for (let i = 0; i < needed; i++) {
+        const randA = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const randB = Math.random().toString(36).substring(2, 6).toUpperCase();
+        toInsert.push({
+          inviter_company_id: companyId,
+          invited_company_name: 'Empresa Parceira',
+          invite_code: `VIP-${randA}-${randB}`,
+          trial_days: 0,
+          trial_days_granted: 0,
+          status: 'available',
+          created_by: userId || null,
+          metadata: {
+            referrer_reward: '1_mensalidade',
+            benefit: 'none',
+            provisioned_by: 'vip_minimum_policy',
+          },
+        });
+      }
+      await (admin.from('referral_invites') as any).insert(toInsert);
+    }
+
+    const { data: allInvites } = await (admin.from('referral_invites') as any)
+      .select('*')
+      .eq('inviter_company_id', companyId)
+      .order('created_at');
+
+    return allInvites || [];
+  } catch (err) {
+    console.error('Erro ao assegurar convites VIP mínimos:', err);
+    return [];
+  }
 }
 
 export async function markOnboardingEventAction(event: OnboardingTourEvent) {

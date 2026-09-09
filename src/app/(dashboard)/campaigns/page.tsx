@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Campaign } from '@/types';
-import { Megaphone, Plus, Eye, CheckCircle2, Clock, PauseCircle, Archive, AlertCircle, Loader2 } from 'lucide-react';
+import { Megaphone, Plus, Eye, CheckCircle2, Clock, PauseCircle, Archive, AlertCircle, Loader2, Store, ArrowRight } from 'lucide-react';
 
 export default function CampaignsPage() {
   const [campaigns, setCampaigns] = useState<(Campaign & { media_count?: number; screens_count?: number })[]>([]);
@@ -79,9 +79,9 @@ export default function CampaignsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-slate-800 pb-5">
         <div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Campanhas Internas</h1>
+          <h1 className="text-2xl font-bold text-white tracking-tight">Minhas Campanhas</h1>
           <p className="text-slate-400 text-sm mt-1">
-            Organize metas de exibição comerciais, vincule mídias aprovadas e acompanhe relatórios de entrega.
+            Organize campanhas para divulgar produtos e promoções nas TVs da sua empresa, ou anuncie em outras telas da rede.
           </p>
         </div>
 
@@ -90,6 +90,28 @@ export default function CampaignsPage() {
           className="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition flex items-center gap-2 shadow-lg shadow-sky-500/20"
         >
           <Plus className="w-4 h-4" /> Criar Nova Campanha
+        </Link>
+      </div>
+
+      {/* Card Marketplace */}
+      <div className="bg-gradient-to-r from-sky-950/40 via-slate-900 to-slate-900 border border-sky-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20 shrink-0">
+            <Store className="w-5 h-5" />
+          </div>
+          <div>
+            <strong className="text-white text-sm font-bold block">Quer anunciar em outras TVs?</strong>
+            <p className="text-xs text-slate-300 mt-0.5">
+              Encontre TVs parceiras no Marketplace e amplie o alcance dos seus anúncios para novos clientes em outros locais da cidade.
+            </p>
+          </div>
+        </div>
+
+        <Link
+          href="/marketplace"
+          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs transition shadow-md shadow-sky-500/20 shrink-0"
+        >
+          ENCONTRAR TVs NO MARKETPLACE <ArrowRight className="w-3.5 h-3.5" />
         </Link>
       </div>
 

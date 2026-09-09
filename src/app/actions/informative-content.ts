@@ -337,24 +337,48 @@ export async function saveScreenContentSettingsAction(input: ScreenContentSettin
   const categories = [...new Set((input.allowedCategories || [])
     .map((category) => sanitizeRssText(category, 80))
     .filter(Boolean))];
-  const { data, error } = await (supabase.from('screen_content_settings') as any)
-    .upsert({
-      company_id: screen.company_id,
-      screen_id: screen.id,
-      enable_breathing_content: input.enableBreathingContent,
-      enable_manual_content: input.enableManualContent,
-      enable_rss_content: input.enableRssContent,
-      ads_between_content: interval,
-      content_mix_mode: mixMode,
-      mix_interval: interval,
-      content_duration_seconds: Math.min(15, Math.max(8, Number(input.contentDurationSeconds || 10))),
-      allowed_categories: categories.length ? categories : null,
-      fallback_to_ads: input.fallbackToAds,
-      is_active: true,
-    }, { onConflict: 'screen_id' })
+  const upsertPayload: any = {
+    company_id: screen.company_id,
+    screen_id: screen.id,
+    enable_breathing_content: input.enableBreathingContent,
+    enable_manual_content: input.enableManualContent,
+    enable_rss_content: input.enableRssContent,
+    ads_between_content: interval,
+    content_mix_mode: mixMode,
+    mix_interval: interval,
+    content_duration_seconds: Math.min(15, Math.max(8, Number(input.contentDurationSeconds || 10))),
+    allowed_categories: categories.length ? categories : null,
+    fallback_to_ads: input.fallbackToAds,
+    is_active: true,
+  };
+
+  let { data, error } = await (supabase.from('screen_content_settings') as any)
+    .upsert(upsertPayload, { onConflict: 'screen_id' })
     .select('*')
     .single();
+
+  if (error && error.message?.includes('screen_content_settings_ads_between_content_check')) {
+    upsertPayload.ads_between_content = Math.max(3, Math.min(5, interval));
+    const retry = await (supabase.from('screen_content_settings') as any)
+      .upsert(upsertPayload, { onConflict: 'screen_id' })
+      .select('*')
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
   if (error) return { success: false, error: error.message };
   revalidatePath(`/screens/${screen.id}/content-settings`);
-  return { success: true, settings: data, error: null };
+  return {
+    success: true,
+    settings: data,
+    summary: {
+      mixMode,
+      interval,
+      durationSeconds: Math.min(15, Math.max(8, Number(input.contentDurationSeconds || 10))),
+      categoriesCount: categories.length,
+      categories,
+    },
+    error: null,
+  };
 }

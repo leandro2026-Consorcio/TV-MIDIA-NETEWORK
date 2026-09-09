@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Profile, Company } from '@/types';
 import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/header';
+import { OnboardingProgressBar } from '@/components/onboarding-progress-bar';
 import { Loader2, ShieldAlert } from 'lucide-react';
 
 export default function DashboardLayout({
@@ -107,7 +108,22 @@ export default function DashboardLayout({
               setIsTrial(hasTrial);
 
               if (hasTrial) {
-                const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans', '/help/getting-started', '/benefits', '/reset-password'];
+                const allowedTrialRoutes = [
+                  '/dashboard',
+                  '/screens',
+                  '/media',
+                  '/playlists',
+                  '/campaigns',
+                  '/company/invites',
+                  '/company/content-sources',
+                  '/network-settings',
+                  '/playback-logs',
+                  '/onboarding',
+                  '/plans',
+                  '/help/getting-started',
+                  '/benefits',
+                  '/reset-password',
+                ];
                 const isAllowed = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
                 if (!isAllowed) router.replace('/dashboard');
               }
@@ -184,6 +200,7 @@ export default function DashboardLayout({
         />
 
         <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
+          <OnboardingProgressBar />
           {mustChangePassword && !dismissPasswordAlert && pathname !== '/reset-password' && (
             <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
               <div className="flex items-start gap-3">

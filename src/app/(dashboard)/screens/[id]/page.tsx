@@ -20,7 +20,11 @@ import {
   ListVideo, 
   XCircle,
   Download,
-  Monitor
+  Monitor,
+  Sparkles,
+  HelpCircle,
+  X,
+  ChevronRight
 } from 'lucide-react';
 
 export default function ScreenDetailPage() {
@@ -53,6 +57,8 @@ export default function ScreenDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+  const [showTour, setShowTour] = useState(false);
+  const [tourStep, setTourStep] = useState(0);
 
   const router = useRouter();
   const supabase = createClient();
@@ -325,22 +331,60 @@ export default function ScreenDetailPage() {
 
           {isAdminOrMaster && screen.status !== 'inactive' && (
             <div className="flex items-center gap-2">
-            <Link href={`/screens/${screenId}/inventory`} className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition">
-              Inventário e Capacidade
-            </Link>
-            <Link href={`/screens/${screenId}/content-settings`} className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-400 border border-sky-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition">
-              Conteúdo de Respiro
-            </Link>
-            <button
-              onClick={handleDeactivate}
-              disabled={deactivating}
-              className="bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 font-semibold px-4 py-2 rounded-xl text-xs transition flex items-center gap-2"
-            >
-              {deactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
-              Desativar Tela
-            </button>
+              <Link href={`/screens/${screenId}/inventory`} className="bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 font-semibold px-3.5 py-2 rounded-xl text-xs transition">
+                Participação na Rede
+              </Link>
+              <Link href={`/screens/${screenId}/content-settings`} className="bg-sky-500/10 hover:bg-sky-500/20 text-sky-300 border border-sky-500/30 font-semibold px-3.5 py-2 rounded-xl text-xs transition">
+                Conteúdo entre propagandas
+              </Link>
+            </div>
+          )}
+      </div>
+
+      {/* Banner Orientador: Configure como esta TV vai funcionar */}
+      <div className="rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-500/10 via-purple-500/10 to-slate-900 p-6 shadow-xl">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/20 px-3 py-1 text-xs font-bold text-sky-300 border border-sky-500/30">
+              <Sparkles className="h-3.5 w-3.5" /> Configuração Guiada da TV
+            </span>
+            <h2 className="text-xl font-extrabold text-white mt-2">Configure como esta TV vai funcionar</h2>
+            <p className="text-sm text-slate-300 mt-1 max-w-2xl">
+              Aqui você define o que a TV exibe, como participa da Rede MPM e quais conteúdos aparecem entre as propagandas.
+            </p>
           </div>
-        )}
+          <button
+            type="button"
+            onClick={() => { setShowTour(true); setTourStep(0); }}
+            className="self-start sm:self-center px-4 py-2 bg-sky-500/20 hover:bg-sky-500/30 border border-sky-500/40 text-sky-200 text-xs font-bold rounded-xl transition flex items-center gap-2"
+          >
+            <HelpCircle className="h-4 w-4" /> Entender como funciona
+          </button>
+        </div>
+
+        {/* Sub-passos da TV */}
+        <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 border-t border-slate-800/80">
+          <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
+            <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Passo 1 de 4</span>
+            <strong className="text-white text-xs block mt-0.5">Programação (Playlist)</strong>
+            <span className="text-[11px] text-slate-400 mt-1 block">{assignedPlaylist ? '✅ Definida' : 'Pendente'}</span>
+          </div>
+          <Link href={`/screens/${screenId}/inventory`} className="rounded-xl border border-slate-800 bg-slate-950 p-3 hover:border-purple-500/30 transition block">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Passo 2 de 4</span>
+            <strong className="text-white text-xs block mt-0.5">Participação na Rede</strong>
+            <span className="text-[11px] text-sky-400 mt-1 block">Configurar espaço →</span>
+          </Link>
+          <Link href={`/screens/${screenId}/content-settings`} className="rounded-xl border border-slate-800 bg-slate-950 p-3 hover:border-sky-500/30 transition block">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Passo 3 de 4</span>
+            <strong className="text-white text-xs block mt-0.5">Entre Propagandas</strong>
+            <span className="text-[11px] text-sky-400 mt-1 block">Notícias e respiro →</span>
+          </Link>
+          <div className="rounded-xl border border-slate-800 bg-slate-950 p-3">
+            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Passo 4 de 4</span>
+            <strong className="text-white text-xs block mt-0.5">Revisar e Ligar</strong>
+            <span className="text-[11px] text-emerald-400 mt-1 block">Pronto no player</span>
+          </div>
+        </div>
       </div>
 
       {/* Caixa de Atribuição de Playlist */}
@@ -603,6 +647,147 @@ export default function ScreenDetailPage() {
           )}
         </form>
       </div>
+
+      {/* Zona de Ações Secundárias / Perigo: Desativação */}
+      {isAdminOrMaster && screen.status !== 'inactive' && (
+        <section className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <h3 className="text-sm font-bold text-rose-300">Desativação da Tela</h3>
+              <p className="text-xs text-slate-400 mt-1 max-w-xl">
+                Use esta opção somente se esta TV deixar de fazer parte da sua operação. O pareamento do dispositivo será revogado.
+              </p>
+            </div>
+            <button
+              onClick={handleDeactivate}
+              disabled={deactivating}
+              className="self-start sm:self-center bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/30 font-semibold px-4 py-2.5 rounded-xl text-xs transition flex items-center gap-2 disabled:opacity-50"
+            >
+              {deactivating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Power className="w-4 h-4" />}
+              Desativar Tela
+            </button>
+          </div>
+        </section>
+      )}
+
+      {/* Modal do Tour Guiado: Apresentação das Áreas da TV */}
+      {showTour && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 sm:p-8 shadow-2xl space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+              <div className="flex items-center gap-2">
+                <span className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
+                  <Sparkles className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-base font-extrabold text-white">Como esta TV funciona</h3>
+                  <p className="text-xs text-slate-400">Passo {tourStep + 1} de 4</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowTour(false)}
+                className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {tourStep === 0 && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-purple-500/30 bg-purple-500/10 p-5">
+                  <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">1. Programação da TV</span>
+                  <h4 className="text-lg font-bold text-white mt-1">Playlist Atribuída</h4>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    A playlist é a programação principal da sua TV. Nela ficam seus vídeos, imagens e conteúdos próprios. É aqui que você escolhe qual grade de anúncios vai rodar continuamente na sua tela.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setTourStep(1)}
+                  className="w-full py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20"
+                >
+                  Entendi, continuar <ChevronRight className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            {tourStep === 1 && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-sky-500/30 bg-sky-500/10 p-5">
+                  <span className="text-[10px] font-bold text-sky-300 uppercase tracking-wider block">2. Espaço e Capacidade</span>
+                  <h4 className="text-lg font-bold text-white mt-1">Participação na Rede MPM</h4>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Aqui você define quanto espaço desta TV pode ser utilizado por sua empresa, parceiros e pela Rede MPM. Você decide se quer receber anúncios parceiros e escolhe empresas preferenciais para anunciar no seu local.
+                  </p>
+                  <p className="text-[11px] text-sky-200/70 mt-2">
+                    💡 Disponibilizar capacidade não gera Crédito MPM automaticamente.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setTourStep(0)}
+                    className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    onClick={() => setTourStep(2)}
+                    className="w-2/3 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20"
+                  >
+                    Continuar <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {tourStep === 2 && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5">
+                  <span className="text-[10px] font-bold text-emerald-300 uppercase tracking-wider block">3. Dinamismo</span>
+                  <h4 className="text-lg font-bold text-white mt-1">Conteúdo entre propagandas</h4>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Conteúdos informativos são notícias, curiosidades, frases e previsões exibidas entre as propagandas para deixar a programação mais interessante para o seu público.
+                  </p>
+                  <p className="text-[11px] text-emerald-300/80 mt-2 font-medium">
+                    ✨ Eles não consomem seus Créditos MPM e enriquecem o ambiente da sua loja.
+                  </p>
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setTourStep(1)}
+                    className="w-1/3 py-3 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold rounded-xl text-xs transition"
+                  >
+                    Voltar
+                  </button>
+                  <button
+                    onClick={() => setTourStep(3)}
+                    className="w-2/3 py-3 bg-sky-500 hover:bg-sky-600 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-sky-500/20"
+                  >
+                    Continuar <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {tourStep === 3 && (
+              <div className="space-y-4">
+                <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-5">
+                  <span className="text-[10px] font-bold text-rose-300 uppercase tracking-wider block">4. Manutenção</span>
+                  <h4 className="text-lg font-bold text-white mt-1">Desativar Tela</h4>
+                  <p className="text-xs text-slate-300 mt-2 leading-relaxed">
+                    Use esta opção somente se esta TV deixar de fazer parte da sua operação. Ela fica protegida no rodapé da página para evitar desativações acidentais.
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowTour(false)}
+                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-600 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-500/20"
+                >
+                  Tudo pronto! Começar configuração
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

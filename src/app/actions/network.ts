@@ -242,13 +242,7 @@ export async function getPublicNetworkCompaniesAction(filters?: {
     const { data, error } = await (supabase.from('company_network_preferences') as any)
       .select(`
         company_id,
-        participates_in_network,
-        show_company_name,
-        show_city,
-        show_segment,
-        show_whatsapp,
-        public_whatsapp,
-        public_description,
+        accepts_network_ads,
         companies!inner(
           id,
           trade_name,
@@ -260,7 +254,7 @@ export async function getPublicNetworkCompaniesAction(filters?: {
           )
         )
       `)
-      .eq('participates_in_network', true);
+      .eq('accepts_network_ads', true);
 
     if (error) throw error;
 
@@ -269,13 +263,13 @@ export async function getPublicNetworkCompaniesAction(filters?: {
       const primarySeg = comp?.company_segments?.find((cs: any) => cs.is_primary)?.segments || comp?.company_segments?.[0]?.segments;
       return {
         companyId: row.company_id,
-        tradeName: row.show_company_name !== false ? (comp?.trade_name || 'Empresa Participante') : 'Empresa Participante',
-        city: row.show_city !== false ? comp?.city : null,
-        state: row.show_city !== false ? comp?.state : null,
+        tradeName: comp?.trade_name || 'Empresa Participante',
+        city: comp?.city || null,
+        state: comp?.state || null,
         segmentId: primarySeg?.id || null,
-        segmentName: row.show_segment !== false ? (primarySeg?.name || null) : null,
-        publicWhatsapp: row.show_whatsapp ? row.public_whatsapp : null,
-        publicDescription: row.public_description || null,
+        segmentName: primarySeg?.name || null,
+        publicWhatsapp: null,
+        publicDescription: null,
       };
     });
 

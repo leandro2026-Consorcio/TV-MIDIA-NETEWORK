@@ -295,7 +295,16 @@ export function Sidebar({
       title: 'MENU EMPRESA',
       items: [
         { name: 'Início', href: '/dashboard', icon: LayoutDashboard },
-        { name: 'Minhas TVs', href: '/screens', icon: Tv },
+        {
+          name: 'Minhas TVs',
+          href: '/screens',
+          icon: Tv,
+          subItems: [
+            { name: 'Lista de TVs', href: '/screens' },
+            { name: 'Conteúdo Informativo', href: '/company/content-sources' },
+            { name: 'Preferências de Rede', href: '/network-settings' },
+          ]
+        },
         {
           name: 'Minha Mídia',
           href: '/media',
@@ -325,7 +334,8 @@ export function Sidebar({
             { name: 'Pedidos de Mídia', href: '/ad-offer-orders' },
           ]
         },
-        { name: 'Campanhas', href: '/campaigns', icon: Megaphone },
+        { name: 'Minhas Campanhas', href: '/campaigns', icon: Megaphone },
+        { name: 'Convites VIP', href: '/company/invites', icon: Gift },
         { name: 'Meu Plano', href: '/plans', icon: CreditCard },
         {
           name: 'Carteira & Créditos',

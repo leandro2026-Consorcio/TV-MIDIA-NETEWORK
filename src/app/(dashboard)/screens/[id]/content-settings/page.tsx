@@ -3,8 +3,24 @@
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import { ArrowLeft, CheckCircle2, Info, Loader2, Save, Sparkles, Tv, Megaphone, Newspaper, LayoutList } from 'lucide-react';
-import { getScreenContentSettingsAction, saveScreenContentSettingsAction } from '@/app/actions/informative-content';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CheckCircle2,
+  ExternalLink,
+  Info,
+  LayoutList,
+  Loader2,
+  Megaphone,
+  Newspaper,
+  Save,
+  Sparkles,
+  Tv,
+} from 'lucide-react';
+import {
+  getScreenContentSettingsAction,
+  saveScreenContentSettingsAction,
+} from '@/app/actions/informative-content';
 import { getContentCategoriesAction } from '@/app/actions/content-categories';
 
 export default function ScreenContentSettingsPage() {
@@ -14,7 +30,7 @@ export default function ScreenContentSettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
+  const [successData, setSuccessData] = useState<any>(null);
   const [enabled, setEnabled] = useState(false);
   const [manual, setManual] = useState(true);
   const [rss, setRss] = useState(true);
@@ -65,7 +81,7 @@ export default function ScreenContentSettingsPage() {
     event.preventDefault();
     setSaving(true);
     setError('');
-    setSuccess('');
+    setSuccessData(null);
 
     const result = await saveScreenContentSettingsAction({
       screenId,
@@ -83,7 +99,12 @@ export default function ScreenContentSettingsPage() {
     if (!result.success) {
       setError(result.error || 'Falha ao salvar configuração.');
     } else {
-      setSuccess('Configuração salva. A TV receberá a nova programação na próxima atualização.');
+      setSuccessData({
+        mixMode,
+        interval,
+        duration,
+        enabled,
+      });
     }
     setSaving(false);
   };
@@ -99,43 +120,102 @@ export default function ScreenContentSettingsPage() {
   // Gera a prévia da sequência visual
   const previewItems = [];
   if (mixMode === 'ads_first') {
-    for (let i = 0; i < interval; i++) previewItems.push({ type: 'ad', label: 'Propaganda' });
-    previewItems.push({ type: 'content', label: 'Notícia / Dica' });
+    for (let i = 1; i <= interval; i++) {
+      previewItems.push({ type: 'ad', label: `Propaganda ${i}` });
+    }
+    previewItems.push({ type: 'content', label: 'Notícia / Informação' });
   } else {
-    for (let i = 0; i < interval; i++) previewItems.push({ type: 'content', label: `Notícia ${i + 1}` });
+    for (let i = 1; i <= interval; i++) {
+      previewItems.push({ type: 'content', label: `Notícia ${i}` });
+    }
     previewItems.push({ type: 'ad', label: 'Propaganda' });
   }
 
   return (
-    <div className="mx-auto max-w-3xl space-y-6 pb-12">
-      <header className="flex items-center gap-4 border-b border-slate-800 pb-5">
-        <Link href={`/screens/${screenId}`} className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-slate-400 hover:text-white">
+    <div className="mx-auto max-w-4xl space-y-6 pb-12">
+      {/* Header com Navegação e Sub-passo */}
+      <div className="flex items-center gap-4">
+        <Link
+          href={`/screens/${screenId}`}
+          className="rounded-xl border border-slate-800 bg-slate-900 p-2 text-slate-400 hover:text-white transition"
+        >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-bold text-white">
-            <Sparkles className="h-6 w-6 text-sky-400" /> Conteúdo entre propagandas
-          </h1>
-          <p className="text-xs text-slate-400">
-            {screen?.name || 'TV'} • {screen?.companies?.trade_name}
+          <span className="text-xs font-bold text-sky-400 uppercase tracking-wider block">Passo 3 de 4</span>
+          <h1 className="text-2xl font-extrabold text-white">Conteúdo entre propagandas</h1>
+          <p className="text-sm text-slate-400 mt-0.5">
+            Deixe sua TV mais interessante intercalando notícias, curiosidades e informações entre os anúncios.
           </p>
         </div>
-      </header>
-
-      {error && <div className="rounded-xl border border-rose-500/20 bg-rose-500/10 p-4 text-sm text-rose-400">{error}</div>}
-      {success && <div className="flex gap-2 rounded-xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-400"><CheckCircle2 className="h-5 w-5" />{success}</div>}
-
-      <div className="flex gap-3 rounded-xl border border-sky-500/20 bg-sky-500/5 p-4 text-xs leading-relaxed text-sky-200">
-        <Info className="h-5 w-5 shrink-0" />
-        <p>Esses conteúdos aparecem entre suas propagandas para deixar a TV mais interessante. Eles não consomem créditos nem geram cobrança. Se nenhum item estiver disponível na categoria selecionada, a programação exibe apenas propagandas.</p>
       </div>
 
-      <form onSubmit={save} className="space-y-6 rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8">
+      {error && (
+        <div className="rounded-2xl border border-rose-500/30 bg-rose-500/10 p-4 text-sm text-rose-300">
+          {error}
+        </div>
+      )}
+
+      {/* Alerta de Sucesso com Resumo e Botão de Continuar Configuração */}
+      {successData && (
+        <div className="rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-sm text-emerald-200 space-y-4 shadow-xl">
+          <div className="flex items-center gap-2.5 font-bold text-emerald-300 text-base">
+            <CheckCircle2 className="h-6 w-6 text-emerald-400" />
+            ✅ Conteúdo entre propagandas configurado
+          </div>
+          <div className="p-4 rounded-xl bg-slate-950/70 border border-emerald-500/20 space-y-1.5 text-xs">
+            <p className="text-slate-200">
+              <strong>Alternância:</strong>{' '}
+              {successData.mixMode === 'ads_first'
+                ? `${successData.interval} propagandas → 1 conteúdo informativo`
+                : `${successData.interval} conteúdos informativos → 1 propaganda`}
+            </p>
+            <p className="text-slate-200">
+              <strong>Duração dos cards:</strong> {successData.duration} segundos
+            </p>
+            <p className="text-slate-400 text-[11px] pt-1">
+              {successData.enabled
+                ? 'A TV já atualizará a exibição na próxima sincronização.'
+                : 'Conteúdo informativo pausado para esta TV.'}
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <Link
+              href="/company/invites"
+              className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs transition shadow-lg shadow-emerald-500/20"
+            >
+              CONTINUAR CONFIGURAÇÃO (CONVITES VIP) <ArrowRight className="h-4 w-4" />
+            </Link>
+            <Link
+              href={`/screens/${screenId}`}
+              className="inline-flex items-center justify-center gap-2 px-4 py-3 bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold rounded-xl text-xs transition"
+            >
+              Voltar para a TV
+            </Link>
+          </div>
+        </div>
+      )}
+
+      {/* Card Educativo */}
+      <div className="flex items-start gap-3 rounded-2xl border border-sky-500/20 bg-sky-500/5 p-5 text-xs text-sky-200 leading-relaxed shadow-sm">
+        <Info className="h-5 w-5 shrink-0 text-sky-400 mt-0.5" />
+        <div className="space-y-1">
+          <p>
+            Esses conteúdos aparecem entre suas propagandas para deixar a TV mais dinâmica e atrativa.
+            Eles <strong>não consomem seus Créditos MPM</strong> nem geram qualquer cobrança adicional.
+          </p>
+          <p className="text-sky-300/80 text-[11px]">
+            Se nenhum item estiver disponível na categoria selecionada, a programação exibe normalmente apenas as propagandas.
+          </p>
+        </div>
+      </div>
+
+      <form onSubmit={save} className="space-y-6 rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-8 shadow-xl">
         {/* Ativação geral */}
-        <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 cursor-pointer">
+        <label className="flex items-center justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 cursor-pointer hover:border-slate-700 transition">
           <div>
             <strong className="block text-base text-white">Ativar conteúdo entre propagandas nesta TV</strong>
-            <span className="text-xs text-slate-400">Intercala cartões de notícias e curiosidades para manter a atenção do público.</span>
+            <span className="text-xs text-slate-400">Intercala notícias, curiosidades e dicas para prender a atenção do público no seu local.</span>
           </div>
           <input
             type="checkbox"
@@ -146,11 +226,20 @@ export default function ScreenContentSettingsPage() {
         </label>
 
         <div className={enabled ? 'space-y-6' : 'pointer-events-none space-y-6 opacity-40'}>
-          {/* Fontes de conteúdo */}
-          <div>
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-3">Fontes de conteúdo</label>
+          {/* Fontes de conteúdo & Link para Gerenciar Fontes */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">Fontes de conteúdo</label>
+              <Link
+                href="/company/content-sources"
+                className="text-xs font-semibold text-sky-400 hover:text-sky-300 flex items-center gap-1 transition"
+              >
+                Gerenciar fontes e RSS <ExternalLink className="w-3.5 h-3.5" />
+              </Link>
+            </div>
+
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 cursor-pointer">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 cursor-pointer hover:border-slate-700 transition">
                 <input
                   type="checkbox"
                   checked={manual}
@@ -160,24 +249,29 @@ export default function ScreenContentSettingsPage() {
                 <Megaphone className="h-4 w-4 text-sky-400" /> Conteúdos manuais aprovados
               </label>
 
-              <label className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 cursor-pointer">
+              <label className="flex items-center gap-3 rounded-xl border border-slate-800 bg-slate-950 p-4 text-sm text-slate-200 cursor-pointer hover:border-slate-700 transition">
                 <input
                   type="checkbox"
                   checked={rss}
                   onChange={(e) => setRss(e.target.checked)}
                   className="h-4 w-4 rounded border-slate-700 bg-slate-900"
                 />
-                <Newspaper className="h-4 w-4 text-purple-400" /> Notícias aprovadas
+                <Newspaper className="h-4 w-4 text-purple-400" /> Notícias de sites e portais
               </label>
             </div>
           </div>
 
-          {/* Categorias com Checkboxes visuais */}
-          <div>
-            <div className="flex items-center justify-between mb-3">
-              <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">Categorias permitidas</label>
-              <span className="text-xs text-slate-500">
-                {selectedSlugs.length === 0 ? 'Todas as categorias ativas' : `${selectedSlugs.length} selecionada(s)`}
+          {/* Categorias com Dica Contextual por Segmento */}
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">Categorias de Assunto</label>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Escolha somente assuntos que façam sentido para o público deste local (ex: Clínica: Saúde, Frases; Loja agro: Agronegócio, Economia).
+                </p>
+              </div>
+              <span className="text-xs text-slate-400 font-mono">
+                {selectedSlugs.length === 0 ? 'Todas ativas' : `${selectedSlugs.length} selecionada(s)`}
               </span>
             </div>
 
@@ -218,18 +312,12 @@ export default function ScreenContentSettingsPage() {
                   </label>
                 );
               })}
-
-              {officialCategories.length === 0 && (
-                <p className="col-span-full text-xs text-amber-300">
-                  Nenhuma categoria cadastrada. A opção “Todas as categorias” exibirá qualquer notícia ativa disponível.
-                </p>
-              )}
             </div>
           </div>
 
-          {/* Tipo de Programação (Modo de Revezamento) */}
+          {/* Tipo de Programação (Foco em Publicidade vs Foco em Informação) */}
           <div className="space-y-4 rounded-2xl border border-slate-800 bg-slate-950 p-5">
-            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">Tipo de programação</label>
+            <label className="block text-xs font-bold text-slate-300 uppercase tracking-wider">Objetivo da Programação</label>
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label
@@ -248,10 +336,10 @@ export default function ScreenContentSettingsPage() {
                     onChange={() => setMixMode('ads_first')}
                     className="h-4 w-4 text-sky-500"
                   />
-                  <strong className="text-sm font-bold text-white">Mais propagandas</strong>
+                  <strong className="text-sm font-bold text-white">Foco em publicidade</strong>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Exibe anúncios como conteúdo principal e intercala notícias/dicas entre eles.
+                  Exibe mais anúncios e usa conteúdos informativos apenas para dar variedade à programação.
                 </p>
               </label>
 
@@ -271,10 +359,10 @@ export default function ScreenContentSettingsPage() {
                     onChange={() => setMixMode('content_first')}
                     className="h-4 w-4 text-purple-500"
                   />
-                  <strong className="text-sm font-bold text-white">Mais conteúdos informativos</strong>
+                  <strong className="text-sm font-bold text-white">Foco em informação</strong>
                 </div>
                 <p className="text-xs text-slate-300 leading-relaxed">
-                  Exibe notícias/dicas como conteúdo principal e intercala propagandas entre eles.
+                  Exibe mais notícias e conteúdos informativos, intercalando anúncios comerciais entre eles.
                 </p>
               </label>
             </div>
@@ -314,7 +402,7 @@ export default function ScreenContentSettingsPage() {
             {/* Prévia visual dinâmica */}
             <div className="rounded-xl border border-slate-800 bg-slate-900 p-4 space-y-2">
               <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <LayoutList className="h-3.5 w-3.5 text-sky-400" /> Prévia do fluxo da TV
+                <LayoutList className="h-3.5 w-3.5 text-sky-400" /> Sequência na TV
               </span>
               <div className="flex flex-wrap items-center gap-2 pt-1">
                 {previewItems.map((item, idx) => (
@@ -340,7 +428,7 @@ export default function ScreenContentSettingsPage() {
           <button
             type="submit"
             disabled={saving}
-            className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/20 hover:bg-sky-600 disabled:opacity-50"
+            className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/20 hover:bg-sky-600 disabled:opacity-50 transition"
           >
             {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
             Salvar configuração

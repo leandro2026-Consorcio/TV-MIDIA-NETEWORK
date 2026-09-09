@@ -162,7 +162,7 @@ export default function InternalCampaignEditor({ campaignId }: { campaignId: str
           </Link>
           <div>
             <div className="flex items-center gap-2">
-              <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Interna</span>
+              <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">Minha Campanha</span>
               <span className="text-[10px] uppercase font-bold px-2 py-1 rounded bg-slate-800 text-slate-300">{campaign.status}</span>
             </div>
             <h1 className="text-2xl font-bold text-white mt-1">{campaign.name}</h1>
@@ -223,12 +223,28 @@ export default function InternalCampaignEditor({ campaignId }: { campaignId: str
 
           <section className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
-              <div><h2 className="font-bold text-white">TVs participantes ({screenLinks.length})</h2><p className="text-xs text-slate-400">Cada TV deve permanecer aberta em <strong>/tv</strong>.</p></div>
+              <div><h2 className="font-bold text-white">Minhas TVs participantes ({screenLinks.length})</h2><p className="text-xs text-slate-400">Escolha em quais TVs da sua empresa esta campanha será exibida.</p></div>
               <Tv className="w-5 h-5 text-sky-400" />
             </div>
             {!isFinal && <div className="grid grid-cols-1 sm:grid-cols-[1fr_auto] gap-2"><select value={selectedScreenId} onChange={(e) => setSelectedScreenId(e.target.value)} className="bg-slate-950 border border-slate-800 rounded-xl px-3 py-2.5 text-xs text-white"><option value="">Selecione uma TV...</option>{screenOptions.map((screen) => <option key={screen.id} value={screen.id}>{screen.name} ({screen.status})</option>)}</select><button type="button" onClick={addScreen} disabled={working || !selectedScreenId} className="px-4 py-2.5 bg-sky-500 text-white rounded-xl text-xs font-bold flex items-center gap-1 disabled:opacity-50"><Plus className="w-4 h-4" /> Adicionar</button></div>}
             {screenLinks.length === 0 ? <p className="text-xs text-amber-400 py-4">Adicione ao menos uma TV para ativar a campanha.</p> : screenLinks.map((link) => <div key={link.id} className="flex items-center justify-between bg-slate-950 border border-slate-800 rounded-xl p-3"><div><strong className="text-white text-sm">{link.screens?.name || 'TV'}</strong><p className="text-[10px] text-slate-400">{link.screens?.status} · {link.screens?.orientation}</p></div>{!isFinal && <button onClick={() => runAction(() => removeCampaignScreenAction(campaignId, link.screen_id), 'TV removida.')} className="p-2 text-rose-400 hover:bg-rose-500/10 rounded-lg"><Trash2 className="w-4 h-4" /></button>}</div>)}
           </section>
+
+          {/* Card Marketplace */}
+          <div className="bg-slate-900 border border-sky-500/20 rounded-2xl p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+            <div>
+              <strong className="text-white text-sm font-bold block">Quer anunciar em outras TVs?</strong>
+              <p className="text-xs text-slate-400 mt-0.5">
+                Você pode contratar espaço em TVs de outras empresas e parceiros pelo Marketplace.
+              </p>
+            </div>
+            <Link
+              href="/marketplace"
+              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-sky-500 hover:bg-sky-600 text-white font-bold text-xs transition shrink-0 shadow-md shadow-sky-500/20"
+            >
+              ENCONTRAR TVs NO MARKETPLACE
+            </Link>
+          </div>
         </div>
       </div>
 
