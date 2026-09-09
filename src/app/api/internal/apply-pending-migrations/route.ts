@@ -106,6 +106,67 @@ export async function GET(request: NextRequest) {
     `);
     results.verifiedConfig = configRes.rows[0];
 
+    // 7. Test submitting mandatory benefit if requested
+    if (request.nextUrl.searchParams.get('create_mandatory_benefit') === 'true') {
+      const compRes = await client.query(`
+        SELECT c.id, c.name, u.email
+        FROM public.companies c
+        JOIN auth.users u ON u.id = c.owner_id
+        WHERE u.email = 'homolog.empresa@msdeducacao.com.br'
+        LIMIT 1;
+      `);
+      if (compRes.rows.length > 0) {
+        const companyId = compRes.rows[0].id;
+        const subRes = await client.query(`
+          SELECT * FROM public.submit_or_update_organic_benefit(
+            NULL::uuid,
+            $1::uuid,
+            'Rodízio de Pizza',
+            'Delicioso rodízio de pizzas artesanais com sabores tradicionais e especiais.',
+            'Gastronomia & Alimentação',
+            NULL::text,
+            79.90,
+            10,
+            1,
+            ARRAY['Rua Berena, 3333'],
+            ARRAY[1],
+            '18:00:00'::TIME,
+            '22:00:00'::TIME,
+            0,
+            7,
+            (now() + INTERVAL '30 days'),
+            NULL::uuid,
+            'Válido às segundas-feiras das 18h às 22h na Rua Berena, 3333.'
+          );
+        `, [companyId]);
+        results.createdMandatoryBenefit = {
+          company: compRes.rows[0],
+          benefit: subRes.rows[0],
+        };
+
+        const rewardRes = await client.query(`
+          SELECT id, title, category, announced_unit_value, quantity, remaining_quantity,
+                 suggested_points, promotional_value, granted_insertions, status, unit_locations, allowed_weekdays
+          FROM public.organic_campaign_rewards
+          WHERE company_id = $1 AND title = 'Rodízio de Pizza'
+          ORDER BY created_at DESC
+          LIMIT 1;
+        `, [companyId]);
+        results.savedRewardRecord = rewardRes.rows[0];
+
+        const entRes = await client.query(`
+          SELECT id, approved_promotional_value, granted_insertions, remaining_insertions, status
+          FROM public.organic_benefit_media_entitlements
+          WHERE company_id = $1
+          ORDER BY created_at DESC
+          LIMIT 1;
+        `, [companyId]);
+        results.savedEntitlementRecord = entRes.rows[0];
+      } else {
+        results.createdMandatoryBenefit = { error: 'Company homolog.empresa@msdeducacao.com.br not found' };
+      }
+    }
+
     await client.end();
     return NextResponse.json({ success: true, ...results });
   } catch (err: any) {
