@@ -276,14 +276,14 @@ export async function GET(request: NextRequest) {
           const igConnRes = await client.query(`
             INSERT INTO public.social_connections (
               owner_type, owner_id, provider, auth_flow, provider_account_id,
-              scopes, status, connected_by, expires_at, last_refreshed_at, access_token_encrypted
+              scopes, status, connected_by, expires_at, last_refreshed_at, encrypted_access_token
             ) VALUES (
               'creator', $1, 'instagram', 'instagram_login', 'ig_acc_homolog_creator_999',
               ARRAY['instagram_business_basic', 'instagram_business_content_publish', 'instagram_business_manage_insights'],
               'active', $2, now() + interval '60 days', now(),
-              jsonb_build_object('iv', 'mock_iv', 'ciphertext', 'mock_encrypted_ciphertext', 'authTag', 'mock_tag', 'version', 1)
+              'v1.mock_iv.mock_tag.mock_encrypted_ciphertext'
             )
-            ON CONFLICT (owner_type, owner_id, provider, provider_account_id)
+            ON CONFLICT (provider, provider_account_id)
             DO UPDATE SET status = 'active', last_refreshed_at = now()
             RETURNING id, status, auth_flow, expires_at, last_refreshed_at;
           `, [cProfileId, cUserId]);
@@ -311,15 +311,15 @@ export async function GET(request: NextRequest) {
           const fbConnRes = await client.query(`
             INSERT INTO public.social_connections (
               owner_type, owner_id, provider, auth_flow, provider_account_id,
-              scopes, status, connected_by, expires_at, last_refreshed_at, access_token_encrypted
+              scopes, status, connected_by, expires_at, last_refreshed_at, encrypted_access_token
             ) VALUES (
               'company', $1, 'facebook', 'facebook_login', 'fb_page_homolog_empresa_888',
               ARRAY['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'],
               'active', (SELECT user_id FROM public.company_users WHERE company_id = $1 LIMIT 1),
               now() + interval '60 days', now(),
-              jsonb_build_object('iv', 'mock_iv', 'ciphertext', 'mock_encrypted_ciphertext', 'authTag', 'mock_tag', 'version', 1)
+              'v1.mock_iv.mock_tag.mock_encrypted_ciphertext'
             )
-            ON CONFLICT (owner_type, owner_id, provider, provider_account_id)
+            ON CONFLICT (provider, provider_account_id)
             DO UPDATE SET status = 'active', last_refreshed_at = now()
             RETURNING id, status, auth_flow, expires_at;
           `, [companyId]);
@@ -350,14 +350,14 @@ export async function GET(request: NextRequest) {
 
           // Test Disconnect and Reconnect
           await client.query(`
-            UPDATE public.social_connections SET status = 'revoked', access_token_encrypted = '{}'::jsonb WHERE id = $1;
+            UPDATE public.social_connections SET status = 'revoked', encrypted_access_token = NULL WHERE id = $1;
           `, [igConnId]);
           const disconnectedRes = await client.query(`SELECT status FROM public.social_connections WHERE id = $1`, [igConnId]);
           socialAudit.e2eSimulation.disconnectResult = disconnectedRes.rows[0];
 
           // Reconnect
           await client.query(`
-            UPDATE public.social_connections SET status = 'active', access_token_encrypted = jsonb_build_object('iv', 'mock_iv2', 'ciphertext', 'mock_ct2', 'authTag', 'mock_tag2', 'version', 1) WHERE id = $1;
+            UPDATE public.social_connections SET status = 'active', encrypted_access_token = 'v1.mock_iv2.mock_tag2.mock_encrypted_ciphertext2' WHERE id = $1;
           `, [igConnId]);
           const reconnectedRes = await client.query(`SELECT status FROM public.social_connections WHERE id = $1`, [igConnId]);
           socialAudit.e2eSimulation.reconnectResult = reconnectedRes.rows[0];
