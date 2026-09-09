@@ -281,6 +281,24 @@ export default function CompanyInvitesPage() {
           ))}
         </div>
       </section>
+
+      {/* Bottom Continuity Banner */}
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 shadow-xl">
+        <div>
+          <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">Próxima Etapa do Onboarding</span>
+          <strong className="text-white text-sm font-bold block">Tudo pronto com os convites? Conheça os relatórios e a Central de Ajuda</strong>
+          <p className="text-xs text-slate-400 mt-0.5">
+            Acompanhe o desempenho das suas TVs, relatórios de exibição e tire dúvidas quando precisar.
+          </p>
+        </div>
+
+        <Link
+          href="/help/getting-started"
+          className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition shadow-lg shadow-purple-600/25 shrink-0"
+        >
+          CONTINUAR CONFIGURAÇÃO (CENTRAL DE AJUDA & RELATÓRIOS) <ArrowRight className="w-4 h-4" />
+        </Link>
+      </div>
     </div>
   );
 }

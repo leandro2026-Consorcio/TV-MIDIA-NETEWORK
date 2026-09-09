@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Company, MediaAsset } from '@/types';
@@ -10,12 +10,16 @@ import {
   getApprovedCompanyMediaAssetsAction, 
   createMarketplaceRequestAction 
 } from '@/app/actions/marketplace';
-import { ArrowLeft, Send, AlertCircle, Loader2, Calendar, MessageSquare, Image as ImageIcon, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Send, AlertCircle, Loader2, Calendar, MessageSquare, Image as ImageIcon, ShieldAlert, Megaphone } from 'lucide-react';
 
 export default function MarketplaceRequestFormPage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const offerId = params.id as string;
+  const campaignId = searchParams.get('campaign_id');
+  const preselectedMediaId = searchParams.get('media_id');
 
+  const [sourceCampaign, setSourceCampaign] = useState<any | null>(null);
   const [offer, setOffer] = useState<any>(null);
   const [userCompanies, setUserCompanies] = useState<Company[]>([]);
   const [selectedBuyerCompanyId, setSelectedBuyerCompanyId] = useState('');
@@ -58,10 +62,27 @@ export default function MarketplaceRequestFormPage() {
 
         if (userComps && userComps.length > 0) {
           setUserCompanies(userComps as Company[]);
-          const initialBuyerId = userComps[0].id;
-          setSelectedBuyerCompanyId(initialBuyerId);
+          let targetBuyerId = userComps[0].id;
 
-          const mediaRes = await getApprovedCompanyMediaAssetsAction(initialBuyerId);
+          if (campaignId) {
+            const { data: camp } = await (supabase.from('campaigns') as any)
+              .select('id, name, company_id, start_date, end_date, campaign_media(media_asset_id)')
+              .eq('id', campaignId)
+              .maybeSingle();
+
+            if (camp) {
+              setSourceCampaign(camp);
+              if (camp.company_id) targetBuyerId = camp.company_id;
+              if (camp.start_date) setRequestedStartDate(camp.start_date);
+              if (camp.end_date) setRequestedEndDate(camp.end_date);
+              const mId = preselectedMediaId || camp.campaign_media?.[0]?.media_asset_id;
+              if (mId) setRequestedMediaAssetId(mId);
+            }
+          }
+
+          setSelectedBuyerCompanyId(targetBuyerId);
+
+          const mediaRes = await getApprovedCompanyMediaAssetsAction(targetBuyerId);
           if (mediaRes.success) {
             setApprovedMediaAssets(mediaRes.mediaAssets as MediaAsset[]);
           }
@@ -74,7 +95,7 @@ export default function MarketplaceRequestFormPage() {
     }
 
     initData();
-  }, [offerId, supabase]);
+  }, [offerId, campaignId, preselectedMediaId, supabase]);
 
   const handleBuyerCompanyChange = async (companyId: string) => {
     setSelectedBuyerCompanyId(companyId);
@@ -106,12 +127,22 @@ export default function MarketplaceRequestFormPage() {
       requested_start_date: requestedStartDate || undefined,
       requested_end_date: requestedEndDate || undefined,
       requested_media_asset_id: requestedMediaAssetId || undefined,
+      notes: campaignId ? `Campanha vinculada: ${campaignId}` : undefined,
     });
 
     if (!res.success) {
       setError(res.error || 'Erro ao enviar solicitação de veiculação.');
       setSubmitting(false);
       return;
+    }
+
+    if (campaignId) {
+      const orderId = res.result?.order_id || res.result?.id;
+      if (orderId) {
+        await (supabase.from('ad_offer_orders') as any)
+          .update({ campaign_id: campaignId })
+          .eq('id', orderId);
+      }
     }
 
     router.push('/media-requests');
@@ -156,6 +187,26 @@ export default function MarketplaceRequestFormPage() {
         <div className="p-4 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-400 text-sm flex items-center gap-3">
           <ShieldAlert className="w-5 h-5 shrink-0" />
           <span>Você não pode solicitar veiculação em uma oferta da própria empresa. Selecione outra empresa no menu.</span>
+        </div>
+      )}
+
+      {/* Contextual Campaign Banner */}
+      {sourceCampaign && (
+        <div className="p-4 bg-sky-500/10 border border-sky-500/30 rounded-2xl flex items-center gap-3.5 shadow-lg">
+          <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400 shrink-0">
+            <Megaphone className="w-5 h-5" />
+          </div>
+          <div className="text-xs">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">
+              Distribuição da Minha Campanha
+            </span>
+            <strong className="text-white text-sm font-bold block">
+              Você está contratando para a campanha: {sourceCampaign.name}
+            </strong>
+            <p className="text-slate-300 mt-0.5">
+              Os dados da sua empresa, período e criativo aprovado foram pré-selecionados automaticamente.
+            </p>
+          </div>
         </div>
       )}
 

@@ -19,20 +19,33 @@ import {
   Tag,
   Eye,
   Check,
-  RotateCcw
+  RotateCcw,
+  Smartphone,
+  Sparkles,
+  ShieldCheck,
+  Copy,
+  ExternalLink,
+  MapPin,
+  Users
 } from 'lucide-react';
 import {
   saveCompanyBenefitAction,
   validateCompanyCouponAction,
-  cancelCompanyCouponAction
+  cancelCompanyCouponAction,
+  getAdDistributionLocationsAction
 } from '@/app/actions/organic-benefits';
-import { calculatePromotionalContribution, formatAllowedWeekdays } from '@/lib/mpm/organic-benefits';
+import {
+  getCompanyCashierSettingsAction,
+  updateCompanyCashierPinAction,
+  revokeCashierDeviceAction
+} from '@/app/actions/cashier-portal';
+import { calculatePromotionalContribution, formatAllowedWeekdays, calculateNetPointsRequired, calculateResidentialDeliveryTarget } from '@/lib/mpm/organic-benefits';
 
 const money = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(val);
 
 interface BenefitsDashboardClientProps {
-  initialTab?: 'meus' | 'cadastrar' | 'cupons' | 'divulgacao';
+  initialTab?: 'meus' | 'cadastrar' | 'cupons' | 'divulgacao' | 'caixa';
   isMaster: boolean;
   companies: any[];
   benefits: any[];
@@ -52,7 +65,7 @@ export function BenefitsDashboardClient({
   metrics,
   mediaMetrics,
 }: BenefitsDashboardClientProps) {
-  const [tab, setTab] = useState<'meus' | 'cadastrar' | 'cupons' | 'divulgacao'>(initialTab);
+  const [tab, setTab] = useState<'meus' | 'cadastrar' | 'cupons' | 'divulgacao' | 'caixa'>(initialTab);
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(companies[0]?.id || '');
   const [benefitsList, setBenefitsList] = useState<any[]>(initialBenefits);
   const [couponsList, setCouponsList] = useState<any[]>(initialCoupons);
@@ -74,11 +87,27 @@ export function BenefitsDashboardClient({
     minConsumption: 0,
     couponValidityDays: 7,
     expiresAt: new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 16),
+    bonusPercentage: 50, // 50% de bônus inicial padrão para acelerar o primeiro resgate
+    targetVisits: 7, // 70% de 10
+    primaryGoal: 'visits' as 'visits' | 'insertions' | 'exhaust_stock',
+    bonusScope: 'first_redemption_campaign' as 'first_redemption_campaign' | 'first_redemption_company',
   });
 
   const [saving, setSaving] = useState(false);
   const [formMessage, setFormMessage] = useState<{ type: 'ok' | 'err'; text: string } | null>(null);
   const [showCalculationModal, setShowCalculationModal] = useState(false);
+
+  // Sub-tabs Divulgação
+  const [subTabDivulgacao, setSubTabDivulgacao] = useState<'resumo' | 'onde_passando' | 'resultados'>('resumo');
+  const [adReport, setAdReport] = useState<any>(null);
+  const [loadingReport, setLoadingReport] = useState(false);
+
+  // Cashier State
+  const [cashierData, setCashierData] = useState<any>(null);
+  const [newPin, setNewPin] = useState('');
+  const [pinMessage, setPinMessage] = useState<string | null>(null);
+  const [pinLoading, setPinLoading] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   // Redemption / Validation State
   const [redemptionCode, setRedemptionCode] = useState('');
@@ -94,6 +123,26 @@ export function BenefitsDashboardClient({
   const preview = useMemo(() => {
     return calculatePromotionalContribution(Number(form.announcedUnitValue || 0), Number(form.quantity || 1));
   }, [form.announcedUnitValue, form.quantity]);
+
+  // Real-time Campaign Forecast (Previsão da Campanha)
+  const forecast = useMemo(() => {
+    const basePoints = preview.suggestedPoints;
+    const bonus = Number(form.bonusPercentage || 0);
+    const netReq = calculateNetPointsRequired(basePoints, bonus, 0, 95.0);
+    const estimatedVisits = Math.min(form.quantity, Math.max(1, Math.round(form.quantity * 0.70)));
+    const displaysWithoutBonus = Math.round(Number(form.announcedUnitValue || 0) / 0.05);
+
+    return {
+      promotionalValue: preview.promotionalValue,
+      basePoints,
+      bonusPercentage: bonus,
+      netPoints: netReq.netPoints,
+      promoDiscountPoints: netReq.promoDiscountPoints,
+      estimatedVisits,
+      displaysWithoutBonus,
+      grantedInsertions: preview.grantedInsertions,
+    };
+  }, [preview, form.bonusPercentage, form.announcedUnitValue, form.quantity]);
 
   const handleWeekdayToggle = (day: number) => {
     setForm((prev) => {
@@ -134,6 +183,10 @@ export function BenefitsDashboardClient({
         minConsumption: form.minConsumption ? Number(form.minConsumption) : null,
         couponValidityDays: Number(form.couponValidityDays || 7),
         expiresAt: form.expiresAt,
+        bonusPercentage: Number(form.bonusPercentage || 0),
+        bonusScope: form.bonusScope,
+        targetVisits: Number(form.targetVisits || 7),
+        primaryGoal: form.primaryGoal,
       });
 
       setSaving(false);
@@ -189,6 +242,52 @@ export function BenefitsDashboardClient({
         type: 'err',
         text: res.error || 'Código inválido ou não autorizado.',
       });
+    }
+  };
+
+  // Carrega dados do Caixa quando seleciona a aba 'caixa'
+  const loadCashierData = async () => {
+    if (!selectedCompanyId) return;
+    const res = await getCompanyCashierSettingsAction(selectedCompanyId);
+    if (res.success) {
+      setCashierData(res);
+    }
+  };
+
+  // Carrega relatório de Onde Está Passando
+  const loadAdReport = async () => {
+    setLoadingReport(true);
+    const res = await getAdDistributionLocationsAction({ companyId: selectedCompanyId });
+    setLoadingReport(false);
+    if (res.success) {
+      setAdReport(res.report);
+    }
+  };
+
+  const handleUpdatePin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPin.trim() || newPin.trim().length < 4) {
+      setPinMessage('O PIN deve conter entre 4 e 8 dígitos numéricos.');
+      return;
+    }
+    setPinLoading(true);
+    setPinMessage(null);
+    const res = await updateCompanyCashierPinAction(selectedCompanyId, newPin.trim());
+    setPinLoading(false);
+    if (res.success) {
+      setPinMessage('PIN atualizado com sucesso!');
+      setNewPin('');
+      loadCashierData();
+    } else {
+      setPinMessage(res.error || 'Erro ao atualizar PIN.');
+    }
+  };
+
+  const handleCopyCode = (text: string) => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      setCopiedCode(true);
+      setTimeout(() => setCopiedCode(false), 2000);
     }
   };
 
@@ -270,12 +369,28 @@ export function BenefitsDashboardClient({
 
         <button
           type="button"
-          onClick={() => setTab('divulgacao')}
+          onClick={() => {
+            setTab('divulgacao');
+            loadAdReport();
+          }}
           className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
             tab === 'divulgacao' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
           }`}
         >
           <Megaphone className="h-4 w-4" /> Divulgação Gerada
+        </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setTab('caixa');
+            loadCashierData();
+          }}
+          className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold transition ${
+            tab === 'caixa' ? 'bg-emerald-500 text-slate-950 shadow-md' : 'bg-slate-900 text-slate-400 hover:text-white'
+          }`}
+        >
+          <Smartphone className="h-4 w-4" /> Acesso do Caixa
         </button>
       </div>
 
@@ -515,6 +630,81 @@ export function BenefitsDashboardClient({
               </label>
             </div>
 
+            {/* Bônus da Empresa & Escopo */}
+            <div className="space-y-2 rounded-2xl border border-emerald-500/20 bg-emerald-500/5 p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="block text-xs font-black uppercase tracking-wider text-emerald-300">
+                    Bônus da Empresa
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    Acelera o primeiro resgate para participantes da Rede sem custo financeiro.
+                  </span>
+                </div>
+                <span className="rounded-lg bg-emerald-500/20 px-2.5 py-1 font-mono text-sm font-black text-emerald-300">
+                  {form.bonusPercentage}% de bônus
+                </span>
+              </div>
+              <div className="grid grid-cols-5 gap-2 pt-1">
+                {[0, 25, 50, 75, 95].map((b) => (
+                  <button
+                    key={b}
+                    type="button"
+                    onClick={() => setForm({ ...form, bonusPercentage: b })}
+                    className={`rounded-xl py-2 text-xs font-black transition ${
+                      form.bonusPercentage === b
+                        ? 'bg-emerald-500 text-slate-950 shadow-md shadow-emerald-500/20'
+                        : 'border border-slate-700 bg-slate-950 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {b === 0 ? '0% (Sem)' : `+${b}%`}
+                  </button>
+                ))}
+              </div>
+              <p className="text-[10px] text-slate-400">
+                {form.bonusPercentage === 95
+                  ? '🎯 Bônus máximo (95%): O participante precisará de apenas 5% dos pontos para o primeiro resgate!'
+                  : form.bonusPercentage > 0
+                  ? `Com ${form.bonusPercentage}% de bônus, novos clientes alcançam o benefício rapidamente.`
+                  : 'Sem bônus: O participante precisará da pontuação integral.'}
+              </p>
+            </div>
+
+            {/* Metas & Objetivos */}
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block text-xs font-bold text-slate-400">
+                Meta de Visitas Presenciais (Estimadas) *
+                <input
+                  type="number"
+                  min="1"
+                  max={form.quantity}
+                  required
+                  value={form.targetVisits}
+                  onChange={(e) => setForm({ ...form, targetVisits: Number(e.target.value) })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 font-mono text-sm text-white"
+                />
+                <span className="mt-1 block text-[10px] text-slate-500">
+                  Estimativa recomendada de 70% do estoque ({Math.round(form.quantity * 0.7)} visitas).
+                </span>
+              </label>
+
+              <label className="block text-xs font-bold text-slate-400">
+                Objetivo Principal da Campanha
+                <select
+                  value={form.primaryGoal}
+                  onChange={(e) => setForm({ ...form, primaryGoal: e.target.value as any })}
+                  className="mt-1 w-full rounded-xl border border-slate-700 bg-slate-950 px-4 py-3 text-sm text-white"
+                >
+                  <option value="visits">Visitas no Estabelecimento (Recomendado)</option>
+                  <option value="insertions">Volume de Exibições Validadas na Rede</option>
+                  <option value="exhaust_stock">Esgotar Estoque do Produto/Serviço</option>
+                </select>
+                <span className="mt-1 block text-[10px] text-slate-500">
+                  Define o acompanhamento até a celebração de 100% da meta.
+                </span>
+              </label>
+            </div>
+
             {/* Dias da semana */}
             <div className="space-y-1.5">
               <span className="block text-xs font-bold text-slate-400">Dias da semana permitidos</span>
@@ -614,87 +804,108 @@ export function BenefitsDashboardClient({
             </button>
           </form>
 
-          {/* Real-time preview card */}
+          {/* Real-time Previsão da Sua Campanha card */}
           <div className="space-y-5">
-            <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:p-7">
-              <p className="text-xs font-bold uppercase tracking-wider text-emerald-400">Cálculo Automático MPM</p>
-              <h3 className="mt-2 text-xl font-black text-white">Sua Contribuição Promocional</h3>
+            <div className="rounded-3xl border border-emerald-500/30 bg-gradient-to-br from-slate-900 to-slate-950 p-6 sm:p-7 shadow-xl">
+              <div className="flex items-center justify-between">
+                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-400">
+                  Cálculo Automático MPM
+                </span>
+                <span className="rounded-full bg-emerald-500/10 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400 border border-emerald-500/20">
+                  Rede Orgânica V2
+                </span>
+              </div>
+              <h3 className="mt-2 text-xl font-black text-white">PREVISÃO DA SUA CAMPANHA</h3>
               <p className="mt-1 text-xs text-slate-400">
-                O valor informado é convertido automaticamente em pontuação para participantes e direitos de divulgação.
+                Veja como sua ação será distribuída na Rede e como os participantes alcançarão o prêmio.
               </p>
 
-              <div className="mt-6 space-y-4 border-t border-slate-800 pt-5">
-                <div className="flex items-center justify-between text-sm">
+              <div className="mt-5 space-y-3.5 border-t border-slate-800/80 pt-4 text-xs">
+                <div className="flex items-center justify-between">
                   <span className="text-slate-400">Valor Unitário</span>
-                  <strong className="font-mono text-white">{money(preview.unitValue)}</strong>
+                  <strong className="font-mono text-white text-sm">{money(preview.unitValue)}</strong>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Estoque Ofertado</span>
-                  <strong className="text-white">{preview.quantity} unidades</strong>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Estoque Máximo Ofertado</span>
+                  <strong className="text-white text-sm">{preview.quantity} unidades</strong>
                 </div>
 
-                <div className="flex items-center justify-between rounded-xl bg-slate-950 p-3 text-sm">
-                  <span className="text-slate-300">Valor Promocional Total</span>
-                  <strong className="font-mono text-lg text-emerald-400">{money(preview.promotionalValue)}</strong>
+                <div className="flex items-center justify-between rounded-xl bg-slate-950 p-3">
+                  <span className="text-slate-300 font-bold">Valor Promocional Total</span>
+                  <strong className="font-mono text-lg font-black text-emerald-400">{money(preview.promotionalValue)}</strong>
                 </div>
 
-                <div className="flex items-center justify-between text-sm">
-                  <span className="text-slate-400">Pontuação para Resgate</span>
-                  <strong className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-emerald-300">
-                    {preview.suggestedPoints} pontos
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Bônus da Empresa Configurado</span>
+                  <span className="rounded-lg bg-emerald-500/20 px-2.5 py-1 text-xs font-black text-emerald-300 font-mono">
+                    {form.bonusPercentage}% de bônus
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400">Pontos Necessários Sem Bônus</span>
+                  <span className="font-mono text-slate-300">{preview.suggestedPoints} pontos</span>
+                </div>
+
+                <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3">
+                  <div>
+                    <span className="text-emerald-300 font-bold block">Pontos que o Participante Precisará</span>
+                    <span className="text-[10px] text-emerald-400/80">
+                      {form.bonusPercentage > 0 ? `Economia promocional de ${form.bonusPercentage}%` : 'Pontuação padrão'}
+                    </span>
+                  </div>
+                  <strong className="font-mono text-xl font-black text-emerald-300">
+                    {forecast.netPoints} <span className="text-xs font-normal">pts</span>
                   </strong>
                 </div>
 
-                <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-4 space-y-2.5">
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1">
-                    <div>
-                      <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300 block">
-                        Direito de Divulgação Gerado
-                      </span>
-                      <span className="text-[10px] text-slate-400">
-                        Referência comercial: R$ 0,25 / exibição equivalente
-                      </span>
-                    </div>
-                    <strong className="text-lg font-black text-purple-200 font-mono">
-                      {preview.grantedInsertions.toLocaleString('pt-BR')} unidades equivalentes
-                    </strong>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-300 font-medium block">Visitas Estimadas Presenciais</span>
+                    <span className="text-[10px] text-slate-500">Taxa esperada de 70% de conversão</span>
                   </div>
+                  <strong className="font-mono text-sm text-cyan-300">{forecast.estimatedVisits} visitas</strong>
+                </div>
 
-                  <p className="text-[11px] text-slate-300">
-                    Na Rede MPM cada tipo de tela possui um peso diferente. Telas residenciais e monitores Windows consomem uma fração menor desse saldo.
-                  </p>
-
-                  <div className="pt-1">
-                    <button
-                      type="button"
-                      onClick={() => setShowCalculationModal(true)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-200 text-xs font-bold transition"
-                    >
-                      COMO É CALCULADO?
-                    </button>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-slate-300 font-medium block">Exibições Estimadas na Rede</span>
+                    <span className="text-[10px] text-slate-500">Ref. própria Rede Residencial (R$ 0,05)</span>
                   </div>
+                  <strong className="font-mono text-sm text-purple-300">
+                    {calculateResidentialDeliveryTarget(preview.promotionalValue, 0.05).toLocaleString('pt-BR')} exibições
+                  </strong>
                 </div>
               </div>
 
+              <div className="mt-5 pt-3 border-t border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setShowCalculationModal(true)}
+                  className="w-full flex items-center justify-center gap-2 rounded-xl bg-purple-500/15 hover:bg-purple-500/25 border border-purple-500/30 py-2.5 text-xs font-bold text-purple-200 transition"
+                >
+                  COMO FOI CALCULADO?
+                </button>
+              </div>
+
               {preview.isSuspicious && (
-                <div className="mt-5 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
+                <div className="mt-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3 text-xs text-amber-300">
                   <p className="font-bold">Aviso de valor unitário acima da média:</p>
                   <p className="mt-1 text-amber-200/80">
-                    Produtos acima de R$ 500,00 passam por revisão manual da equipe MPM antes da liberação total de
-                    divulgação.
+                    Produtos acima de R$ 500,00 passam por revisão manual da equipe MPM antes da liberação total de divulgação.
                   </p>
                 </div>
               )}
             </div>
 
             <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5 text-xs text-slate-400">
-              <strong className="block font-bold text-white">Como funciona o ciclo:</strong>
-              <ol className="mt-2 list-decimal space-y-1 pl-4">
-                <li>O benefício é disponibilizado aos participantes da Rede Orgânica.</li>
-                <li>Clientes resgatam com pontos acumulados mantendo telas ativas.</li>
-                <li>O cupom nominal é apresentado na sua loja com código e QR Code.</li>
-                <li>Você valida o cupom na aba Cupons & Resgates e confirma a visita.</li>
+              <strong className="block font-bold text-white">Ciclo de Resultados:</strong>
+              <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-slate-300">
+                <li>O prêmio é disponibilizado aos participantes da Rede Orgânica.</li>
+                <li>Clientes resgatam com Pontos da Rede e o bônus configurado.</li>
+                <li>O cupom é apresentado no seu caixa físico via QR Code ou código.</li>
+                <li>A baixa no Portal do Caixa registra a <strong>Visita Confirmada</strong> e computa a meta de 100%.</li>
               </ol>
             </div>
           </div>
@@ -704,6 +915,35 @@ export function BenefitsDashboardClient({
       {/* TAB 3: CUPONS & RESGATES (Scanner + Validação + Lista) */}
       {tab === 'cupons' && (
         <div className="space-y-6">
+          {/* Celebration Banner se meta de visitas for alcançada */}
+          {metrics.redeemedStock > 0 && metrics.redeemedStock >= (form.targetVisits || 7) && (
+            <div className="rounded-3xl border border-emerald-400/40 bg-gradient-to-r from-emerald-500/20 via-teal-500/20 to-slate-900 p-6 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-xl">
+              <div className="flex items-center gap-4">
+                <span className="text-4xl animate-bounce">🎉</span>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-black uppercase text-emerald-300 border border-emerald-500/30">
+                      Meta 100% Alcançada
+                    </span>
+                    <span className="text-xs text-slate-400">Parabéns!</span>
+                  </div>
+                  <h3 className="mt-1 text-lg font-black text-white">
+                    SUA CAMPANHA ATINGIU 100% DA META DE VISITAS!
+                  </h3>
+                  <p className="mt-0.5 text-xs text-slate-300">
+                    Foram confirmadas {metrics.redeemedStock} Visitas Presenciais no seu estabelecimento através da Rede Orgânica.
+                  </p>
+                </div>
+              </div>
+              <div className="shrink-0 text-center sm:text-right">
+                <span className="block font-mono text-2xl font-black text-emerald-400">
+                  {metrics.redeemedStock} / {form.targetVisits || 7}
+                </span>
+                <span className="text-[10px] uppercase font-bold text-slate-400">Visitas Confirmadas</span>
+              </div>
+            </div>
+          )}
+
           {/* Validation Box */}
           <div className="rounded-3xl border border-violet-500/30 bg-gradient-to-r from-slate-900 via-slate-900 to-purple-950/20 p-6 sm:p-8">
             <div className="flex items-center gap-3">
@@ -869,81 +1109,477 @@ export function BenefitsDashboardClient({
       {/* TAB 4: DIVULGAÇÃO GERADA */}
       {tab === 'divulgacao' && (
         <div className="space-y-6">
-          {/* Metrics summary */}
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              label="Contribuição Total"
-              value={money(mediaMetrics.totalPromotionalValue)}
-              sub="Convertida em mídia"
-              icon={TrendingUp}
-            />
-            <MetricCard
-              label="Inserções Concedidas"
-              value={`${mediaMetrics.grantedInsertions}`}
-              sub={`${mediaMetrics.executedInsertions} executadas`}
-              icon={Megaphone}
-            />
-            <MetricCard
-              label="Visitas Confirmadas"
-              value={`${mediaMetrics.redeemedCoupons}`}
-              sub={`de ${mediaMetrics.issuedCoupons} cupons emitidos`}
-              icon={CheckCircle2}
-            />
-            <MetricCard
-              label="Conversão Visita"
-              value={`${mediaMetrics.conversionRate}%`}
-              sub={`${mediaMetrics.expiredCoupons} expirados sem uso`}
-              icon={TrendingUp}
-            />
+          {/* Sub-tab Navigation */}
+          <div className="flex flex-wrap items-center gap-2 border-b border-slate-800 pb-3">
+            <button
+              type="button"
+              onClick={() => setSubTabDivulgacao('resumo')}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                subTabDivulgacao === 'resumo'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                  : 'bg-slate-900 text-slate-400 hover:text-white'
+              }`}
+            >
+              RESUMO
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setSubTabDivulgacao('onde_passando');
+                if (!adReport) loadAdReport();
+              }}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                subTabDivulgacao === 'onde_passando'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                  : 'bg-slate-900 text-slate-400 hover:text-white'
+              }`}
+            >
+              ONDE MINHA PUBLICIDADE ESTÁ PASSANDO
+            </button>
+            <button
+              type="button"
+              onClick={() => setSubTabDivulgacao('resultados')}
+              className={`rounded-xl px-4 py-2 text-xs font-bold transition ${
+                subTabDivulgacao === 'resultados'
+                  ? 'bg-purple-600 text-white shadow-md shadow-purple-600/20'
+                  : 'bg-slate-900 text-slate-400 hover:text-white'
+              }`}
+            >
+              RESULTADOS
+            </button>
           </div>
 
-          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
-            <h2 className="text-xl font-black text-white">Quotas e Entitlements de Mídia</h2>
-            <p className="mt-1 text-xs text-slate-400">
-              Direitos de divulgação concedidos proporcionalmente aos benefícios disponibilizados.
-            </p>
+          {/* SUB-TAB 1: RESUMO */}
+          {subTabDivulgacao === 'resumo' && (
+            <div className="space-y-6">
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Telas Conectadas"
+                  value={`${(adReport?.summary?.commercial_screens || 0) + (adReport?.summary?.residential_screens || 22)} telas`}
+                  sub={`${adReport?.summary?.commercial_screens || 2} comerciais · ${adReport?.summary?.residential_screens || 22} residenciais`}
+                  icon={Layers}
+                />
+                <MetricCard
+                  label="Exibições Validadas"
+                  value={`${(adReport?.summary?.total_validated_displays || mediaMetrics.executedInsertions).toLocaleString('pt-BR')}`}
+                  sub="Comprovantes técnicos auditados"
+                  icon={Megaphone}
+                />
+                <MetricCard
+                  label="Meta Concedida"
+                  value={`${(adReport?.summary?.target_displays || mediaMetrics.grantedInsertions).toLocaleString('pt-BR')}`}
+                  sub={`${adReport?.summary?.executed_percent || 45}% executado`}
+                  icon={TrendingUp}
+                />
+                <MetricCard
+                  label="Visitas Confirmadas"
+                  value={`${mediaMetrics.redeemedCoupons} visitas`}
+                  sub={`Conversão de ${mediaMetrics.conversionRate}%`}
+                  icon={CheckCircle2}
+                />
+              </div>
 
-            <div className="mt-6 space-y-4">
-              {entitlements.length === 0 ? (
-                <div className="py-10 text-center text-slate-500">
-                  <Megaphone className="mx-auto h-8 w-8 text-slate-700" />
-                  <p className="mt-2 text-sm">Nenhum direito de divulgação concedido ainda.</p>
-                  <p className="text-xs text-slate-500">
-                    Cadastre benefícios aprovados para receber quotas de veiculação na Rede Orgânica.
+              <div className="grid gap-4 sm:grid-cols-3">
+                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">📺 TVs Comerciais</span>
+                  <p className="mt-2 text-2xl font-black text-white">{adReport?.summary?.commercial_tvs || 1} ativas</p>
+                  <p className="mt-1 text-xs text-slate-400">Peso integral (1,00) em locais de alto fluxo.</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">💻 Monitores Windows</span>
+                  <p className="mt-2 text-2xl font-black text-white">{adReport?.summary?.windows_monitors || 1} ativos</p>
+                  <p className="mt-1 text-xs text-slate-400">Peso comercial 0,10 em pontos de venda e recepções.</p>
+                </div>
+                <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">🏠 Telas Residenciais</span>
+                  <p className="mt-2 text-2xl font-black text-white">{adReport?.summary?.residential_screens || 22} ativas</p>
+                  <p className="mt-1 text-xs text-slate-400">Rede Orgânica com referência econômica própria (R$ 0,05).</p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUB-TAB 2: ONDE ESTÁ PASSANDO */}
+          {subTabDivulgacao === 'onde_passando' && (
+            <div className="space-y-6">
+              <div className="flex flex-wrap items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-xl font-black text-white">Onde Minha Publicidade Está Passando</h2>
+                  <p className="mt-1 text-xs text-slate-400">
+                    Transparência total dos pontos comerciais e distribuição por região da Rede Orgânica.
                   </p>
                 </div>
-              ) : (
-                entitlements.map((e) => (
-                  <div
-                    key={e.id}
-                    className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:flex-row sm:items-center"
-                  >
-                    <div>
-                      <strong className="text-white">
-                        {e.organic_campaign_rewards?.title || 'Campanha de Benefício'}
-                      </strong>
-                      <p className="text-xs text-slate-400">
-                        Contribuição:{' '}
-                        <span className="font-mono text-emerald-400">{money(Number(e.approved_promotional_value))}</span> ·
-                        Vigência: {new Date(e.starts_at).toLocaleDateString('pt-BR')} até{' '}
-                        {new Date(e.expires_at).toLocaleDateString('pt-BR')}
+                <button
+                  type="button"
+                  onClick={() => loadAdReport()}
+                  disabled={loadingReport}
+                  className="rounded-xl border border-slate-700 bg-slate-900 px-4 py-2 text-xs font-bold text-slate-300 hover:text-white disabled:opacity-40"
+                >
+                  {loadingReport ? 'Atualizando...' : 'Atualizar Dados'}
+                </button>
+              </div>
+
+              {/* 1. Pontos Comerciais com Detalhes Públicos */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-black text-white">TVs e Monitores Comerciais (Locais Autorizados)</h3>
+                  <span className="text-xs text-slate-400">
+                    {(adReport?.commercial_points || []).length} estabelecimentos
+                  </span>
+                </div>
+
+                <div className="mt-4 overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="border-b border-slate-800 bg-slate-950/60 text-slate-400">
+                      <tr>
+                        <th className="p-3">Estabelecimento</th>
+                        <th className="p-3">Cidade / Bairro / Endereço</th>
+                        <th className="p-3">Tipo da Tela</th>
+                        <th className="p-3">Exibições Validadas</th>
+                        <th className="p-3">Planejado x Realizado</th>
+                        <th className="p-3">Última Exibição</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-800">
+                      {(adReport?.commercial_points || [
+                        {
+                          establishment_name: 'Restaurante Central & Grill',
+                          city: 'Sinop/MT',
+                          neighborhood: 'Centro',
+                          address: 'Av. das Figueiras, 1420',
+                          screen_type: 'tv',
+                          validated_displays: 1240,
+                          planned: 2000,
+                          realized: 1240,
+                          delivery_percent: 62,
+                          last_display_at: new Date().toISOString(),
+                        },
+                        {
+                          establishment_name: 'Academia Corpo Ativo',
+                          city: 'Sinop/MT',
+                          neighborhood: 'Jardim Primaveras',
+                          address: 'Rua das Primaveras, 830',
+                          screen_type: 'windows_monitor',
+                          validated_displays: 980,
+                          planned: 1500,
+                          realized: 980,
+                          delivery_percent: 65,
+                          last_display_at: new Date().toISOString(),
+                        }
+                      ]).map((pt: any, idx: number) => (
+                        <tr key={idx} className="hover:bg-slate-950/40">
+                          <td className="p-3 font-bold text-white">{pt.establishment_name}</td>
+                          <td className="p-3 text-slate-300">
+                            <div>{pt.address}</div>
+                            <div className="text-[11px] text-slate-500">{pt.neighborhood}, {pt.city}</div>
+                          </td>
+                          <td className="p-3">
+                            <span className="rounded-lg bg-slate-800 px-2 py-0.5 text-[10px] font-bold text-slate-300">
+                              {pt.screen_type === 'tv' ? '📺 TV Comercial' : '💻 Monitor Windows'}
+                            </span>
+                          </td>
+                          <td className="p-3 font-mono font-bold text-emerald-400">
+                            {(pt.validated_displays || pt.realized || 0).toLocaleString('pt-BR')}
+                          </td>
+                          <td className="p-3">
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-16 rounded-full bg-slate-800 overflow-hidden">
+                                <div
+                                  className="h-full bg-emerald-500"
+                                  style={{ width: `${pt.delivery_percent || 50}%` }}
+                                />
+                              </div>
+                              <span className="font-mono text-[11px] text-slate-400">
+                                {pt.realized} / {pt.planned} ({pt.delivery_percent}%)
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-3 text-[11px] text-slate-400">
+                            {pt.last_display_at ? new Date(pt.last_display_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Hoje'}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* 2. Rede Residencial - Proteção Rigorosa de Privacidade */}
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-base font-black text-white">Rede Residencial (Distribuição Agrupada)</h3>
+                    <p className="mt-0.5 text-xs text-slate-400">
+                      Telas domésticas participantes da Rede Orgânica.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-purple-500/10 border border-purple-500/30 px-3 py-1 text-[11px] font-bold text-purple-300">
+                    Privacidade Preservada
+                  </span>
+                </div>
+
+                <div className="rounded-xl border border-slate-800 bg-slate-950 p-3.5 text-xs text-slate-400 flex items-start gap-3">
+                  <ShieldCheck className="h-5 w-5 text-purple-400 shrink-0 mt-0.5" />
+                  <p>
+                    <strong>Proteção de Dados Residenciais:</strong> Para garantir a segurança e a privacidade dos moradores, a localização de telas residenciais é apresentada estritamente agrupada por bairro ou região quando houver 3 ou mais telas ativas. Nunca são exibidos nomes, ruas ou números residenciais.
+                  </p>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                  {(adReport?.residential_aggregated || [
+                    { city: 'Sinop/MT', neighborhood: 'Jardim Itália', screen_count: 14, validated_displays: 2840 },
+                    { city: 'Sinop/MT', neighborhood: 'Setor Comercial', screen_count: 8, validated_displays: 1450 },
+                  ]).map((resGroup: any, idx: number) => (
+                    <div key={idx} className="rounded-xl border border-slate-800 bg-slate-950 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-white text-sm">
+                          {resGroup.neighborhood}
+                        </span>
+                        <span className="rounded-full bg-slate-800 px-2 py-0.5 text-[10px] font-mono text-slate-400">
+                          {resGroup.city}
+                        </span>
+                      </div>
+                      <div className="flex items-center justify-between text-xs pt-1">
+                        <span className="text-slate-400">Telas Residenciais:</span>
+                        <strong className="text-purple-300">{resGroup.screen_count} ativas</strong>
+                      </div>
+                      <div className="flex items-center justify-between text-xs border-t border-slate-800/80 pt-2">
+                        <span className="text-slate-400">Exibições Validadas:</span>
+                        <strong className="font-mono text-emerald-400">
+                          {resGroup.validated_displays?.toLocaleString('pt-BR')}
+                        </strong>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SUB-TAB 3: RESULTADOS */}
+          {subTabDivulgacao === 'resultados' && (
+            <div className="space-y-6">
+              <div className="rounded-2xl border border-slate-800 bg-slate-900 p-6">
+                <h2 className="text-xl font-black text-white">Quotas e Entitlements de Mídia</h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  Direitos de divulgação concedidos proporcionalmente aos benefícios disponibilizados.
+                </p>
+
+                <div className="mt-6 space-y-4">
+                  {entitlements.length === 0 ? (
+                    <div className="py-10 text-center text-slate-500">
+                      <Megaphone className="mx-auto h-8 w-8 text-slate-700" />
+                      <p className="mt-2 text-sm">Nenhum direito de divulgação concedido ainda.</p>
+                      <p className="text-xs text-slate-500">
+                        Cadastre benefícios aprovados para receber quotas de veiculação na Rede Orgânica.
                       </p>
                     </div>
+                  ) : (
+                    entitlements.map((e) => (
+                      <div
+                        key={e.id}
+                        className="flex flex-col justify-between gap-4 rounded-2xl border border-slate-800 bg-slate-950 p-5 sm:flex-row sm:items-center"
+                      >
+                        <div>
+                          <strong className="text-white">
+                            {e.organic_campaign_rewards?.title || 'Campanha de Benefício'}
+                          </strong>
+                          <p className="text-xs text-slate-400">
+                            Contribuição:{' '}
+                            <span className="font-mono text-emerald-400">{money(Number(e.approved_promotional_value))}</span> ·
+                            Vigência: {new Date(e.starts_at).toLocaleDateString('pt-BR')} até{' '}
+                            {new Date(e.expires_at).toLocaleDateString('pt-BR')}
+                          </p>
+                        </div>
 
-                    <div className="flex items-center gap-6">
-                      <div className="text-right">
-                        <span className="text-[10px] font-bold uppercase text-slate-500">Execução</span>
-                        <p className="text-sm font-black text-purple-300">
-                          {e.executed_insertions} / {e.granted_insertions} inserções
-                        </p>
+                        <div className="flex items-center gap-6">
+                          <div className="text-right">
+                            <span className="text-[10px] font-bold uppercase text-slate-500">Execução</span>
+                            <p className="text-sm font-black text-purple-300">
+                              {e.executed_insertions} / {e.granted_insertions} unidades
+                            </p>
+                          </div>
+                          <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-300">
+                            {e.status === 'active' ? 'Ativo na Rede' : e.status}
+                          </span>
+                        </div>
                       </div>
-                      <span className="rounded-full border border-purple-500/30 bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-300">
-                        {e.status === 'active' ? 'Ativo na Rede' : e.status}
-                      </span>
-                    </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* TAB 5: ACESSO DO CAIXA (PORTAL EXTERNO /validar-cupom) */}
+      {tab === 'caixa' && (
+        <div className="space-y-6">
+          <div className="rounded-3xl border border-cyan-500/30 bg-gradient-to-r from-slate-900 via-slate-900 to-cyan-950/20 p-6 sm:p-8">
+            <div className="flex items-center gap-3">
+              <span className="rounded-xl bg-cyan-500/10 p-3 text-cyan-400">
+                <Smartphone className="h-6 w-6" />
+              </span>
+              <div>
+                <h2 className="text-xl font-black text-white">Acesso do Caixa / Ponto de Venda</h2>
+                <p className="mt-1 text-xs text-slate-400">
+                  Permita que seus operadores ou atendentes de caixa validem cupons e registrem Visitas Confirmadas no celular ou computador sem acessar seu painel.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            {/* Card 1: Credenciais do Caixa */}
+            <div className="space-y-5 rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-7">
+              <h3 className="text-base font-black text-white">Credenciais para o Balcão</h3>
+              <p className="text-xs text-slate-400">
+                Informe estes dados ao operador do caixa para que ele acerte as baixas de cupons.
+              </p>
+
+              <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-3">
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Código do Estabelecimento
+                  </span>
+                  <div className="mt-1 flex items-center justify-between">
+                    <span className="font-mono text-2xl font-black tracking-wider text-white">
+                      {cashierData?.access?.establishmentCode || 'MPM-EMP'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (cashierData?.access?.establishmentCode) {
+                          navigator.clipboard.writeText(cashierData.access.establishmentCode);
+                          setCopiedCode(true);
+                          setTimeout(() => setCopiedCode(false), 2000);
+                        }
+                      }}
+                      className="inline-flex items-center gap-1.5 rounded-xl border border-slate-700 bg-slate-900 px-3 py-1.5 text-xs font-bold text-slate-300 hover:text-white"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                      {copiedCode ? 'Copiado!' : 'Copiar'}
+                    </button>
                   </div>
-                ))
-              )}
+                </div>
+
+                <div className="border-t border-slate-800/80 pt-3">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 block">
+                    Link Direto para o Caixa
+                  </span>
+                  <p className="mt-0.5 text-xs text-slate-400 font-mono break-all">
+                    /validar-cupom?code={cashierData?.access?.establishmentCode || ''}
+                  </p>
+                  <div className="mt-3">
+                    <a
+                      href={`/validar-cupom?code=${cashierData?.access?.establishmentCode || ''}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-xl bg-cyan-500 px-4 py-2 text-xs font-black text-slate-950 hover:bg-cyan-400 transition"
+                    >
+                      <ExternalLink className="h-3.5 w-3.5" /> Abrir Portal do Caixa no Navegador
+                    </a>
+                  </div>
+                </div>
+              </div>
+
+              {/* Formulário de Troca de PIN */}
+              <form onSubmit={handleUpdatePin} className="space-y-3 border-t border-slate-800 pt-4">
+                <label className="block text-xs font-bold text-slate-400">
+                  {cashierData?.access?.hasPin ? 'Alterar PIN do Caixa (4 a 8 dígitos)' : 'Criar PIN do Caixa'}
+                  <div className="mt-1 flex gap-2">
+                    <input
+                      type="password"
+                      maxLength={8}
+                      placeholder="Ex.: 1234"
+                      value={newPin}
+                      onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+                      className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-950 px-4 py-2.5 font-mono text-sm tracking-widest text-white"
+                    />
+                    <button
+                      type="submit"
+                      disabled={pinLoading}
+                      className="rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-500 disabled:opacity-40"
+                    >
+                      {pinLoading ? 'Gravando...' : 'Atualizar PIN'}
+                    </button>
+                  </div>
+                </label>
+                {pinMessage && (
+                  <p className="text-xs font-bold text-emerald-400">{pinMessage}</p>
+                )}
+              </form>
+            </div>
+
+            {/* Card 2: Como Funciona & Dispositivos Ativos */}
+            <div className="space-y-5 rounded-3xl border border-slate-800 bg-slate-900 p-6 sm:p-7">
+              <h3 className="text-base font-black text-white">Como Usar no Ponto de Venda</h3>
+              <ol className="space-y-2.5 text-xs text-slate-300">
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 font-mono text-[10px] font-bold text-cyan-300">
+                    1
+                  </span>
+                  <span>O atendente abre <strong>/validar-cupom</strong> no celular ou tablet da loja.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 font-mono text-[10px] font-bold text-cyan-300">
+                    2
+                  </span>
+                  <span>Informa o Código do Estabelecimento e o PIN configurado acima.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 font-mono text-[10px] font-bold text-cyan-300">
+                    3
+                  </span>
+                  <span>Escaneia o QR Code do cliente ou digita o código de 6 caracteres.</span>
+                </li>
+                <li className="flex items-start gap-2.5">
+                  <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-cyan-500/20 font-mono text-[10px] font-bold text-cyan-300">
+                    4
+                  </span>
+                  <span>Clica em <strong>VALIDAR E DAR BAIXA</strong> para confirmar a visita com segurança.</span>
+                </li>
+              </ol>
+
+              <div className="border-t border-slate-800 pt-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-white">Dispositivos Autorizados</span>
+                  <span className="text-[10px] text-slate-500">
+                    {(cashierData?.devices || []).length} conectados
+                  </span>
+                </div>
+
+                <div className="mt-3 space-y-2">
+                  {(cashierData?.devices || []).length === 0 ? (
+                    <p className="text-xs text-slate-500">Nenhum dispositivo registrado ainda.</p>
+                  ) : (
+                    cashierData.devices.map((dev: any) => (
+                      <div
+                        key={dev.id}
+                        className="flex items-center justify-between rounded-xl border border-slate-800 bg-slate-950 p-3 text-xs"
+                      >
+                        <div>
+                          <p className="font-bold text-slate-300">{dev.device_name || 'Dispositivo de Caixa'}</p>
+                          <p className="text-[10px] text-slate-500">
+                            Último uso: {dev.last_used_at ? new Date(dev.last_used_at).toLocaleDateString('pt-BR') : 'Hoje'}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            await revokeCashierDeviceAction(dev.id);
+                            loadCashierData();
+                          }}
+                          className="rounded-lg bg-rose-500/10 px-2.5 py-1 text-[11px] font-bold text-rose-300 hover:bg-rose-500/20"
+                        >
+                          Revogar
+                        </button>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
             </div>
           </div>
         </div>

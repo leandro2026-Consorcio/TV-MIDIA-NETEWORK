@@ -263,6 +263,25 @@ export default function ScreenDetailPage() {
     }
   };
 
+  useEffect(() => {
+    if (!showTour) return;
+    const targetMap: Record<number, string> = {
+      0: 'tour-target-playlist',
+      1: 'tour-target-network',
+      2: 'tour-target-content',
+      3: 'tour-target-deactivate',
+    };
+    const targetId = targetMap[tourStep];
+    if (targetId) {
+      setTimeout(() => {
+        const el = document.getElementById(targetId);
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 80);
+    }
+  }, [showTour, tourStep]);
+
   // Desativar Tela
   const handleDeactivate = async () => {
     if (!confirm('Deseja realmente desativar esta tela? O pareamento do dispositivo será revogado.')) {
@@ -364,17 +383,40 @@ export default function ScreenDetailPage() {
 
         {/* Sub-passos da TV */}
         <div className="mt-5 grid grid-cols-2 sm:grid-cols-4 gap-2 pt-4 border-t border-slate-800/80">
-          <div className="rounded-xl border border-purple-500/30 bg-purple-500/10 p-3">
+          <div
+            id="tour-target-playlist-step"
+            className={`rounded-xl border p-3 transition-all duration-300 ${
+              showTour && tourStep === 0
+                ? 'border-purple-500 bg-purple-500/20 ring-4 ring-purple-500/60 shadow-[0_0_25px_rgba(168,85,247,0.4)] scale-105 z-30'
+                : 'border-purple-500/30 bg-purple-500/10'
+            }`}
+          >
             <span className="text-[10px] font-bold text-purple-300 uppercase tracking-wider block">Passo 1 de 4</span>
             <strong className="text-white text-xs block mt-0.5">Programação (Playlist)</strong>
             <span className="text-[11px] text-slate-400 mt-1 block">{assignedPlaylist ? '✅ Definida' : 'Pendente'}</span>
           </div>
-          <Link href={`/screens/${screenId}/inventory`} className="rounded-xl border border-slate-800 bg-slate-950 p-3 hover:border-purple-500/30 transition block">
+          <Link
+            id="tour-target-network"
+            href={`/screens/${screenId}/inventory`}
+            className={`rounded-xl border p-3 transition-all duration-300 block ${
+              showTour && tourStep === 1
+                ? 'border-sky-500 bg-sky-500/20 ring-4 ring-sky-500/60 shadow-[0_0_25px_rgba(14,165,233,0.4)] scale-105 z-30'
+                : 'border-slate-800 bg-slate-950 hover:border-purple-500/30'
+            }`}
+          >
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Passo 2 de 4</span>
             <strong className="text-white text-xs block mt-0.5">Participação na Rede</strong>
             <span className="text-[11px] text-sky-400 mt-1 block">Configurar espaço →</span>
           </Link>
-          <Link href={`/screens/${screenId}/content-settings`} className="rounded-xl border border-slate-800 bg-slate-950 p-3 hover:border-sky-500/30 transition block">
+          <Link
+            id="tour-target-content"
+            href={`/screens/${screenId}/content-settings`}
+            className={`rounded-xl border p-3 transition-all duration-300 block ${
+              showTour && tourStep === 2
+                ? 'border-emerald-500 bg-emerald-500/20 ring-4 ring-emerald-500/60 shadow-[0_0_25px_rgba(16,185,129,0.4)] scale-105 z-30'
+                : 'border-slate-800 bg-slate-950 hover:border-sky-500/30'
+            }`}
+          >
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Passo 3 de 4</span>
             <strong className="text-white text-xs block mt-0.5">Entre Propagandas</strong>
             <span className="text-[11px] text-sky-400 mt-1 block">Notícias e respiro →</span>
@@ -388,7 +430,19 @@ export default function ScreenDetailPage() {
       </div>
 
       {/* Caixa de Atribuição de Playlist */}
-      <div className="bg-slate-900 border border-purple-500/30 p-6 rounded-2xl shadow-xl space-y-4">
+      <div
+        id="tour-target-playlist"
+        className={`bg-slate-900 border p-6 rounded-2xl shadow-xl space-y-4 transition-all duration-300 ${
+          showTour && tourStep === 0
+            ? 'border-purple-500 ring-4 ring-purple-500/50 shadow-[0_0_40px_rgba(168,85,247,0.4)] relative z-40'
+            : 'border-purple-500/30'
+        }`}
+      >
+        {showTour && tourStep === 0 && (
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500 text-white text-[11px] font-bold uppercase tracking-wider shadow-lg animate-pulse">
+            <Sparkles className="w-3.5 h-3.5" /> Spotlight 1: Playlist & Programação da TV
+          </div>
+        )}
         <div className="flex items-center justify-between border-b border-slate-800 pb-3">
           <div className="flex items-center gap-3">
             <div className="bg-purple-500/10 p-2.5 rounded-xl text-purple-400 border border-purple-500/20">
@@ -650,7 +704,19 @@ export default function ScreenDetailPage() {
 
       {/* Zona de Ações Secundárias / Perigo: Desativação */}
       {isAdminOrMaster && screen.status !== 'inactive' && (
-        <section className="rounded-2xl border border-rose-500/20 bg-rose-500/5 p-6 shadow-sm">
+        <section
+          id="tour-target-deactivate"
+          className={`rounded-2xl border p-6 shadow-sm transition-all duration-300 ${
+            showTour && tourStep === 3
+              ? 'border-rose-500 bg-rose-500/10 ring-4 ring-rose-500/50 shadow-[0_0_40px_rgba(244,63,94,0.4)] relative z-40'
+              : 'border-rose-500/20 bg-rose-500/5'
+          }`}
+        >
+          {showTour && tourStep === 3 && (
+            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-500 text-white text-[11px] font-bold uppercase tracking-wider shadow-lg animate-pulse mb-3">
+              <Sparkles className="w-3.5 h-3.5" /> Spotlight 4: Desativação Segura da Tela
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <h3 className="text-sm font-bold text-rose-300">Desativação da Tela</h3>
@@ -670,11 +736,11 @@ export default function ScreenDetailPage() {
         </section>
       )}
 
-      {/* Modal do Tour Guiado: Apresentação das Áreas da TV */}
+      {/* Modal / Dock do Tour Guiado: Apresentação das Áreas da TV */}
       {showTour && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-6 sm:p-8 shadow-2xl space-y-6">
-            <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="fixed inset-0 z-50 flex items-end justify-center sm:justify-end p-4 sm:p-6 bg-slate-950/40 backdrop-blur-[2px] pointer-events-none">
+          <div className="w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900/95 p-6 sm:p-7 shadow-2xl space-y-5 pointer-events-auto">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
                 <span className="p-2 rounded-xl bg-sky-500/10 text-sky-400 border border-sky-500/20">
                   <Sparkles className="w-5 h-5" />

@@ -172,6 +172,7 @@ export async function getMarketplaceScreensAction(filters: ScreensMarketplaceFil
         venueType: s.venue_type,
         venueCategory: s.venue_category || 'Comércio Local',
         indicativePriceCredits: Number(s.indicative_price_credits || 0.25),
+        companyId: comp?.id,
         companyName: comp?.trade_name || 'Empresa Parceira',
         city: comp?.city || 'Local',
         state: comp?.state || '',

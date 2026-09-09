@@ -5,7 +5,11 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { CompanyAdOffer } from '@/types';
-import { getMarketplaceOffersAction, getMarketplaceFiltersDataAction } from '@/app/actions/marketplace';
+import { 
+  getMarketplaceOffersAction, 
+  getMarketplaceFiltersDataAction,
+  requestScreenDistributionAction 
+} from '@/app/actions/marketplace';
 import {
   getMarketplaceCreatorsAction,
   getMarketplaceScreensAction,
@@ -33,6 +37,9 @@ import {
   Inbox,
   ShoppingCart,
   Megaphone,
+  Calendar,
+  Image as ImageIcon,
+  X,
 } from 'lucide-react';
 
 export default function MarketplacePage() {
@@ -42,7 +49,14 @@ export default function MarketplacePage() {
 
   const [activeTab, setActiveTab] = useState<'tvs' | 'creators' | 'offers'>(initialTab);
   const [selectedCampaign, setSelectedCampaign] = useState<any | null>(null);
+  const [selectedMediaAssetId, setSelectedMediaAssetId] = useState<string>('');
   const [organicEntitlementBalance, setOrganicEntitlementBalance] = useState<number | null>(null);
+
+  // Screen hiring modal state for existing campaign
+  const [hiringScreen, setHiringScreen] = useState<any | null>(null);
+  const [hiringMessage, setHiringMessage] = useState('');
+  const [hiringSubmitting, setHiringSubmitting] = useState(false);
+  const [hiringFeedback, setHiringFeedback] = useState<{ success: boolean; message: string } | null>(null);
 
   // Offers state
   const [offers, setOffers] = useState<CompanyAdOffer[]>([]);
@@ -130,11 +144,31 @@ export default function MarketplacePage() {
   useEffect(() => {
     if (!campaignId) return;
     async function loadCampaign() {
-      const { data } = await (supabase.from('campaigns') as any)
-        .select('id, name, description, start_date, end_date')
-        .eq('id', campaignId)
-        .maybeSingle();
-      if (data) setSelectedCampaign(data);
+      try {
+        const { data: camp } = await (supabase.from('campaigns') as any)
+          .select('id, name, description, start_date, end_date, company_id, companies:companies!campaigns_company_id_fkey(trade_name)')
+          .eq('id', campaignId)
+          .maybeSingle();
+
+        if (!camp) return;
+
+        const { data: cMedia } = await (supabase.from('campaign_media') as any)
+          .select('id, media_asset_id, playback_duration_seconds, media_assets(*)')
+          .eq('campaign_id', campaignId);
+
+        const fullCampaign = {
+          ...camp,
+          company: camp.companies,
+          campaign_media: cMedia || [],
+        };
+        setSelectedCampaign(fullCampaign);
+        if (cMedia && cMedia.length > 0) {
+          const firstId = cMedia[0]?.media_assets?.id || cMedia[0]?.media_asset_id;
+          if (firstId) setSelectedMediaAssetId(firstId);
+        }
+      } catch (err) {
+        console.error('Erro ao carregar campanha no marketplace:', err);
+      }
     }
     loadCampaign();
   }, [campaignId, supabase]);
@@ -225,29 +259,113 @@ export default function MarketplacePage() {
     }
   };
 
+  const handleHireScreen = async () => {
+    if (!hiringScreen || !selectedCampaign) return;
+    setHiringSubmitting(true);
+    setHiringFeedback(null);
+    try {
+      const mediaId = selectedMediaAssetId || selectedCampaign.campaign_media?.[0]?.media_assets?.id || selectedCampaign.campaign_media?.[0]?.media_asset_id;
+      const res = await requestScreenDistributionAction({
+        screenId: hiringScreen.id,
+        campaignId: selectedCampaign.id,
+        mediaAssetId: mediaId,
+        message: hiringMessage || undefined,
+      });
+
+      if (!res.success) {
+        setHiringFeedback({ success: false, message: res.error || 'Erro ao processar contratação da tela.' });
+      } else {
+        setHiringFeedback({ success: true, message: res.message || 'Solicitação concluída com sucesso!' });
+      }
+    } catch (err: any) {
+      setHiringFeedback({ success: false, message: err.message || 'Erro inesperado ao contratar tela.' });
+    } finally {
+      setHiringSubmitting(false);
+    }
+  };
+
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-16">
       {/* Contextual Banner: Distribuição de Campanha */}
       {selectedCampaign && (
-        <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-lg">
-          <div className="flex items-center gap-3">
-            <div className="p-2 rounded-xl bg-sky-500/20 text-sky-400">
-              <Megaphone className="w-5 h-5" />
+        <div className="bg-sky-500/10 border border-sky-500/30 rounded-2xl p-5 space-y-3 shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-sky-500/20 text-sky-400">
+                <Megaphone className="w-5 h-5" />
+              </div>
+              <div>
+                <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">
+                  Distribuição da Minha Empresa na Rede
+                </span>
+                <strong className="text-white text-base font-bold">
+                  Você está distribuindo a campanha: {selectedCampaign.name}
+                </strong>
+                {selectedCampaign.company?.trade_name && (
+                  <span className="text-xs text-sky-300/80 ml-2">
+                    ({selectedCampaign.company.trade_name})
+                  </span>
+                )}
+              </div>
             </div>
-            <div>
-              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">Distribuição da Minha Empresa</span>
-              <strong className="text-white text-base font-bold">Você está distribuindo a campanha: {selectedCampaign.name}</strong>
-              <p className="text-xs text-slate-300 mt-0.5">
-                Escolha abaixo as TVs comerciais parceiras ou canais de Creators para veicular seus anúncios.
-              </p>
-            </div>
+            <Link
+              href={`/campaigns/${selectedCampaign.id}`}
+              className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs font-bold text-slate-200 transition shrink-0"
+            >
+              Voltar para a Campanha
+            </Link>
           </div>
-          <Link
-            href={`/campaigns/${selectedCampaign.id}`}
-            className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs font-bold text-slate-200 transition shrink-0"
-          >
-            Voltar para a Campanha
-          </Link>
+
+          {/* Metadata Badges: Criativo Vinculado & Datas */}
+          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-sky-500/20 text-xs">
+            {selectedCampaign.start_date && selectedCampaign.end_date && (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300">
+                <Calendar className="w-3.5 h-3.5 text-sky-400" />
+                Período: {new Date(selectedCampaign.start_date).toLocaleDateString('pt-BR')} até {new Date(selectedCampaign.end_date).toLocaleDateString('pt-BR')}
+              </span>
+            )}
+
+            {selectedCampaign.campaign_media && selectedCampaign.campaign_media.length > 0 ? (
+              <div className="flex items-center gap-2">
+                <span className="text-slate-400 text-xs">Criativo vinculado:</span>
+                {selectedCampaign.campaign_media.length === 1 ? (
+                  (() => {
+                    const m = selectedCampaign.campaign_media[0].media_assets;
+                    return (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-sky-500/20 border border-sky-500/30 text-sky-200 font-semibold">
+                        <ImageIcon className="w-3.5 h-3.5 text-sky-400" />
+                        {m?.title || 'Criativo'} · {m?.orientation === 'vertical' ? 'Vertical' : 'Horizontal'} ({m?.playback_duration_seconds || selectedCampaign.campaign_media[0].playback_duration_seconds || 15}s)
+                      </span>
+                    );
+                  })()
+                ) : (
+                  <select
+                    value={selectedMediaAssetId}
+                    onChange={(e) => setSelectedMediaAssetId(e.target.value)}
+                    className="bg-slate-900 border border-sky-500/30 rounded-lg px-2.5 py-1 text-sky-200 text-xs font-semibold focus:outline-none focus:border-sky-400"
+                  >
+                    {selectedCampaign.campaign_media.map((cm: any) => {
+                      const m = cm.media_assets;
+                      const mid = m?.id || cm.media_asset_id;
+                      return (
+                        <option key={mid} value={mid}>
+                          {m?.title || 'Criativo'} ({m?.orientation === 'vertical' ? 'Vertical' : 'Horizontal'})
+                        </option>
+                      );
+                    })}
+                  </select>
+                )}
+              </div>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-300">
+                Nenhum criativo aprovado vinculado a esta campanha ainda.
+              </span>
+            )}
+          </div>
+
+          <p className="text-xs text-slate-300">
+            Escolha abaixo as TVs parceiras. Seus criativos, datas e dados da empresa serão preservados automaticamente ao contratar sem exigir recriar a campanha do zero.
+          </p>
         </div>
       )}
 
@@ -449,14 +567,32 @@ export default function MarketplacePage() {
                       </span>
                     </div>
 
-                    <Link
-                      href={campaignId ? `/campaigns/new?screen=${screen.id}&campaign_id=${campaignId}` : `/campaigns/new?screen=${screen.id}`}
-                      className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
-                    >
-                      Contratar TV
-                    </Link>
+                      {selectedCampaign ? (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setHiringScreen(screen);
+                            setHiringFeedback(null);
+                            setHiringMessage('');
+                          }}
+                          className={`font-bold px-3 py-1.5 rounded-xl text-xs transition ${
+                            screen.companyId === selectedCampaign.company_id
+                              ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                              : 'bg-purple-600 hover:bg-purple-500 text-white'
+                          }`}
+                        >
+                          {screen.companyId === selectedCampaign.company_id ? 'Vincular Minha TV' : 'Contratar TV'}
+                        </button>
+                      ) : (
+                        <Link
+                          href={`/campaigns/new?screen=${screen.id}`}
+                          className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
+                        >
+                          Contratar TV
+                        </Link>
+                      )}
+                    </div>
                   </div>
-                </div>
               ))}
             </div>
           )}
@@ -706,6 +842,188 @@ export default function MarketplacePage() {
               >
                 Fechar
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal de Contratação de Tela para Campanha Existente */}
+      {hiringScreen && selectedCampaign && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-slate-900 border border-purple-500/30 rounded-3xl max-w-lg w-full p-6 space-y-5 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="p-2 rounded-xl bg-purple-500/20 text-purple-400">
+                  <Tv className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-purple-400 block">
+                    {hiringScreen.companyId === selectedCampaign.company_id ? 'Vínculo Interno' : 'Contratação na Rede MPM'}
+                  </span>
+                  <h3 className="text-base font-bold text-white line-clamp-1">{hiringScreen.name}</h3>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setHiringScreen(null);
+                  setHiringFeedback(null);
+                }}
+                className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Target Screen Details */}
+            <div className="bg-slate-950/60 border border-slate-800 rounded-xl p-3.5 space-y-1 text-xs">
+              <div className="flex justify-between">
+                <span className="text-slate-400">Empresa Exibidora:</span>
+                <strong className="text-white">{hiringScreen.companyName}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Localidade:</span>
+                <span className="text-slate-200">{hiringScreen.city} - {hiringScreen.state}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Tipo de Ponto:</span>
+                <span className="text-purple-300 font-semibold">{hiringScreen.venueCategory}</span>
+              </div>
+              <div className="flex justify-between pt-1 border-t border-slate-800/80">
+                <span className="text-slate-400">Custo Indicativo:</span>
+                <strong className="text-purple-400 font-mono">{hiringScreen.indicativePriceCredits} crédito / inserção</strong>
+              </div>
+            </div>
+
+            {/* Preserved Campaign & Media Context */}
+            <div className="bg-sky-500/10 border border-sky-500/20 rounded-xl p-3.5 space-y-1.5 text-xs">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-sky-400 block">
+                Dados Preservados da Campanha
+              </span>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Campanha de Origem:</span>
+                <strong className="text-white">{selectedCampaign.name}</strong>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-slate-400">Empresa Anunciante:</span>
+                <span className="text-slate-200">{selectedCampaign.company?.trade_name || 'Sua Empresa'}</span>
+              </div>
+              {selectedCampaign.start_date && selectedCampaign.end_date && (
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Período:</span>
+                  <span className="text-slate-200 font-mono">
+                    {new Date(selectedCampaign.start_date).toLocaleDateString('pt-BR')} até {new Date(selectedCampaign.end_date).toLocaleDateString('pt-BR')}
+                  </span>
+                </div>
+              )}
+              {selectedCampaign.campaign_media?.[0]?.media_assets && (
+                <div className="flex justify-between pt-1 border-t border-sky-500/20">
+                  <span className="text-slate-400">Criativo Vinculado:</span>
+                  <strong className="text-sky-300">
+                    {selectedCampaign.campaign_media[0].media_assets.title} ({selectedCampaign.campaign_media[0].media_assets.orientation})
+                  </strong>
+                </div>
+              )}
+            </div>
+
+            {/* Saldo Orgânico Reconhecido */}
+            {organicEntitlementBalance !== null && organicEntitlementBalance > 0 && (
+              <div className="bg-purple-500/10 border border-purple-500/20 rounded-xl p-3 text-xs text-purple-200 flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-purple-400 shrink-0" />
+                <span>
+                  Você possui <strong>{organicEntitlementBalance.toLocaleString('pt-BR')} unidades</strong> de Direito de Divulgação geradas por Benefícios & Prêmios.
+                </span>
+              </div>
+            )}
+
+            {/* Optional Message */}
+            {hiringScreen.companyId !== selectedCampaign.company_id && !hiringFeedback?.success && (
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-slate-300 block">
+                  Mensagem para a Empresa Parceira (Opcional)
+                </label>
+                <textarea
+                  value={hiringMessage}
+                  onChange={(e) => setHiringMessage(e.target.value)}
+                  placeholder="Ex: Gostaríamos de veicular nosso anúncio durante os horários de pico comercial..."
+                  rows={2}
+                  className="w-full bg-slate-950 border border-slate-800 rounded-xl p-2.5 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+              </div>
+            )}
+
+            {/* Feedback Message */}
+            {hiringFeedback && (
+              <div
+                className={`p-3.5 rounded-xl border text-xs flex items-start gap-2.5 ${
+                  hiringFeedback.success
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300'
+                    : 'bg-rose-500/10 border-rose-500/30 text-rose-300'
+                }`}
+              >
+                {hiringFeedback.success ? (
+                  <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                ) : (
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
+                )}
+                <div>
+                  <strong className="font-bold block mb-0.5">
+                    {hiringFeedback.success ? 'Sucesso!' : 'Atenção'}
+                  </strong>
+                  <span>{hiringFeedback.message}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-slate-800">
+              {hiringFeedback?.success ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHiringScreen(null);
+                      setHiringFeedback(null);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-800 text-xs font-bold text-slate-300 hover:text-white transition"
+                  >
+                    Contratar Outras Telas
+                  </button>
+                  <Link
+                    href={`/campaigns/${selectedCampaign.id}`}
+                    className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-bold text-white transition shadow-lg shadow-purple-600/20"
+                  >
+                    Voltar para a Campanha
+                  </Link>
+                </>
+              ) : (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setHiringScreen(null);
+                      setHiringFeedback(null);
+                    }}
+                    className="px-4 py-2 rounded-xl border border-slate-700 bg-slate-900 text-xs font-semibold text-slate-400 hover:text-white transition"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleHireScreen}
+                    disabled={hiringSubmitting}
+                    className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 disabled:opacity-50 text-xs font-bold text-white transition flex items-center gap-2 shadow-lg shadow-purple-600/20"
+                  >
+                    {hiringSubmitting ? (
+                      <>
+                        <Loader2 className="w-3.5 h-3.5 animate-spin" /> Processando...
+                      </>
+                    ) : (
+                      hiringScreen.companyId === selectedCampaign.company_id ? 'Confirmar Vínculo' : 'Enviar Solicitação'
+                    )}
+                  </button>
+                </>
+              )}
             </div>
           </div>
         </div>

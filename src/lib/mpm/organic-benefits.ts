@@ -6,6 +6,13 @@ export interface OrganicBenefitConfig {
   commercialTvWeight: number;
   windowsMonitorWeight: number;
   residentialScreenWeight: number;
+  organicResidentialDeliveryReference: number;
+  organicPointsPerValidatedDisplay: number;
+  organicRewardMaxPromotionalProgress: number;
+  minimumResidentialPrivacyGroupSize: number;
+  organicFollowProfileMissionEnabled: boolean;
+  expectedRewardVisitConversionRate: number;
+  organicReferralPoints: number;
   maxGrantedInsertions: number;
   suspiciousPriceThreshold: number;
   defaultCouponValidityDays: number;
@@ -21,6 +28,13 @@ export const DEFAULT_ORGANIC_CONFIG: OrganicBenefitConfig = {
   commercialTvWeight: 1.00,
   windowsMonitorWeight: 0.10,
   residentialScreenWeight: 0.01,
+  organicResidentialDeliveryReference: 0.05, // Referência própria de entrega residencial: R$ 0,05
+  organicPointsPerValidatedDisplay: 0.05, // 0,05 Ponto da Rede por Exibição Validada
+  organicRewardMaxPromotionalProgress: 95.0, // Teto máximo server-side de 95%
+  minimumResidentialPrivacyGroupSize: 3, // k-anonymity mínimo de 3 telas por bairro residencial
+  organicFollowProfileMissionEnabled: false, // Missão "seguir perfil" desativada por padrão
+  expectedRewardVisitConversionRate: 0.70, // 70% de conversão estimada em visitas
+  organicReferralPoints: 30.0, // +30 Pontos da Rede por indicação de cliente convertida
   maxGrantedInsertions: 50000,
   suspiciousPriceThreshold: 500.0,
   defaultCouponValidityDays: 7,
@@ -179,3 +193,105 @@ export function formatAllowedWeekdays(weekdays?: number[] | null): string {
   }
   return sorted.map((d) => names[d]).join(', ');
 }
+
+/**
+ * Calcula pontos da rede líquidos necessários com aplicação do bônus promocional (com teto estrito de 95%)
+ */
+export function calculateNetPointsRequired(
+  basePoints: number,
+  bonusPercentage: number = 0,
+  missionsBonusPercentage: number = 0,
+  maxProgressCap: number = 95.0
+): { netPoints: number; totalBonusApplied: number; promoDiscountPoints: number } {
+  const safeBase = Math.max(1, Math.round(basePoints));
+  const sumBonus = Math.max(0, bonusPercentage) + Math.max(0, missionsBonusPercentage);
+  const totalBonusApplied = Math.min(maxProgressCap, sumBonus);
+
+  if (totalBonusApplied <= 0) {
+    return { netPoints: safeBase, totalBonusApplied: 0, promoDiscountPoints: 0 };
+  }
+
+  const netPoints = Math.max(1, Math.round(safeBase * (1.0 - (totalBonusApplied / 100.0))));
+  const promoDiscountPoints = safeBase - netPoints;
+
+  return { netPoints, totalBonusApplied, promoDiscountPoints };
+}
+
+/**
+ * Calcula exibições residenciais necessárias para acumular os pontos de um prêmio sem bônus (taxa 0,05)
+ * Ex.: R$ 79,90 = 80 pontos base / 0,05 = 1.600 exibições (ou 79,90 / 0,05 = 1.598 exibições)
+ */
+export function calculateResidentialDisplaysNeeded(
+  unitValue: number,
+  ratePerDisplay: number = 0.05
+): number {
+  if (unitValue <= 0 || ratePerDisplay <= 0) return 0;
+  return Math.round(unitValue / ratePerDisplay);
+}
+
+/**
+ * Calcula estimativa comercial de entregas residenciais (Referência própria R$ 0,05)
+ * IMPORTANTE: Segregado da divisão por 0,01! R$ 799,00 / 0,05 = ~15.980 exibições (NÃO 319.600!)
+ */
+export function calculateResidentialDeliveryTarget(
+  promotionalValue: number,
+  residentialDeliveryReference: number = 0.05
+): number {
+  if (promotionalValue <= 0 || residentialDeliveryReference <= 0) return 0;
+  return Math.round(promotionalValue / residentialDeliveryReference);
+}
+
+/**
+ * Valida se um Comprovante de Exibição é elegível para pontuação com base no timezone local da tela
+ * Faixa normal: 06:00 até 23:59 (0,05 pts)
+ * Faixa madrugada: 00:00 até 05:59 (0,0 pts - anti-farming)
+ */
+export function isPlaybackEligibleForPoints(
+  playedAt: Date | string,
+  timezone: string = 'America/Cuiaba',
+  dayStart: string = '06:00',
+  dayEnd: string = '23:59'
+): { eligible: boolean; pointsWeight: number; localTime: string } {
+  const date = typeof playedAt === 'string' ? new Date(playedAt) : playedAt;
+
+  // Extrai hora e minuto no timezone especificado
+  let localTime = '12:00';
+  try {
+    const formatter = new Intl.DateTimeFormat('en-GB', {
+      timeZone: timezone,
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    });
+    localTime = formatter.format(date);
+  } catch {
+    // Fallback para getHours do date
+    const h = String(date.getHours()).padStart(2, '0');
+    const m = String(date.getMinutes()).padStart(2, '0');
+    localTime = `${h}:${m}`;
+  }
+
+  const isEligible = localTime >= dayStart && localTime <= dayEnd;
+  return {
+    eligible: isEligible,
+    pointsWeight: isEligible ? 0.05 : 0.0,
+    localTime,
+  };
+}
+
+/**
+ * Agregação de privacidade residencial: Bairros com menos de N telas (padrão 3) são mascarados
+ */
+export function filterPrivacyAggregatedResidential(
+  groups: Array<{ neighborhood: string; screenCount: number; city: string; validatedDisplays: number }>,
+  minimumPrivacyGroupSize: number = 3
+) {
+  return groups.map((g) => ({
+    city: g.city,
+    neighborhood: g.screenCount >= minimumPrivacyGroupSize ? g.neighborhood : 'Região Residencial Agrupada',
+    screenCount: g.screenCount,
+    validatedDisplays: g.validatedDisplays,
+    isAggregated: g.screenCount < minimumPrivacyGroupSize,
+  }));
+}
+

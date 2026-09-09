@@ -28,19 +28,332 @@ function decrypt(value: any, secretHash: string) {
   } catch { return null; }
 }
 
+/**
+ * Dashboard do Participante da Rede Orgânica V2:
+ * - Pontos da Rede
+ * - Meu Próximo Prêmio (com foto, estabelecimento, barra de progresso, bônus, marcos)
+ * - Hoje: X Exibições Validadas, +Y pontos
+ * - Missões ativas
+ * - Histórico amigável agrupado
+ */
 export async function getOrganicDashboardAction() {
   const supabase: any = createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return { success: false as const, error: 'Usuário não autenticado.' };
-  const { data: participant } = await (supabase.from('organic_participants') as any).select('*').eq('user_id', user.id).maybeSingle();
-  if (!participant) return { success: true as const, participant: null, screens: [], rewards: [], ledger: [], redemptions: [] };
-  const [screens, rewards, ledger, redemptions] = await Promise.all([
-    (supabase.from('organic_screens') as any).select('*').eq('participant_id', participant.id).order('created_at'),
-    (supabase.from('organic_campaign_rewards') as any).select('*, companies(trade_name)').eq('status', 'active').gt('quantity_available', 0).gt('expires_at', new Date().toISOString()).order('credits_required'),
-    (supabase.from('organic_credit_ledger') as any).select('*').eq('participant_id', participant.id).order('created_at', { ascending: false }).limit(50),
-    (supabase.from('organic_reward_redemptions') as any).select('*, organic_campaign_rewards(title, companies(trade_name))').eq('participant_id', participant.id).order('created_at', { ascending: false }).limit(20),
+
+  const { data: participant } = await (supabase.from('organic_participants') as any)
+    .select('*')
+    .eq('user_id', user.id)
+    .maybeSingle();
+
+  if (!participant) {
+    return {
+      success: true as const,
+      participant: null,
+      screens: [],
+      rewards: [],
+      ledger: [],
+      redemptions: [],
+      pinnedReward: null,
+      todayStats: { validatedDisplays: 0, pointsEarned: 0 },
+      availableMissionsCount: 0,
+    };
+  }
+
+  const [screensRes, rewardsRes, ledgerRes, redemptionsRes, pinnedRes, completionsRes, missionsRes] = await Promise.all([
+    (supabase.from('organic_screens') as any)
+      .select('*')
+      .eq('participant_id', participant.id)
+      .order('created_at'),
+    (supabase.from('organic_campaign_rewards') as any)
+      .select('*, companies(trade_name, city, neighborhood, address)')
+      .eq('status', 'active')
+      .gt('quantity_available', 0)
+      .gt('expires_at', new Date().toISOString())
+      .order('credits_required'),
+    (supabase.from('organic_credit_ledger') as any)
+      .select('*')
+      .eq('participant_id', participant.id)
+      .order('created_at', { ascending: false })
+      .limit(100),
+    (supabase.from('organic_reward_redemptions') as any)
+      .select('*, organic_campaign_rewards(title, companies(trade_name))')
+      .eq('participant_id', participant.id)
+      .order('created_at', { ascending: false })
+      .limit(20),
+    (supabase.from('organic_participant_pinned_rewards') as any)
+      .select('*, organic_campaign_rewards(*, companies(trade_name, city, neighborhood))')
+      .eq('participant_id', participant.id)
+      .maybeSingle(),
+    (supabase.from('organic_participant_mission_completions') as any)
+      .select('*')
+      .eq('participant_id', participant.id),
+    (supabase.from('organic_reward_missions') as any)
+      .select('id, reward_id')
+      .eq('is_active', true),
   ]);
-  return { success: true as const, participant, screens: screens.data || [], rewards: rewards.data || [], ledger: ledger.data || [], redemptions: redemptions.data || [] };
+
+  const screens = screensRes.data || [];
+  const rewards = rewardsRes.data || [];
+  const ledger = ledgerRes.data || [];
+  const redemptions = redemptionsRes.data || [];
+  const completions = completionsRes.data || [];
+  const missions = missionsRes.data || [];
+
+  // Estatísticas de hoje (base local)
+  const todayStr = new Date().toISOString().slice(0, 10);
+  let todayDisplays = 0;
+  let todayPoints = 0;
+
+  for (const entry of ledger) {
+    if (entry.created_at && entry.created_at.startsWith(todayStr)) {
+      if (entry.type === 'playback') {
+        todayDisplays += 1;
+        todayPoints += Number(entry.amount || 0);
+      } else if (Number(entry.amount || 0) > 0) {
+        todayPoints += Number(entry.amount || 0);
+      }
+    }
+  }
+
+  // Processa "Meu Próximo Prêmio"
+  let pinnedReward: any = null;
+  const targetReward = pinnedRes.data?.organic_campaign_rewards || (rewards.length > 0 ? rewards[0] : null);
+
+  if (targetReward) {
+    const basePoints = Number(targetReward.credits_required || 80);
+    const baseBonus = Number(targetReward.bonus_percentage || 0);
+
+    // Soma bônus de missões aprovadas para esse prêmio
+    const approvedMissionsBonus = completions
+      .filter((c: any) => c.reward_id === targetReward.id && c.status === 'approved')
+      .reduce((sum: number, c: any) => sum + Number(c.bonus_percentage_applied || 0), 0);
+
+    const totalBonus = Math.min(95, baseBonus + approvedMissionsBonus);
+    const promoPointsEquivalent = basePoints * (totalBonus / 100);
+    const userBalance = Number(participant.available_balance || 0);
+    const totalPointsEffective = userBalance + promoPointsEquivalent;
+
+    const progressPercent = Math.min(100, Math.round((totalPointsEffective / basePoints) * 100));
+    const netPointsRequired = totalBonus > 0 ? Math.max(1, Math.round(basePoints * (1 - totalBonus / 100))) : basePoints;
+    const isReadyToRedeem = userBalance >= netPointsRequired && targetReward.quantity_available > 0;
+
+    let milestoneMessage = 'Conecte sua tela e ganhe Pontos da Rede.';
+    if (progressPercent >= 100) milestoneMessage = 'Seu prêmio está liberado! 🎉';
+    else if (progressPercent >= 75) milestoneMessage = 'Falta pouco para liberar seu prêmio.';
+    else if (progressPercent >= 50) milestoneMessage = 'Metade do caminho!';
+    else if (progressPercent >= 25) milestoneMessage = 'Você já começou!';
+
+    pinnedReward = {
+      id: targetReward.id,
+      title: targetReward.title,
+      description: targetReward.description,
+      imageUrl: targetReward.image_url,
+      companyTradeName: targetReward.companies?.trade_name || 'Estabelecimento Parceiro',
+      city: targetReward.companies?.city || targetReward.city || '',
+      basePoints,
+      baseBonus,
+      totalBonus,
+      userBalance,
+      netPointsRequired,
+      progressPercent,
+      isReadyToRedeem,
+      milestoneMessage,
+      quantityAvailable: targetReward.quantity_available,
+      expiresAt: targetReward.expires_at,
+      pinnedAt: pinnedRes.data?.pinned_at || null,
+      isPinned: !!pinnedRes.data,
+    };
+  }
+
+  // Agrupamento amigável de microeventos do histórico
+  const groupedLedger: any[] = [];
+  const playbackByDate: Record<string, { count: number; points: number; lastTime: string }> = {};
+
+  for (const entry of ledger) {
+    if (entry.type === 'playback') {
+      const dateKey = entry.created_at ? entry.created_at.slice(0, 10) : 'recent';
+      if (!playbackByDate[dateKey]) {
+        playbackByDate[dateKey] = { count: 0, points: 0, lastTime: entry.created_at };
+      }
+      playbackByDate[dateKey].count += 1;
+      playbackByDate[dateKey].points += Number(entry.amount || 0);
+    } else {
+      groupedLedger.push({
+        id: entry.id,
+        type: entry.type,
+        amount: Number(entry.amount || 0),
+        title: entry.type === 'referral'
+          ? '+30 — Empresa indicada tornou-se cliente'
+          : entry.type === 'reservation'
+            ? `${entry.amount} — Resgate de Prêmio`
+            : entry.description || 'Lançamento de Pontos',
+        createdAt: entry.created_at,
+        isGrouped: false,
+      });
+    }
+  }
+
+  // Insere os grupos de exibição por data
+  for (const [dateKey, grp] of Object.entries(playbackByDate)) {
+    const formattedPoints = grp.points.toFixed(2).replace('.', ',');
+    groupedLedger.push({
+      id: `group-playback-${dateKey}`,
+      type: 'playback_group',
+      amount: grp.points,
+      title: `+${formattedPoints} pontos — ${grp.count} Exibições Validadas ${dateKey === todayStr ? 'hoje' : 'em ' + dateKey}`,
+      createdAt: grp.lastTime,
+      isGrouped: true,
+      displayCount: grp.count,
+    });
+  }
+
+  groupedLedger.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  return {
+    success: true as const,
+    participant,
+    screens,
+    rewards,
+    ledger: groupedLedger,
+    redemptions,
+    pinnedReward,
+    todayStats: {
+      validatedDisplays: todayDisplays,
+      pointsEarned: todayPoints,
+    },
+    availableMissionsCount: missions.length,
+  };
+}
+
+/**
+ * Fixa ou desfixa o prêmio objetivo ("Meu Próximo Prêmio")
+ * IMPORTANTE: Marcar como objetivo NUNCA reserva estoque!
+ */
+export async function pinOrganicRewardAction(rewardId: string) {
+  const supabase: any = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false as const, error: 'Usuário não autenticado.' };
+
+  const { data: participant } = await (supabase.from('organic_participants') as any)
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!participant) return { success: false as const, error: 'Participante não encontrado.' };
+
+  const admin: any = createAdminClient();
+
+  const { error } = await (admin.from('organic_participant_pinned_rewards') as any)
+    .upsert({
+      participant_id: participant.id,
+      reward_id: rewardId,
+      pinned_at: new Date().toISOString(),
+    }, { onConflict: 'participant_id' });
+
+  if (error) return { success: false as const, error: error.message };
+
+  return { success: true as const, message: 'Prêmio definido como seu próximo objetivo!' };
+}
+
+/**
+ * Submete comprovante de missão promocional (Story, Feed/Reel, Compartilhamento)
+ */
+export async function submitMissionProofAction(payload: {
+  missionId: string;
+  rewardId: string;
+  proofType: 'link' | 'image_url' | 'text';
+  proofContent: string;
+}) {
+  const supabase: any = createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) return { success: false as const, error: 'Usuário não autenticado.' };
+
+  const { data: participant } = await (supabase.from('organic_participants') as any)
+    .select('id')
+    .eq('user_id', user.id)
+    .single();
+
+  if (!participant) return { success: false as const, error: 'Participante não encontrado.' };
+
+  const content = (payload.proofContent || '').trim();
+  if (content.length < 3) {
+    return { success: false as const, error: 'Forneça o link ou comprovante da publicação.' };
+  }
+
+  const admin: any = createAdminClient();
+
+  const { data, error } = await (admin.from('organic_participant_mission_completions') as any)
+    .insert({
+      mission_id: payload.missionId,
+      reward_id: payload.rewardId,
+      participant_id: participant.id,
+      proof_type: payload.proofType,
+      proof_content: content,
+      status: 'pending',
+    })
+    .select()
+    .single();
+
+  if (error) return { success: false as const, error: error.message };
+
+  return {
+    success: true as const,
+    message: 'Comprovante enviado com sucesso! O bônus será aplicado assim que validado pelo estabelecimento.',
+    completion: data,
+  };
+}
+
+/**
+ * Caminho canônico de pontuação por Exibição Validada na tela residencial:
+ * - Timezone local da tela/participante
+ * - Idempotência por proof_id
+ * - Faixa 06:00-23:59 pontua (0.05 pts)
+ * - Faixa 00:00-05:59 registra exibição com ZERO pontos (anti-farming)
+ * - Lançamento imutável no ledger orgânico
+ */
+export async function processOrganicDisplayProofAction(payload: {
+  screenId: string;
+  proofId: string;
+  playedAt?: string;
+  clientTimezone?: string;
+}) {
+  const admin: any = createAdminClient();
+  const playedAt = payload.playedAt ? new Date(payload.playedAt).toISOString() : new Date().toISOString();
+
+  const { data, error } = await (admin.rpc as any)('process_organic_screen_display_points', {
+    p_screen_id: payload.screenId,
+    p_proof_id: payload.proofId,
+    p_played_at: playedAt,
+    p_client_timezone: payload.clientTimezone || 'America/Cuiaba',
+  });
+
+  if (error) {
+    console.error('[processOrganicDisplayProofAction] RPC error:', error);
+    return { success: false as const, error: error.message };
+  }
+
+  return { success: true as const, ...data };
+}
+
+/**
+ * Atribui bônus de indicação de empresa (+30 Pontos da Rede)
+ */
+export async function creditReferralBonusAction(payload: {
+  participantId: string;
+  referredCompanyId: string;
+}) {
+  const admin: any = createAdminClient();
+  const { data, error } = await (admin.rpc as any)('credit_organic_referral_points', {
+    p_participant_id: payload.participantId,
+    p_referred_company_id: payload.referredCompanyId,
+  });
+
+  if (error) {
+    return { success: false as const, error: error.message };
+  }
+
+  return { success: true as const, ...data };
 }
 
 export async function activateOrganicParticipantAction(payload: { displayName: string; city: string; state: string }) {
@@ -134,8 +447,20 @@ export async function recordOrganicPlaybackAction(deviceToken: string, item: { r
 export async function reserveOrganicRewardAction(rewardId: string) {
   const rawCode = crypto.randomBytes(5).toString('hex').toUpperCase();
   const supabase: any = createClient();
-  const { data, error } = await (supabase.rpc as any)('reserve_organic_reward', { p_reward_id: rewardId, p_code_hash: hash(rawCode), p_code_suffix: rawCode.slice(-4) });
-  return error || !data?.success ? { success: false as const, error: error?.message || data?.error || 'Não foi possível reservar.' } : { success: true as const, code: rawCode, expiresAt: data.expires_at };
+  const { data, error } = await (supabase.rpc as any)('reserve_organic_coupon', { p_reward_id: rewardId });
+  if (error || !data?.success) {
+    return { success: false as const, error: error?.message || data?.error || 'Não foi possível reservar o prêmio.' };
+  }
+  return {
+    success: true as const,
+    code: data.coupon_code,
+    qrToken: data.qr_token,
+    expiresAt: data.expires_at,
+    title: data.title,
+    participantName: data.participant_name,
+    netCreditsDebited: data.net_credits_debited,
+    bonusAppliedPercent: data.bonus_applied_percent,
+  };
 }
 
 export async function getOrganicRewardsManagementAction() {
@@ -177,8 +502,8 @@ export async function createOrganicRewardAction(payload: { campaignId: string; c
 }
 
 export async function validateOrganicRedemptionAction(rawCode: string) {
-  if (!rawCode || rawCode.trim().length < 8) return { success: false as const, error: 'Código inválido.' };
+  if (!rawCode || rawCode.trim().length < 4) return { success: false as const, error: 'Código inválido.' };
   const supabase: any = createClient();
-  const { data, error } = await (supabase.rpc as any)('validate_organic_redemption', { p_code_hash: hash(rawCode.trim().toUpperCase()) });
-  return error || !data?.success ? { success: false as const, error: error?.message || data?.error || 'Não foi possível validar.' } : { success: true as const, title: data.title };
+  const { data, error } = await (supabase.rpc as any)('validate_and_redeem_coupon', { p_code_or_token: rawCode.trim().toUpperCase() });
+  return error || !data?.success ? { success: false as const, error: error?.message || data?.error || 'Não foi possível validar.' } : { success: true as const, title: data.reward_title };
 }

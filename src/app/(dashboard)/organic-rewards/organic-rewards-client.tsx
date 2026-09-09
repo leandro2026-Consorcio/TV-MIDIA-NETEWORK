@@ -51,8 +51,10 @@ export function OrganicRewardsClient({
     setReserving(false);
 
     if (res.success) {
-      // Deduct balance and update rewards locally
-      const cost = Number(selectedReward.credits_required || 0);
+      // Deduct net points taking company bonus into account
+      const baseCost = Math.round(Number(selectedReward.credits_required || 0));
+      const bonus = Number(selectedReward.bonus_percentage || 0);
+      const cost = bonus > 0 ? Math.max(1, Math.round(baseCost * (1 - bonus / 100))) : baseCost;
       setParticipant((prev: any) => ({
         ...prev,
         available_balance: Math.max(0, Number(prev?.available_balance || 0) - cost),
@@ -152,8 +154,10 @@ export function OrganicRewardsClient({
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {rewards.map((reward) => {
-                const requiredPoints = Math.round(Number(reward.credits_required || 1));
-                const canAfford = availableBalance >= requiredPoints;
+                const basePoints = Math.round(Number(reward.credits_required || 1));
+                const bonus = Number(reward.bonus_percentage || 0);
+                const netPoints = bonus > 0 ? Math.max(1, Math.round(basePoints * (1 - bonus / 100))) : basePoints;
+                const canAfford = availableBalance >= netPoints;
                 const inStock = Number(reward.quantity_available) > 0;
 
                 return (
@@ -173,7 +177,14 @@ export function OrganicRewardsClient({
                           </span>
                         </div>
                         <div>
-                          <p className="text-xs font-bold text-slate-300">{reward.companies?.trade_name}</p>
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-slate-300">{reward.companies?.trade_name}</p>
+                            {bonus > 0 && (
+                              <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2 py-0.5 text-[10px] font-black text-emerald-300 font-mono">
+                                +{bonus}% BÔNUS
+                              </span>
+                            )}
+                          </div>
                           <h3 className="mt-0.5 text-xl font-black text-white">{reward.title}</h3>
                         </div>
                       </div>
@@ -213,8 +224,15 @@ export function OrganicRewardsClient({
                     <div className="border-t border-slate-800 p-5">
                       <div className="flex items-center justify-between">
                         <div>
-                          <span className="text-[10px] font-bold uppercase text-slate-500">Pontos</span>
-                          <p className="text-xl font-black text-amber-300">{requiredPoints} pts</p>
+                          <span className="text-[10px] font-bold uppercase text-slate-500">Pontos da Rede</span>
+                          <p className="font-mono text-xl font-black text-amber-300">
+                            {netPoints} pts
+                            {bonus > 0 && (
+                              <span className="ml-1.5 text-xs font-normal text-slate-500 line-through">
+                                {basePoints}
+                              </span>
+                            )}
+                          </p>
                         </div>
 
                         <button

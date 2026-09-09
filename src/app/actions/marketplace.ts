@@ -322,3 +322,160 @@ export async function convertAdOfferOrderToCampaignAction(orderId: string) {
 
   return { success: true, campaign_id: result.campaign_id };
 }
+
+/**
+ * 12. Solicitar Veiculação de Campanha em Tela da Rede (Marketplace Omnichannel)
+ * Preserva campanha de origem, empresa, datas e criativo sem exigir recriar a campanha do zero.
+ */
+export async function requestScreenDistributionAction(input: {
+  screenId: string;
+  campaignId: string;
+  mediaAssetId?: string;
+  message?: string;
+}) {
+  const supabase = createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { success: false, error: 'Usuário não autenticado.' };
+  }
+
+  // 1. Carregar Campanha
+  const { data: campaign, error: campErr } = await (supabase.from('campaigns') as any)
+    .select('*, company:companies(*)')
+    .eq('id', input.campaignId)
+    .single();
+
+  if (campErr || !campaign) {
+    return { success: false, error: 'Campanha não encontrada.' };
+  }
+
+  // 2. Carregar Tela e Empresa Dona da Tela
+  const { data: screen, error: scrErr } = await (supabase.from('screens') as any)
+    .select('*, company:companies(*)')
+    .eq('id', input.screenId)
+    .single();
+
+  if (scrErr || !screen) {
+    return { success: false, error: 'Tela não encontrada.' };
+  }
+
+  // Caso 1: A tela é da própria empresa da campanha -> Vincular diretamente à campanha
+  if (screen.company_id === campaign.company_id) {
+    const { error: linkErr } = await (supabase.from('campaign_screens') as any)
+      .upsert({
+        campaign_id: campaign.id,
+        screen_id: screen.id,
+        is_active: true,
+      }, { onConflict: 'campaign_id,screen_id' });
+
+    if (linkErr) {
+      return { success: false, error: linkErr.message };
+    }
+
+    return {
+      success: true,
+      mode: 'internal' as const,
+      message: `A tela "${screen.name}" pertence à sua própria empresa e foi vinculada diretamente à campanha!`,
+    };
+  }
+
+  // Caso 2: Tela de empresa parceira na rede -> Solicitação cross-company via marketplace
+  // Verificar se a parceira aceita anúncios da rede (campo canônico: accepts_network_ads)
+  const { data: sellerPrefs } = await (supabase.from('company_network_preferences') as any)
+    .select('accepts_network_ads, blocked_companies, blocked_segments')
+    .eq('company_id', screen.company_id)
+    .maybeSingle();
+
+  if (sellerPrefs && sellerPrefs.accepts_network_ads === false) {
+    return {
+      success: false,
+      error: 'A empresa proprietária desta TV optou por não receber anúncios da rede no momento.',
+    };
+  }
+
+  // Resolver Mídia: usar a passada ou a primeira mídia aprovada da campanha
+  let mediaId = input.mediaAssetId;
+  if (!mediaId) {
+    const { data: cMedia } = await (supabase.from('campaign_media') as any)
+      .select('media_asset_id')
+      .eq('campaign_id', campaign.id)
+      .limit(1);
+    mediaId = cMedia?.[0]?.media_asset_id;
+  }
+
+  if (!mediaId) {
+    return {
+      success: false,
+      error: 'A campanha não possui nenhum criativo/mídia aprovado vinculado.',
+    };
+  }
+
+  // Buscar oferta da empresa parceira ou criar um card padrão para o pedido
+  let offerId: string | null = null;
+  const { data: existingOffers } = await (supabase.from('company_ad_offers') as any)
+    .select('id')
+    .eq('company_id', screen.company_id)
+    .eq('status', 'active')
+    .limit(1);
+
+  if (existingOffers && existingOffers.length > 0) {
+    offerId = existingOffers[0].id;
+  } else {
+    // Criar oferta comercial padrão vinculada à tela para viabilizar a transação
+    const { data: newOffer, error: offerErr } = await (supabase.from('company_ad_offers') as any)
+      .insert({
+        company_id: screen.company_id,
+        title: `Inserções na TV: ${screen.name}`,
+        description: `Exibição comercial na tela ${screen.name} localizada em ${screen.company?.city || 'ponto comercial'}.`,
+        credits_amount: 100,
+        price_cents: 5000,
+        status: 'active',
+        is_public: true,
+      })
+      .select('id')
+      .single();
+
+    if (!offerErr && newOffer) {
+      offerId = newOffer.id;
+    }
+  }
+
+  if (!offerId) {
+    return {
+      success: false,
+      error: 'Não foi possível encontrar ou inicializar a oferta de mídia para esta tela parceira.',
+    };
+  }
+
+  // Criar Pedido / Solicitação de Veiculação preservando dados da campanha
+  const res = await createMarketplaceRequestAction({
+    offer_id: offerId,
+    buyer_company_id: campaign.company_id,
+    request_message: input.message || `Distribuição da campanha: ${campaign.name}`,
+    requested_start_date: campaign.start_date || undefined,
+    requested_end_date: campaign.end_date || undefined,
+    requested_media_asset_id: mediaId,
+    notes: `Solicitação originada da campanha ID: ${campaign.id} para exibição na tela "${screen.name}" (${screen.id}).`,
+  });
+
+  if (!res.success) {
+    return { success: false, error: res.error };
+  }
+
+  // Vincular campaign_id no ad_offer_orders recém-criado
+  const orderId = res.result?.order_id || res.result?.id;
+  if (orderId) {
+    await (supabase.from('ad_offer_orders') as any)
+      .update({ campaign_id: campaign.id })
+      .eq('id', orderId);
+  }
+
+  return {
+    success: true,
+    mode: 'network_request' as const,
+    message: `Solicitação de veiculação enviada com sucesso para "${screen.company?.trade_name || 'a empresa parceira'}"! Sua campanha "${campaign.name}" e criativo foram vinculados automaticamente sem exigir recriar a campanha do zero.`,
+  };
+}
