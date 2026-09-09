@@ -46,6 +46,7 @@ export async function GET(request: NextRequest) {
       cleanConnStr = parsedUrl.toString();
     } catch {}
 
+    process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
     const client = new pg.Client({
       connectionString: cleanConnStr,
       ssl: { rejectUnauthorized: false },
