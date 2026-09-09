@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -466,11 +467,30 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Validação real de login com midiapormidia@123 para os 5 perfis
+    const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+    const loginsValidated: Record<string, { ok: boolean; error?: string }> = {};
+
+    if (anonKey && supabaseUrl) {
+      const testClient = createSupabaseClient(supabaseUrl, anonKey, {
+        auth: { persistSession: false, autoRefreshToken: false },
+      });
+      for (const [key, email] of Object.entries(HOMOLOG_EMAILS)) {
+        const { error: signErr } = await testClient.auth.signInWithPassword({
+          email,
+          password: 'midiapormidia@123',
+        });
+        loginsValidated[key] = { ok: !signErr, error: signErr?.message };
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: 'Homologação provisionada com sucesso.',
       users: userIds,
-      recoveryLinks,
+      password: 'midiapormidia@123',
+      loginsValidated,
       links: {
         leaderToCreator: Boolean(leaderAffiliateId && creatorAffiliateId),
         creatorToEmpresa: Boolean(companyId && creatorAffiliateId),
