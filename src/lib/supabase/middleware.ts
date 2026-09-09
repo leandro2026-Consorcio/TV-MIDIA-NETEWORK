@@ -21,6 +21,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/tv') ||
     pathname.startsWith('/organic-tv') ||
     pathname.startsWith('/organic/register') ||
+    pathname.startsWith('/downloads/') ||
     pathname === '/manifest.webmanifest' ||
     pathname.startsWith('/api/');
 
