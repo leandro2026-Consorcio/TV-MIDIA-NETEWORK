@@ -29,7 +29,6 @@ export async function GET(request: NextRequest) {
 
     const baseBinary = getInstallerBinary();
 
-    // Injetar configuração via PE Overlay sem corromper o binário
     const overlayConfig = {
       playerUrl,
       idleStartMinutes: idleMinutes,

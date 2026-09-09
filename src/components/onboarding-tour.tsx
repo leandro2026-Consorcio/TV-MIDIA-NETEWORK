@@ -9,7 +9,7 @@ import { CopyTvLinkButton, TV_PLAYER_URL } from '@/components/copy-tv-link-butto
 export const onboardingTourSteps = [
   { title: 'Bem-vindo ao Mídia por Mídia', text: 'Você está no período gratuito de 60 dias. Vamos configurar sua primeira TV e rodar sua propaganda.', icon: Sparkles },
   { title: 'Cadastre sua primeira TV', text: 'Primeiro, cadastre a TV ou tela onde suas propagandas serão exibidas.', icon: Tv, href: '/screens/new', action: 'Cadastrar TV' },
-  { title: 'Abra o player na televisão', text: 'Na sua Smart TV, TV Box ou computador conectado à TV, acesse o link do player.', icon: Link2, copyTvLink: true },
+  { title: 'Abra o player na televisão ou computador', text: 'Na sua Smart TV ou TV Box, acesse o link do player. Se estiver usando um computador Windows conectado à TV, você pode baixar o Instalador Oficial MPM Player (.exe) para iniciar automaticamente em quiosque tela cheia.', icon: Link2, copyTvLink: true },
   { title: 'Faça o pareamento', text: 'A TV exibirá um código. Digite esse código no painel para vinculá-la à sua empresa.', icon: Radio, href: '/screens', action: 'Parear TV' },
   { title: 'Envie sua primeira mídia', text: 'Envie uma imagem ou vídeo da sua propaganda. No trial, mídia própria pode ser aprovada automaticamente quando essa opção estiver habilitada.', icon: Image, href: '/media/new', action: 'Enviar mídia' },
   { title: 'Crie sua programação', text: 'Depois de enviar a mídia, crie uma playlist e vincule-a à TV cadastrada.', icon: ListVideo, href: '/playlists/new', action: 'Criar programação' },
@@ -80,8 +80,26 @@ export function OnboardingTour({ autoOpen = false, initialStep = 0 }: TourProps)
           </div>
           <p className="mt-6 text-[11px] font-bold uppercase tracking-wider text-sky-400">Etapa {step + 1} de {onboardingTourSteps.length}</p>
           <h2 id="tour-title" className="mt-2 text-2xl font-extrabold text-white">{current.title}</h2>
-          <p className="mt-3 text-sm leading-relaxed text-slate-300">{current.text}</p>
-          {current.copyTvLink && <div className="mt-5 rounded-xl border border-slate-800 bg-slate-950 p-4"><code className="mb-3 block break-all text-xs text-slate-300">{TV_PLAYER_URL}</code><CopyTvLinkButton /></div>}
+          {current.copyTvLink && (
+            <div className="mt-5 space-y-3">
+              <div className="rounded-xl border border-slate-800 bg-slate-950 p-4">
+                <code className="mb-3 block break-all text-xs text-slate-300">{TV_PLAYER_URL}</code>
+                <CopyTvLinkButton />
+              </div>
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 rounded-xl border border-sky-500/20 bg-sky-500/5 p-3.5 text-xs">
+                <div>
+                  <strong className="text-white">Usa computador Windows na TV?</strong>
+                  <p className="text-[11px] text-slate-400">Instalador nativo com início automático e tela cheia.</p>
+                </div>
+                <a
+                  href="/downloads/mpm-player/windows"
+                  className="rounded-lg bg-sky-500 px-3 py-1.5 font-bold text-white hover:bg-sky-600 transition shrink-0"
+                >
+                  Baixar Setup (.exe)
+                </a>
+              </div>
+            </div>
+          )}
           {current.href && (
             <Link
               href={current.href}

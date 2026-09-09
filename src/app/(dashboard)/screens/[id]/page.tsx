@@ -18,7 +18,9 @@ import {
   Save, 
   Clock, 
   ListVideo, 
-  XCircle 
+  XCircle,
+  Download,
+  Monitor
 } from 'lucide-react';
 
 export default function ScreenDetailPage() {
@@ -483,6 +485,25 @@ export default function ScreenDetailPage() {
             <span>Data do Pareamento: <strong className="text-slate-200">{screen.paired_at ? new Date(screen.paired_at).toLocaleDateString('pt-BR') : 'NÃO PAREADA'}</strong></span>
           </div>
         </div>
+
+        {screen.device_type === 'windows_monitor' && (
+          <div className="mt-2 rounded-xl border border-sky-500/20 bg-sky-500/10 p-3.5 text-xs text-slate-300 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+            <div>
+              <p className="font-semibold text-white flex items-center gap-1.5">
+                <Monitor className="h-4 w-4 text-sky-400" /> Instalador Nativo Windows 10 e 11
+              </p>
+              <p className="text-slate-400 text-[11px]">
+                Execute o instalador no computador conectado a este monitor para iniciar em modo quiosque automaticamente.
+              </p>
+            </div>
+            <a
+              href="/downloads/mpm-player/windows"
+              className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-3.5 py-2 font-bold text-white hover:bg-sky-600 transition shadow-md shadow-sky-500/20 shrink-0"
+            >
+              <Download className="h-4 w-4" /> Baixar Setup (.exe)
+            </a>
+          </div>
+        )}
       </div>
 
       {/* Formulário de Edição da Tela */}

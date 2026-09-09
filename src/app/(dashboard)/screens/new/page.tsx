@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Company } from '@/types';
-import { ArrowLeft, Download, Loader2, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Download, Loader2, AlertCircle, Monitor } from 'lucide-react';
 
 export default function NewScreenPage() {
   const [name, setName] = useState('');
@@ -181,7 +181,22 @@ export default function NewScreenPage() {
               <option value="windows_monitor">Monitor Windows / computador</option>
             </select>
             <p className="text-xs text-slate-500 mt-1.5">Monitor Windows receberá instruções para iniciar automaticamente com o computador.</p>
-            {deviceType === 'windows_monitor' && <a href="/api/downloads/windows-monitor" className="mt-3 inline-flex items-center gap-2 rounded-lg bg-violet-500/15 px-3 py-2 text-xs font-bold text-violet-300"><Download className="h-4 w-4" /> Baixar instalador do Monitor Windows</a>}
+            {deviceType === 'windows_monitor' && (
+              <div className="mt-3 rounded-xl border border-sky-500/20 bg-sky-500/10 p-3.5 text-xs text-slate-300 space-y-2">
+                <p className="font-semibold text-white flex items-center gap-1.5">
+                  <Monitor className="h-4 w-4 text-sky-400" /> Instalador Nativo para Windows 10 e Windows 11
+                </p>
+                <p className="text-slate-400">
+                  Instalação per-user sem necessidade de administrador. O player inicia automaticamente com o sistema e mantém a tela sempre ativa em modo quiosque.
+                </p>
+                <a
+                  href="/downloads/mpm-player/windows"
+                  className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-3.5 py-2 font-bold text-white hover:bg-sky-600 transition shadow-md shadow-sky-500/20"
+                >
+                  <Download className="h-4 w-4" /> BAIXAR PARA WINDOWS (MPM-Player-Setup.exe)
+                </a>
+              </div>
+            )}
           </div>
           <div>
             <label className="block font-medium text-slate-300 mb-1">Empresa Proprietária *</label>

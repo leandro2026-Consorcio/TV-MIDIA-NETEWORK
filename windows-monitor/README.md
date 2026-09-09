@@ -1,47 +1,50 @@
-# Monitor Windows — pacote inicial
+# Mídia por Mídia — Monitor Windows Nativo & Instalador Oficial
 
-Este diretório contém um inicializador PowerShell para a primeira versão do modo **Monitor Windows**. Ele abre o player `/tv` em modo quiosque e cria um atalho na inicialização do usuário atual.
+O ecossistema Windows do Mídia por Mídia foi migrado de scripts PowerShell legados para um ecossistema **100% nativo C#/.NET**, compilado com subsistema Windows GUI (`winexe`), garantindo zero consoles/terminais, instalação per-user sem necessidade de administrador, watchdog automático e suporte nativo ao Windows 10 e Windows 11.
 
-## Instalação
+---
 
-1. No portal, cadastre uma tela com tipo **Monitor Windows**.
-2. No computador conectado ao monitor, baixe este diretório ou o pacote disponibilizado pelo portal.
-3. Abra o PowerShell na pasta e execute:
+## 1. Arquitetura dos Binários
 
-```powershell
-Set-ExecutionPolicy -Scope Process Bypass
-.\Install-MidiaMonitor.ps1
+| Binário | Tecnologia | Finalidade |
+| :--- | :--- | :--- |
+| **`MPM-Player-Setup.exe`** | C# WinForms (`winexe`) | Assistente visual profissional de instalação. Extrai binários, configura `config.json`, cria atalho no Startup do usuário, registra no Registro do Windows e inicia a TV. Suporta modo silencioso (`/silent`), modo orgânico (`/mode=organic /idle=5`) e configuração via PE Overlay. |
+| **`MPMMonitor.exe`** | C# Nativo (`winexe`) | Launcher em background sem janela de console. Monitora inatividade via P/Invoke `GetLastInputInfo`, mantém tela acordada via `SetThreadExecutionState`, detecta Chrome/Edge, abre quiosque com perfil dedicado e atua como watchdog (reinicia em caso de encerramento inesperado). |
+| **`Uninstall.exe`** | C# Nativo WinForms (`winexe`) | Desinstalador limpo. Encerra instâncias ativas, remove atalho de inicialização, remove chaves no Registro (`HKCU\Software\Microsoft\Windows\CurrentVersion\Uninstall\MidiaPorMidiaMonitor`) e limpa diretórios locais. |
+
+---
+
+## 2. Instalação pelo Usuário Final
+
+O usuário final recebe **apenas**:
+```
+MPM-Player-Setup.exe
 ```
 
-4. O Chrome ou Edge abrirá `https://midiapormidia.com.br/tv` em modo quiosque.
-5. Faça o pareamento com o código mostrado no player.
+1. Duplo clique no instalador baixado pelo painel (`/downloads/mpm-player/windows` ou no cadastro da tela).
+2. O assistente exibe os dados da tela (Comercial Contínua ou Residencial Orgânica).
+3. 1 clique em **"Instalar Agora"**.
+4. O navegador abre instantaneamente em tela cheia com o código de 6 dígitos.
+5. Digite o código no painel em **Minhas TVs** para parear.
 
-O usuário autoriza localmente a criação do inicializador. O site nunca altera o Windows sozinho.
+> **Zero complexidade**: O usuário não precisa abrir PowerShell, executar comandos, alterar `ExecutionPolicy`, abrir VS Code ou escolher aplicativos.
 
-O portal também disponibiliza o script pronto em `/api/downloads/windows-monitor`. Para a modalidade residencial, o download é gerado com `/api/downloads/windows-monitor?mode=organic&idle=5`.
+---
 
-## Monitor Windows da Rede Orgânica
+## 3. Diretórios e Arquivos em Tempo de Execução
 
-Para um computador residencial que deve abrir a programação após ficar parado por 5 minutos:
+- **Diretório base:** `%LOCALAPPDATA%\MidiaPorMidia\Monitor`
+- **Configuração:** `%LOCALAPPDATA%\MidiaPorMidia\Monitor\config.json`
+- **Perfil do Navegador:** `%LOCALAPPDATA%\MidiaPorMidia\Monitor\BrowserProfile`
+- **Logs:** `%LOCALAPPDATA%\MidiaPorMidia\Monitor\logs\monitor.log` (rotacionado automaticamente ao atingir 1MB)
+- **Atalho de Inicialização Automática:** `%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\MidiaPorMidia Monitor.lnk`
 
+---
+
+## 4. Compilação e Build
+
+Para recompilar todos os binários:
 ```powershell
-.\Install-MidiaMonitorOrganico.ps1 -IdleStartMinutes 5
+.\build.ps1
 ```
-
-O inicializador consulta a inatividade global de teclado e mouse no Windows. Ele abre `/organic-tv` em um perfil separado do navegador quando o tempo configurado é atingido e fecha apenas essa sessão de exibição quando o usuário volta a utilizar o computador. Use `0` para um computador dedicado que deve exibir continuamente.
-
-## Desinstalação
-
-```powershell
-.\Uninstall-MidiaMonitor.ps1
-```
-
-## Limitações desta primeira versão
-
-- Este pacote configura inicialização por atalho no perfil do usuário, não um serviço Windows.
-- O computador precisa permanecer ligado e sem suspensão para exibir continuamente.
-- A primeira versão já detecta inatividade global por teclado e mouse; um aplicativo assinado continua recomendado para distribuição comercial.
-- O navegador precisa estar instalado.
-- O pareamento e a programação continuam usando o mesmo player e token da tela.
-
-Para distribuição comercial, substituir o script por um instalador assinado (MSIX, WiX ou instalador .NET/Tauri), com watchdog, atualização automática, controle de energia e detecção global de inatividade.
+O script compila os 3 executáveis em sequência, embutindo os binários no instalador final e copiando para `public/downloads/MPM-Player-Setup.exe`.
