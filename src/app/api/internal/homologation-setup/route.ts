@@ -34,10 +34,13 @@ export async function GET(request: NextRequest) {
       if (!found) {
         const { data: newUser, error: createError } = await admin.auth.admin.createUser({
           email,
+          password: 'midiapormidia@123',
           email_confirm: true,
           user_metadata: {
             full_name: `HOMOLOGAÇÃO MPM — ${key.toUpperCase()}`,
             is_homologation: true,
+            initial_password_set: true,
+            must_change_password: true,
           },
         });
 
@@ -50,18 +53,18 @@ export async function GET(request: NextRequest) {
       if (found) {
         userIds[key] = found.id;
 
-        try {
-          const { data: linkData } = await admin.auth.admin.generateLink({
-            type: 'recovery',
-            email,
-          });
-          if (linkData?.properties?.action_link) {
-            recoveryLinks[key] = linkData.properties.action_link;
-          }
-        } catch {
-          // fallback
-        }
-      }
+        // Garante que a senha inicial padrão midiapormidia@123 esteja definida e e-mail confirmado
+        await admin.auth.admin.updateUserById(found.id, {
+          password: 'midiapormidia@123',
+          email_confirm: true,
+          user_metadata: {
+            ...(found.user_metadata || {}),
+            full_name: `HOMOLOGAÇÃO MPM — ${key.toUpperCase()}`,
+            is_homologation: true,
+            initial_password_set: true,
+            must_change_password: true,
+          },
+        });
     }
     stepsDone.usersAuth = userIds;
 
