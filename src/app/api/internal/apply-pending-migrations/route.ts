@@ -91,6 +91,21 @@ export async function GET(request: NextRequest) {
     `);
     results.verifiedRpc = procRes.rows;
 
+    // 5. Verify calculation terms for R$ 79,90 x 10
+    const calcRes = await client.query(`
+      SELECT * FROM public.calculate_organic_benefit_terms(79.90, 10);
+    `);
+    results.verifiedTerms = calcRes.rows[0];
+
+    // 6. Verify organic benefit configurations
+    const configRes = await client.query(`
+      SELECT commercial_insertion_unit_cost, media_insertions_per_brl,
+             commercial_tv_weight, windows_monitor_weight, residential_screen_weight
+      FROM public.organic_benefit_configurations
+      LIMIT 1;
+    `);
+    results.verifiedConfig = configRes.rows[0];
+
     await client.end();
     return NextResponse.json({ success: true, ...results });
   } catch (err: any) {
