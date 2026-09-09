@@ -160,7 +160,20 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
               placeholder="(66) 99999-8989"
             />
             <Field name="email" label="E-mail" type="email" required />
-            <Field name="password" label="Senha" type="password" required minLength={6} placeholder="Mínimo 6 caracteres" />
+            <div>
+              <Field
+                name="password"
+                label="Senha inicial de acesso"
+                type="text"
+                defaultValue="midiapormidia@123"
+                required
+                minLength={6}
+                placeholder="midiapormidia@123"
+              />
+              <p className="mt-1.5 text-[11px] text-sky-400 flex items-center gap-1">
+                <span>🔑 Senha inicial padrão: <strong className="font-mono text-sky-200">midiapormidia@123</strong> (recomendado alterar no primeiro acesso).</span>
+              </p>
+            </div>
           </div>
         </fieldset>
 

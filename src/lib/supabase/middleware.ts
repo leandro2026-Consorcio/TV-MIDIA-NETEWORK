@@ -10,6 +10,12 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/empresa/cadastro') ||
+    pathname.startsWith('/forgot-password') ||
+    pathname.startsWith('/recuperar-senha') ||
+    pathname.startsWith('/reset-password') ||
+    pathname.startsWith('/redefinir-senha') ||
+    pathname.startsWith('/auth/') ||
+    pathname.startsWith('/verify-coupon') ||
     pathname.startsWith('/invite/') ||
     pathname.startsWith('/player') ||
     pathname.startsWith('/tv') ||

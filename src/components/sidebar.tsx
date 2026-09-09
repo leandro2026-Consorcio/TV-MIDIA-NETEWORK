@@ -642,8 +642,15 @@ export function Sidebar({
         </nav>
       </div>
 
-      {/* Footer / Logout */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/40">
+      {/* Footer / Alterar Senha & Logout */}
+      <div className="p-3 border-t border-slate-800 bg-slate-950/40 space-y-1">
+        <Link
+          href="/reset-password"
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800/60 transition"
+        >
+          <KeyRound className="w-3.5 h-3.5 text-sky-400" />
+          <span>Alterar Minha Senha</span>
+        </Link>
         <button
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 transition"

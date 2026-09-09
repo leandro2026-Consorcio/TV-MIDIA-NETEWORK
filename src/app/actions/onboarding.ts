@@ -4,6 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getPlatformCivilDate, getTrialDaysRemaining } from '@/lib/trial-days';
 import { DEFAULT_PLAN_PRICES, normalizePlanPrices, type PlanPrices } from '@/lib/platform-pricing';
+import { DEFAULT_INITIAL_PASSWORD } from '@/lib/auth-constants';
 
 export interface PublicSignupSettings {
   enabled: boolean;
@@ -139,7 +140,7 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
   const payload = {
     fullName: cleanText(input.fullName),
     email: cleanText(input.email, 254).toLowerCase(),
-    password: String(input.password || ''),
+    password: String(input.password || '').trim() || DEFAULT_INITIAL_PASSWORD,
     phone: cleanText(input.phone, 30),
     tradeName: cleanText(input.tradeName),
     corporateName: cleanText(input.corporateName),
@@ -157,7 +158,7 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
     return { success: false as const, error: 'Informe um e-mail válido.' };
   }
-  if (payload.password.length < 6) return { success: false as const, error: 'A senha deve ter pelo menos 6 caracteres.' };
+  if (payload.password.length < 6) payload.password = DEFAULT_INITIAL_PASSWORD;
   if (!/^[A-Z]{2}$/.test(payload.state)) return { success: false as const, error: 'Informe a UF com duas letras.' };
 
   const rawPhoneDigits = payload.phone.replace(/\D/g, '');
@@ -220,7 +221,13 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
       password: payload.password,
       email_confirm: true,
       phone_confirm: false,
-      user_metadata: { full_name: payload.fullName, phone: payload.phone, signup_origin: 'public_trial' },
+      user_metadata: {
+        full_name: payload.fullName,
+        phone: payload.phone,
+        signup_origin: 'public_trial',
+        initial_password: payload.password === DEFAULT_INITIAL_PASSWORD,
+        must_change_password: payload.password === DEFAULT_INITIAL_PASSWORD,
+      },
     });
     if (error || !data.user) {
       return { success: false as const, error: error?.message || 'Não foi possível criar sua conta.' };

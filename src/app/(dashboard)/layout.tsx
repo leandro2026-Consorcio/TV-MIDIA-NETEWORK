@@ -1,12 +1,13 @@
-﻿'use client';
+'use client';
 
 import { useState, useEffect, useMemo } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Profile, Company } from '@/types';
 import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/header';
-import { Loader2 } from 'lucide-react';
+import { Loader2, ShieldAlert } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -22,6 +23,8 @@ export default function DashboardLayout({
   const [isOrganicOnly, setIsOrganicOnly] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [mustChangePassword, setMustChangePassword] = useState(false);
+  const [dismissPasswordAlert, setDismissPasswordAlert] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -42,6 +45,8 @@ export default function DashboardLayout({
           router.push('/login');
           return;
         }
+
+        setMustChangePassword(Boolean(user?.user_metadata?.must_change_password || user?.user_metadata?.initial_password));
 
         // 1. Carregar Profile do Usuário
         const { data: profileData } = await (supabase.from('profiles') as any)
@@ -102,7 +107,7 @@ export default function DashboardLayout({
               setIsTrial(hasTrial);
 
               if (hasTrial) {
-                const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans', '/help/getting-started'];
+                const allowedTrialRoutes = ['/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/company/invites', '/onboarding', '/plans', '/help/getting-started', '/benefits', '/reset-password'];
                 const isAllowed = allowedTrialRoutes.some((route) => pathname === route || pathname.startsWith(`${route}/`));
                 if (!isAllowed) router.replace('/dashboard');
               }
@@ -179,6 +184,36 @@ export default function DashboardLayout({
         />
 
         <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
+          {mustChangePassword && !dismissPasswordAlert && pathname !== '/reset-password' && (
+            <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2.5 bg-amber-500/20 rounded-xl text-amber-400 shrink-0 mt-0.5">
+                  <ShieldAlert className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-white">Segurança da Conta: Troca de Senha Recomendada</h3>
+                  <p className="text-xs text-slate-300 mt-0.5">
+                    Sua conta está utilizando a senha inicial padrão (<code className="bg-amber-950/60 px-1.5 py-0.5 rounded font-mono text-amber-200">midiapormidia@123</code>). Crie uma senha pessoal exclusiva para proteger seus acessos.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 shrink-0 self-end sm:self-center">
+                <Link
+                  href="/reset-password"
+                  className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold px-4 py-2 rounded-xl text-xs transition shadow-md shadow-amber-500/10 whitespace-nowrap"
+                >
+                  Alterar Senha Agora
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setDismissPasswordAlert(true)}
+                  className="text-slate-400 hover:text-slate-200 text-xs px-2 py-1 transition"
+                >
+                  Dispensar
+                </button>
+              </div>
+            </div>
+          )}
           {children}
         </main>
       </div>
