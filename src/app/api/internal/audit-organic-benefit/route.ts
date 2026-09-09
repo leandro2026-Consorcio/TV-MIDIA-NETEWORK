@@ -39,8 +39,15 @@ export async function GET(request: NextRequest) {
   // 2. Direct PostgreSQL inspection if POSTGRES_URL is available
   const connStr = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL || process.env.DATABASE_URL;
   if (connStr) {
+    let cleanConnStr = connStr;
+    try {
+      const parsedUrl = new URL(connStr);
+      parsedUrl.searchParams.delete('sslmode');
+      cleanConnStr = parsedUrl.toString();
+    } catch {}
+
     const client = new pg.Client({
-      connectionString: connStr,
+      connectionString: cleanConnStr,
       ssl: { rejectUnauthorized: false },
     });
     try {
