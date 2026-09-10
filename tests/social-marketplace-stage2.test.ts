@@ -14,6 +14,8 @@ test('OAuth state é válido, protegido por HMAC e verifica expiração', () => 
     userId: 'usr-123',
     ownerType: 'creator',
     ownerId: 'cr-456',
+    provider: 'instagram',
+    returnTo: '/creator?tab=social',
   }, secret);
 
   assert.ok(state.includes('.'), 'State deve conter separador de assinatura');

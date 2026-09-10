@@ -1,4 +1,4 @@
-import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
+import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
 export type SocialProvider = 'instagram' | 'facebook';
 export type SocialAuthFlow = 'instagram_login' | 'facebook_login';
@@ -13,6 +13,55 @@ export interface ProviderConfig {
   dialogUrl: string;
   tokenUrl: string;
   scopes: string[];
+}
+
+const DEFAULT_INSTAGRAM_REDIRECT_URI =
+  'https://midiapormidia.com.br/api/social/instagram/callback';
+
+/**
+ * Retorna a string canônica usada tanto no diálogo quanto na troca do code.
+ * Não reconstrói nem normaliza a URL, porque a Meta exige igualdade byte a byte.
+ */
+export function getInstagramRedirectUri(): string {
+  const redirectUri = process.env.INSTAGRAM_REDIRECT_URI || DEFAULT_INSTAGRAM_REDIRECT_URI;
+
+  if (redirectUri !== redirectUri.trim()) {
+    throw new Error('INSTAGRAM_REDIRECT_URI não pode conter espaços nas extremidades.');
+  }
+
+  const parsed = new URL(redirectUri);
+  const isProd = process.env.NODE_ENV === 'production' || process.env.VERCEL_ENV === 'production';
+  if (isProd && parsed.protocol !== 'https:') {
+    throw new Error('INSTAGRAM_REDIRECT_URI deve usar HTTPS em produção.');
+  }
+
+  return redirectUri;
+}
+
+export function getSafeRedirectDiagnostics(redirectUri: string) {
+  const parsed = new URL(redirectUri);
+  return {
+    hostname: parsed.hostname,
+    pathname: parsed.pathname,
+    hasQueryString: parsed.search.length > 0,
+    length: redirectUri.length,
+    sha256: createHash('sha256').update(redirectUri, 'utf8').digest('hex'),
+  };
+}
+
+export function logSafeOAuthDiagnostics(
+  stage: 'authorization' | 'exchange',
+  config: Pick<ProviderConfig, 'provider' | 'appId' | 'redirectUri'>
+) {
+  if (process.env.META_OAUTH_DIAGNOSTICS !== '1') return;
+
+  console.info('[Meta OAuth Diagnostics]', {
+    provider: config.provider,
+    stage,
+    redirect: getSafeRedirectDiagnostics(config.redirectUri),
+    clientIdLast4: config.appId.slice(-4),
+    clientIdSha256: createHash('sha256').update(config.appId, 'utf8').digest('hex'),
+  });
 }
 
 export function getStateSecret(): string {
@@ -49,7 +98,7 @@ export function getProviderConfig(provider: SocialProvider): ProviderConfig | nu
   if (provider === 'instagram') {
     const appId = process.env.INSTAGRAM_APP_ID || process.env.META_APP_ID;
     const appSecret = process.env.INSTAGRAM_APP_SECRET || process.env.META_APP_SECRET;
-    const redirectUri = process.env.INSTAGRAM_REDIRECT_URI || process.env.META_REDIRECT_URI || 'https://midiapormidia.com.br/api/social/meta/callback?provider=instagram';
+    const redirectUri = getInstagramRedirectUri();
 
     if (!appId || !appSecret || !redirectUri) return null;
 

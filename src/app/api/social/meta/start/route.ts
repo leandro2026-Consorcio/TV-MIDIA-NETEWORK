@@ -1,7 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getProviderConfig, generateOAuthState, SocialProvider } from '@/lib/social/meta';
+import {
+  getProviderConfig,
+  generateOAuthState,
+  logSafeOAuthDiagnostics,
+  SocialProvider,
+} from '@/lib/social/meta';
 
 export const dynamic = 'force-dynamic';
 
@@ -146,6 +151,8 @@ export async function GET(request: NextRequest) {
       dialogUrl.searchParams.set('enable_fb_login', '0');
       dialogUrl.searchParams.set('force_authentication', '1');
     }
+
+    logSafeOAuthDiagnostics('authorization', config);
 
     return NextResponse.redirect(dialogUrl);
   } catch (err: any) {

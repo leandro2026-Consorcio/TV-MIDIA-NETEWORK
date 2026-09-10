@@ -1056,6 +1056,8 @@ export default async function Home() {
           </div>
           <div className="flex items-center gap-4 text-xs">
             <a href="#contato" className="text-slate-400 transition hover:text-white">Contato</a>
+            <Link href="/politica-de-privacidade" className="text-slate-400 transition hover:text-white">Privacidade</Link>
+            <Link href="/exclusao-de-dados" className="text-slate-400 transition hover:text-white">Exclusão de dados</Link>
             <Link href="/login" className="font-semibold text-slate-400 transition hover:text-white">Acessar painel</Link>
           </div>
         </div>

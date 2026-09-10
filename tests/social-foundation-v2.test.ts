@@ -5,6 +5,8 @@ import test from 'node:test';
 import { createCipheriv, createDecipheriv, randomBytes } from 'node:crypto';
 import {
   getProviderConfig,
+  getInstagramRedirectUri,
+  getSafeRedirectDiagnostics,
   generateOAuthState,
   verifyOAuthState,
   detectChannelCapabilities,
@@ -82,6 +84,21 @@ test('Instagram Direct Login vs Facebook Login: Escopos e endpoints oficiais', (
   assert.ok(fbConfig.dialogUrl.includes('facebook.com/v22.0/dialog/oauth'));
   assert.ok(fbConfig.scopes.includes('pages_show_list'));
   assert.ok(fbConfig.scopes.includes('pages_manage_posts'));
+});
+
+test('Instagram OAuth usa uma única redirect URI canônica sem dupla transformação', () => {
+  process.env.INSTAGRAM_REDIRECT_URI = 'https://midiapormidia.com.br/api/social/instagram/callback';
+
+  const canonical = getInstagramRedirectUri();
+  const config = getProviderConfig('instagram');
+  assert.ok(config);
+  assert.equal(config.redirectUri, canonical);
+  assert.equal(config.redirectUri, 'https://midiapormidia.com.br/api/social/instagram/callback');
+  assert.equal(getSafeRedirectDiagnostics(config.redirectUri).hasQueryString, false);
+
+  process.env.INSTAGRAM_REDIRECT_URI = ` ${canonical}`;
+  assert.throws(() => getInstagramRedirectUri(), /espaços nas extremidades/);
+  process.env.INSTAGRAM_REDIRECT_URI = canonical;
 });
 
 test('Detecção de Capacidades: Feed, Reels, Stories e Métricas', () => {

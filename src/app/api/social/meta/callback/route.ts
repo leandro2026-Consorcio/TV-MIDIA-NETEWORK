@@ -6,6 +6,7 @@ import {
   verifyOAuthState,
   getProviderConfig,
   detectChannelCapabilities,
+  logSafeOAuthDiagnostics,
   OAuthStatePayload,
 } from '@/lib/social/meta';
 
@@ -76,6 +77,7 @@ export async function GET(request: NextRequest) {
       // FLUXO A: INSTAGRAM API WITH INSTAGRAM LOGIN (SEM PÁGINA FACEBOOK)
       // =======================================================================
       const tokenForm = new URLSearchParams();
+      logSafeOAuthDiagnostics('exchange', config);
       tokenForm.set('client_id', config.appId);
       tokenForm.set('client_secret', config.appSecret);
       tokenForm.set('grant_type', 'authorization_code');
