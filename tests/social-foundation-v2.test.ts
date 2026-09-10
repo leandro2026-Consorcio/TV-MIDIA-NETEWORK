@@ -14,6 +14,7 @@ import {
 
 const root = process.cwd();
 const migration360 = readFileSync(join(root, 'supabase/migrations/20260909000360_social_foundation_v2.sql'), 'utf8');
+const authMiddleware = readFileSync(join(root, 'src/lib/supabase/middleware.ts'), 'utf8');
 
 test('Migration 360: Contratos SQL de colunas, flags, RPC canônico e RPC de diagnóstico Master', () => {
   // 1. Colunas em social_connections e social_channels
@@ -99,6 +100,11 @@ test('Instagram OAuth usa uma única redirect URI canônica sem dupla transforma
   process.env.INSTAGRAM_REDIRECT_URI = ` ${canonical}`;
   assert.throws(() => getInstagramRedirectUri(), /espaços nas extremidades/);
   process.env.INSTAGRAM_REDIRECT_URI = canonical;
+});
+
+test('Páginas de conformidade Meta são públicas e não exigem sessão', () => {
+  assert.match(authMiddleware, /pathname === '\/politica-de-privacidade'/);
+  assert.match(authMiddleware, /pathname === '\/exclusao-de-dados'/);
 });
 
 test('Detecção de Capacidades: Feed, Reels, Stories e Métricas', () => {
