@@ -15,6 +15,7 @@ import {
 const root = process.cwd();
 const migration360 = readFileSync(join(root, 'supabase/migrations/20260909000360_social_foundation_v2.sql'), 'utf8');
 const authMiddleware = readFileSync(join(root, 'src/lib/supabase/middleware.ts'), 'utf8');
+const metaCallback = readFileSync(join(root, 'src/app/api/social/meta/callback/route.ts'), 'utf8');
 
 test('Migration 360: Contratos SQL de colunas, flags, RPC canônico e RPC de diagnóstico Master', () => {
   // 1. Colunas em social_connections e social_channels
@@ -158,4 +159,24 @@ test('Criptografia em repouso AES-256-GCM de tokens de acesso', () => {
   decipher.setAuthTag(Buffer.from(tagRaw, 'base64url'));
   const decrypted = Buffer.concat([decipher.update(Buffer.from(encRaw, 'base64url')), decipher.final()]).toString('utf8');
   assert.equal(decrypted, token);
+});
+
+test('Facebook OAuth valida granular targets e Page Access Token sem hardcode', () => {
+  assert.match(metaCallback, /debug_token/);
+  assert.match(metaCallback, /granular_scopes/);
+  assert.match(metaCallback, /granular_scopes_target_ids/);
+  assert.match(metaCallback, /id,name,access_token,tasks,category/);
+  assert.match(metaCallback, /validationUrl\.searchParams\.set\('access_token', pagePayload\.access_token\)/);
+  assert.match(metaCallback, /pageTokenValidated/);
+  assert.match(metaCallback, /encryptSocialToken\(page\.access_token\)/);
+  assert.doesNotMatch(metaCallback, /1207907842417068/);
+  assert.doesNotMatch(metaCallback, /business_management/);
+});
+
+test('Diagnóstico Facebook registra apenas evidências seguras', () => {
+  assert.match(metaCallback, /userIdMasked: maskMetaId/);
+  assert.match(metaCallback, /targetIdsMasked:/);
+  assert.match(metaCallback, /pageAccessTokenPresent: Boolean/);
+  assert.doesNotMatch(metaCallback, /console\.(?:info|log)\([^\n]*pagePayload\.access_token/);
+  assert.doesNotMatch(metaCallback, /console\.(?:info|log)\([^\n]*userToken/);
 });

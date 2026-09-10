@@ -12,6 +12,12 @@ import {
 
 export const dynamic = 'force-dynamic';
 
+function maskMetaId(value?: string | null) {
+  if (!value) return null;
+  if (value.length <= 6) return '****';
+  return `${value.slice(0, 3)}****${value.slice(-3)}`;
+}
+
 export async function GET(request: NextRequest) {
   const url = request.nextUrl;
   const code = url.searchParams.get('code');
@@ -273,66 +279,156 @@ export async function GET(request: NextRequest) {
         console.warn('[Facebook Permissions Warning]', permissionsErr.message);
       }
 
-      // Consulta Páginas administradas
+      type FacebookGranularScope = { scope?: string; target_ids?: string[] };
+      type FacebookTokenDebug = {
+        is_valid?: boolean;
+        app_id?: string;
+        user_id?: string;
+        expires_at?: number;
+        data_access_expires_at?: number;
+        scopes?: string[];
+        granular_scopes?: FacebookGranularScope[];
+      };
+
+      // Introspecção server-side do User Access Token. O app access token nunca sai do servidor.
+      const debugUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/debug_token`);
+      debugUrl.searchParams.set('input_token', userToken);
+      debugUrl.searchParams.set('access_token', `${config.appId}|${config.appSecret}`);
+      const debugRes = await fetch(debugUrl.toString(), { cache: 'no-store' });
+      const debugPayload = await debugRes.json().catch(() => ({})) as {
+        data?: FacebookTokenDebug;
+        error?: { code?: number; message?: string };
+      };
+      const tokenDebug = debugPayload.data;
+      if (!debugRes.ok || !tokenDebug?.is_valid || tokenDebug.app_id !== config.appId) {
+        throw new Error(debugPayload.error?.message || 'Token do Facebook inválido ou emitido para outro app.');
+      }
+
+      const granularScopes = tokenDebug.granular_scopes || [];
+      const requiredPageScopes = ['pages_show_list', 'pages_read_engagement', 'pages_manage_posts'];
+      const targetScopeMap = new Map<string, Set<string>>();
+      for (const granular of granularScopes) {
+        if (!granular.scope || !requiredPageScopes.includes(granular.scope)) continue;
+        for (const targetId of granular.target_ids || []) {
+          if (!targetScopeMap.has(targetId)) targetScopeMap.set(targetId, new Set());
+          targetScopeMap.get(targetId)!.add(granular.scope);
+        }
+      }
+
+      // Um escopo sem target_ids é tratado como concessão global; quando a Meta fornece
+      // target_ids, o Page ID precisa estar explicitamente associado a esse escopo.
+      const targetIds = Array.from(targetScopeMap.keys()).filter((targetId) =>
+        requiredPageScopes.every((scope) => {
+          const scopedEntries = granularScopes.filter((item) => item.scope === scope);
+          if (scopedEntries.length === 0) return grantedScopes.includes(scope);
+          const scopedTargets = scopedEntries.flatMap((item) => item.target_ids || []);
+          return scopedTargets.length === 0
+            ? grantedScopes.includes(scope)
+            : scopedTargets.includes(targetId);
+        })
+      );
+
+      // Consulta principal: Páginas administradas pelo long-lived User Access Token.
       const accountsUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/me/accounts`);
-      accountsUrl.searchParams.set('fields', 'id,name,access_token,category');
+      accountsUrl.searchParams.set('fields', 'id,name,access_token,tasks,category');
       accountsUrl.searchParams.set('access_token', userToken);
 
       const accountsRes = await fetch(accountsUrl.toString(), { cache: 'no-store' });
-      if (!accountsRes.ok) {
-        const accErr = await accountsRes.json().catch(() => ({}));
-        throw new Error(accErr.error?.message || 'Falha ao listar Páginas do Facebook administradas.');
-      }
-
       type FacebookPage = {
         id: string;
         name: string;
         access_token: string;
         category?: string;
+        tasks?: string[];
+        tasksAvailable?: boolean;
+        pageTokenValidated?: boolean;
       };
-      const accountsData = await accountsRes.json() as { data?: FacebookPage[] };
+      const accountsData = await accountsRes.json().catch(() => ({})) as {
+        data?: FacebookPage[];
+        paging?: unknown;
+        error?: { code?: number; message?: string };
+      };
 
-      let pages = accountsData.data || [];
-      let discoverySource: 'me/accounts' | 'granular_targets' = 'me/accounts';
+      let pages = accountsRes.ok ? (accountsData.data || []) : [];
+      let discoverySource: 'me_accounts' | 'granular_scopes_target_ids' = 'me_accounts';
 
       // Na Graph v26, algumas Páginas da Nova Experiência são omitidas em /me/accounts
       // mesmo com pages_show_list concedido. Os alvos granulares do token são a fonte
       // oficial dos ativos selecionados no consentimento do Facebook Login for Business.
       if (pages.length === 0) {
         try {
-          const debugUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/debug_token`);
-          debugUrl.searchParams.set('input_token', userToken);
-          debugUrl.searchParams.set('access_token', `${config.appId}|${config.appSecret}`);
-          const debugRes = await fetch(debugUrl.toString(), { cache: 'no-store' });
-          if (debugRes.ok) {
-            const debugData = await debugRes.json() as {
-              data?: { granular_scopes?: Array<{ scope?: string; target_ids?: string[] }> };
+          const targetedPages = await Promise.all(targetIds.map(async (pageId) => {
+            const pageUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(pageId)}`);
+            pageUrl.searchParams.set('fields', 'id,name,access_token,tasks,category');
+            pageUrl.searchParams.set('access_token', userToken);
+            let pageRes = await fetch(pageUrl.toString(), { cache: 'no-store' });
+            let pagePayload = await pageRes.json().catch(() => ({})) as Partial<FacebookPage> & {
+              error?: { code?: number; message?: string };
             };
-            const relevantScopes = new Set(['pages_show_list', 'pages_read_engagement', 'pages_manage_posts']);
-            const targetIds = Array.from(new Set(
-              (debugData.data?.granular_scopes || [])
-                .filter((item) => item.scope && relevantScopes.has(item.scope))
-                .flatMap((item) => item.target_ids || [])
-            ));
+            let tasksAvailable = pageRes.ok && Array.isArray(pagePayload.tasks);
 
-            const targetedPages = await Promise.all(targetIds.map(async (pageId) => {
-              const pageUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(pageId)}`);
+            // A Graph v26 pode não expor `tasks` no nó direto da Page. Mantém a tentativa
+            // auditável e refaz somente sem esse campo, sem ampliar permissões.
+            if (!pageRes.ok && pagePayload.error?.code === 100) {
               pageUrl.searchParams.set('fields', 'id,name,access_token,category');
-              pageUrl.searchParams.set('access_token', userToken);
-              const pageRes = await fetch(pageUrl.toString(), { cache: 'no-store' });
-              if (!pageRes.ok) return null;
-              const page = await pageRes.json() as Partial<FacebookPage>;
-              if (!page.id || !page.name || !page.access_token) return null;
-              return page as FacebookPage;
-            }));
+              pageRes = await fetch(pageUrl.toString(), { cache: 'no-store' });
+              pagePayload = await pageRes.json().catch(() => ({})) as Partial<FacebookPage> & {
+                error?: { code?: number; message?: string };
+              };
+              tasksAvailable = false;
+            }
 
-            pages = targetedPages.filter((page): page is FacebookPage => page !== null);
-            if (pages.length > 0) discoverySource = 'granular_targets';
-          }
+            if (!pageRes.ok || !pagePayload.id || pagePayload.id !== pageId || !pagePayload.name || !pagePayload.access_token) {
+              return null;
+            }
+
+            // Valida o Page Access Token devolvido pela Meta antes de persistir.
+            const validationUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(pageId)}`);
+            validationUrl.searchParams.set('fields', 'id,name');
+            validationUrl.searchParams.set('access_token', pagePayload.access_token);
+            const validationRes = await fetch(validationUrl.toString(), { cache: 'no-store' });
+            const validationData = await validationRes.json().catch(() => ({})) as { id?: string; name?: string };
+            const pageTokenValidated = validationRes.ok
+              && validationData.id === pageId
+              && validationData.name === pagePayload.name;
+            if (!pageTokenValidated) return null;
+
+            return {
+              ...pagePayload,
+              tasks: Array.isArray(pagePayload.tasks) ? pagePayload.tasks : [],
+              tasksAvailable,
+              pageTokenValidated,
+            } as FacebookPage;
+          }));
+
+          pages = targetedPages.filter((page): page is FacebookPage => page !== null);
+          if (pages.length > 0) discoverySource = 'granular_scopes_target_ids';
         } catch (targetErr: any) {
           console.warn('[Facebook Granular Targets Warning]', targetErr.message);
         }
       }
+
+      // A validação com o Page Access Token é obrigatória nas duas estratégias.
+      // Isso evita persistir apenas porque uma Page apareceu na listagem do usuário.
+      if (pages.length > 0) {
+        const validatedPages = await Promise.all(pages.map(async (page) => {
+          if (page.pageTokenValidated) return page;
+          const validationUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(page.id)}`);
+          validationUrl.searchParams.set('fields', 'id,name');
+          validationUrl.searchParams.set('access_token', page.access_token);
+          const validationRes = await fetch(validationUrl.toString(), { cache: 'no-store' });
+          const validationData = await validationRes.json().catch(() => ({})) as { id?: string; name?: string };
+          if (!validationRes.ok || validationData.id !== page.id || validationData.name !== page.name) return null;
+          return {
+            ...page,
+            tasks: Array.isArray(page.tasks) ? page.tasks : [],
+            tasksAvailable: Array.isArray(page.tasks),
+            pageTokenValidated: true,
+          };
+        }));
+        pages = validatedPages.filter((page): page is FacebookPage => page !== null);
+      }
+
       if (process.env.META_OAUTH_DIAGNOSTICS === '1') {
         console.info('[Meta OAuth Diagnostics]', {
           provider: 'facebook',
@@ -341,8 +437,35 @@ export async function GET(request: NextRequest) {
           tokenExtended,
           expiresInPresent: Number.isFinite(userExpiresIn) && userExpiresIn > 0,
           grantedScopes,
+          tokenIntrospection: {
+            isValid: tokenDebug.is_valid === true,
+            appIdMatches: tokenDebug.app_id === config.appId,
+            userIdMasked: maskMetaId(tokenDebug.user_id),
+            expiresAtPresent: Number.isFinite(tokenDebug.expires_at) && Number(tokenDebug.expires_at) > 0,
+            dataAccessExpiresAtPresent: Number.isFinite(tokenDebug.data_access_expires_at)
+              && Number(tokenDebug.data_access_expires_at) > 0,
+            scopes: tokenDebug.scopes || [],
+            granularScopes: granularScopes.map((item) => ({
+              scope: item.scope,
+              targetIdsMasked: (item.target_ids || []).map(maskMetaId),
+            })),
+          },
+          meAccounts: {
+            httpStatus: accountsRes.status,
+            dataLength: accountsRes.ok ? (accountsData.data || []).length : 0,
+            hasPaging: Boolean(accountsData.paging),
+            errorCode: accountsData.error?.code || null,
+          },
           discoverySource,
           pagesCount: pages.length,
+          pages: pages.map((page) => ({
+            idMasked: maskMetaId(page.id),
+            name: page.name,
+            pageAccessTokenPresent: Boolean(page.access_token),
+            pageTokenValidated: page.pageTokenValidated === true,
+            tasksAvailable: page.tasksAvailable ?? Array.isArray(page.tasks),
+            tasks: page.tasks || [],
+          })),
         });
       }
       if (pages.length === 0) {
@@ -352,8 +475,15 @@ export async function GET(request: NextRequest) {
       }
 
       for (const page of pages) {
+        const pageTasks = page.tasks || [];
+        const tasksPermitPublishing = page.tasksAvailable === true
+          ? pageTasks.includes('CREATE_CONTENT')
+          : true;
+        const capabilityScopes = tasksPermitPublishing
+          ? grantedScopes
+          : grantedScopes.filter((scope) => scope !== 'pages_manage_posts');
         const pageEncryptedToken = encryptSocialToken(page.access_token);
-        const fbCaps = detectChannelCapabilities('facebook_page', grantedScopes, {}, metricsGlobalEnabled);
+        const fbCaps = detectChannelCapabilities('facebook_page', capabilityScopes, {}, metricsGlobalEnabled);
 
         const { data: connection, error: connErr } = await (admin.from('social_connections') as any)
           .upsert({
@@ -368,9 +498,17 @@ export async function GET(request: NextRequest) {
             status: 'active',
             connected_by: user.id,
             connected_at: new Date().toISOString(),
-            expires_at: null, // Page tokens permanentes
+            // A Graph não devolve expiração separada para o Page token. Sua validade
+            // continua condicionada ao usuário, ao app e às permissões concedidas.
+            expires_at: null,
             last_refreshed_at: new Date().toISOString(),
-            metadata: { name: page.name },
+            metadata: {
+              name: page.name,
+              discovery_strategy: discoverySource,
+              page_token_validated: page.pageTokenValidated === true,
+              tasks_available: page.tasksAvailable ?? Array.isArray(page.tasks),
+              tasks: pageTasks,
+            },
           }, { onConflict: 'provider,provider_account_id' })
           .select('id')
           .single();
@@ -397,6 +535,16 @@ export async function GET(request: NextRequest) {
           diagnostic_status: fbCaps.diagnosticStatus,
           diagnostic_message: fbCaps.diagnosticMessage,
           last_diagnosed_at: new Date().toISOString(),
+          metadata: {
+            discovery_strategy: discoverySource,
+            connection_capable: true,
+            page_read_capable: capabilityScopes.includes('pages_read_engagement'),
+            feed_publish_capable: fbCaps.feedPublishCapable,
+            metrics_capable: fbCaps.metricsCapable,
+            page_token_validated: page.pageTokenValidated === true,
+            tasks_available: page.tasksAvailable ?? Array.isArray(page.tasks),
+            tasks: pageTasks,
+          },
           participation_enabled: true,
           status: 'active',
         }, { onConflict: 'provider,provider_channel_id' });
