@@ -275,7 +275,7 @@ export async function GET(request: NextRequest) {
 
       // Consulta Páginas administradas
       const accountsUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/me/accounts`);
-      accountsUrl.searchParams.set('fields', 'id,name,access_token,tasks,category,instagram_business_account{id,username,name,profile_picture_url}');
+      accountsUrl.searchParams.set('fields', 'id,name,access_token,category');
       accountsUrl.searchParams.set('access_token', userToken);
 
       const accountsRes = await fetch(accountsUrl.toString(), { cache: 'no-store' });
@@ -284,16 +284,55 @@ export async function GET(request: NextRequest) {
         throw new Error(accErr.error?.message || 'Falha ao listar Páginas do Facebook administradas.');
       }
 
-      const accountsData = await accountsRes.json() as {
-        data?: Array<{
-          id: string;
-          name: string;
-          access_token: string;
-          instagram_business_account?: { id: string; username?: string; name?: string; profile_picture_url?: string };
-        }>;
+      type FacebookPage = {
+        id: string;
+        name: string;
+        access_token: string;
+        category?: string;
       };
+      const accountsData = await accountsRes.json() as { data?: FacebookPage[] };
 
-      const pages = accountsData.data || [];
+      let pages = accountsData.data || [];
+      let discoverySource: 'me/accounts' | 'granular_targets' = 'me/accounts';
+
+      // Na Graph v26, algumas Páginas da Nova Experiência são omitidas em /me/accounts
+      // mesmo com pages_show_list concedido. Os alvos granulares do token são a fonte
+      // oficial dos ativos selecionados no consentimento do Facebook Login for Business.
+      if (pages.length === 0) {
+        try {
+          const debugUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/debug_token`);
+          debugUrl.searchParams.set('input_token', userToken);
+          debugUrl.searchParams.set('access_token', `${config.appId}|${config.appSecret}`);
+          const debugRes = await fetch(debugUrl.toString(), { cache: 'no-store' });
+          if (debugRes.ok) {
+            const debugData = await debugRes.json() as {
+              data?: { granular_scopes?: Array<{ scope?: string; target_ids?: string[] }> };
+            };
+            const relevantScopes = new Set(['pages_show_list', 'pages_read_engagement', 'pages_manage_posts']);
+            const targetIds = Array.from(new Set(
+              (debugData.data?.granular_scopes || [])
+                .filter((item) => item.scope && relevantScopes.has(item.scope))
+                .flatMap((item) => item.target_ids || [])
+            ));
+
+            const targetedPages = await Promise.all(targetIds.map(async (pageId) => {
+              const pageUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/${encodeURIComponent(pageId)}`);
+              pageUrl.searchParams.set('fields', 'id,name,access_token,category');
+              pageUrl.searchParams.set('access_token', userToken);
+              const pageRes = await fetch(pageUrl.toString(), { cache: 'no-store' });
+              if (!pageRes.ok) return null;
+              const page = await pageRes.json() as Partial<FacebookPage>;
+              if (!page.id || !page.name || !page.access_token) return null;
+              return page as FacebookPage;
+            }));
+
+            pages = targetedPages.filter((page): page is FacebookPage => page !== null);
+            if (pages.length > 0) discoverySource = 'granular_targets';
+          }
+        } catch (targetErr: any) {
+          console.warn('[Facebook Granular Targets Warning]', targetErr.message);
+        }
+      }
       if (process.env.META_OAUTH_DIAGNOSTICS === '1') {
         console.info('[Meta OAuth Diagnostics]', {
           provider: 'facebook',
@@ -302,6 +341,7 @@ export async function GET(request: NextRequest) {
           tokenExtended,
           expiresInPresent: Number.isFinite(userExpiresIn) && userExpiresIn > 0,
           grantedScopes,
+          discoverySource,
           pagesCount: pages.length,
         });
       }
