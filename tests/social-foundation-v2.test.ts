@@ -68,6 +68,7 @@ test('Instagram Direct Login vs Facebook Login: Escopos e endpoints oficiais', (
   process.env.META_APP_SECRET = 'test_secret_12345';
   process.env.INSTAGRAM_REDIRECT_URI = 'https://midiapormidia.com.br/api/social/instagram/callback';
   process.env.FACEBOOK_REDIRECT_URI = 'https://midiapormidia.com.br/api/social/facebook/callback';
+  process.env.FACEBOOK_LOGIN_CONFIG_ID = '987654321';
   process.env.META_GRAPH_VERSION = 'v22.0';
 
   const igConfig = getProviderConfig('instagram');
@@ -85,6 +86,7 @@ test('Instagram Direct Login vs Facebook Login: Escopos e endpoints oficiais', (
   assert.ok(fbConfig.dialogUrl.includes('facebook.com/v22.0/dialog/oauth'));
   assert.ok(fbConfig.scopes.includes('pages_show_list'));
   assert.ok(fbConfig.scopes.includes('pages_manage_posts'));
+  assert.equal(fbConfig.configId, '987654321');
 });
 
 test('Instagram OAuth usa uma única redirect URI canônica sem dupla transformação', () => {

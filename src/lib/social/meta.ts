@@ -13,6 +13,7 @@ export interface ProviderConfig {
   dialogUrl: string;
   tokenUrl: string;
   scopes: string[];
+  configId?: string;
 }
 
 const DEFAULT_INSTAGRAM_REDIRECT_URI =
@@ -135,6 +136,7 @@ export function getProviderConfig(provider: SocialProvider): ProviderConfig | nu
     redirectUri,
     dialogUrl: `https://www.facebook.com/${graphVersion}/dialog/oauth`,
     tokenUrl: `https://graph.facebook.com/${graphVersion}/oauth/access_token`,
+    configId: process.env.FACEBOOK_LOGIN_CONFIG_ID?.trim() || undefined,
     scopes: [
       'pages_show_list',
       'pages_read_engagement',

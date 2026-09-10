@@ -144,8 +144,14 @@ export async function GET(request: NextRequest) {
     dialogUrl.searchParams.set('client_id', config.appId);
     dialogUrl.searchParams.set('redirect_uri', config.redirectUri);
     dialogUrl.searchParams.set('response_type', 'code');
-    dialogUrl.searchParams.set('scope', config.scopes.join(','));
     dialogUrl.searchParams.set('state', state);
+
+    if (provider === 'facebook' && config.configId) {
+      // Facebook Login for Business exige o ID da configuração; ele substitui scope.
+      dialogUrl.searchParams.set('config_id', config.configId);
+    } else {
+      dialogUrl.searchParams.set('scope', config.scopes.join(','));
+    }
 
     if (provider === 'instagram') {
       dialogUrl.searchParams.set('enable_fb_login', '0');

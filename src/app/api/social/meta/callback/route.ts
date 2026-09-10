@@ -232,6 +232,7 @@ export async function GET(request: NextRequest) {
       const tokenData = await tokenRes.json() as { access_token: string; expires_in?: number };
       let userToken = tokenData.access_token;
       let userExpiresIn = tokenData.expires_in || 3600;
+      let tokenExtended = false;
 
       // Estende user token para long-lived
       try {
@@ -246,6 +247,7 @@ export async function GET(request: NextRequest) {
           const extendData = await extendRes.json() as { access_token: string; expires_in?: number };
           if (extendData.access_token) {
             userToken = extendData.access_token;
+            tokenExtended = true;
             if (extendData.expires_in) userExpiresIn = extendData.expires_in;
           }
         }
@@ -274,6 +276,16 @@ export async function GET(request: NextRequest) {
       };
 
       const pages = accountsData.data || [];
+      if (process.env.META_OAUTH_DIAGNOSTICS === '1') {
+        console.info('[Meta OAuth Diagnostics]', {
+          provider: 'facebook',
+          stage: 'accounts',
+          tokenExchangeSucceeded: Boolean(tokenData.access_token),
+          tokenExtended,
+          expiresInPresent: Number.isFinite(userExpiresIn) && userExpiresIn > 0,
+          pagesCount: pages.length,
+        });
+      }
       if (pages.length === 0) {
         destination.searchParams.set('social', 'warning');
         destination.searchParams.set('message', 'Nenhuma Página do Facebook sob sua administração foi localizada.');
