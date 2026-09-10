@@ -185,7 +185,7 @@ export async function GET(request: NextRequest) {
       }
 
       // Upsert em social_channels
-      await (admin.from('social_channels') as any).upsert({
+      const { error: channelErr } = await (admin.from('social_channels') as any).upsert({
         connection_id: connection.id,
         owner_type: parsedState.ownerType,
         owner_id: parsedState.ownerId,
@@ -207,6 +207,10 @@ export async function GET(request: NextRequest) {
         participation_enabled: true,
         status: 'active',
       }, { onConflict: 'provider,provider_channel_id' });
+
+      if (channelErr) {
+        throw channelErr;
+      }
 
     } else {
       // =======================================================================
@@ -306,7 +310,7 @@ export async function GET(request: NextRequest) {
           throw connErr || new Error('Falha ao persistir conexão da Página.');
         }
 
-        await (admin.from('social_channels') as any).upsert({
+        const { error: channelErr } = await (admin.from('social_channels') as any).upsert({
           connection_id: connection.id,
           owner_type: parsedState.ownerType,
           owner_id: parsedState.ownerId,
@@ -327,6 +331,10 @@ export async function GET(request: NextRequest) {
           participation_enabled: true,
           status: 'active',
         }, { onConflict: 'provider,provider_channel_id' });
+
+        if (channelErr) {
+          throw channelErr;
+        }
       }
     }
 

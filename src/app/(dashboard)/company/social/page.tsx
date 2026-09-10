@@ -63,7 +63,7 @@ export default async function CompanySocialPage({
     { data: socialMetricsSetting },
   ] = await Promise.all([
     (supabase.from('social_channels') as any)
-      .select('*, social_connections(*)')
+      .select('*, social_connections(id, provider, auth_flow, status, scopes, connected_at, expires_at, last_refreshed_at)')
       .eq('owner_type', 'company')
       .eq('owner_id', companyId)
       .order('created_at', { ascending: false }),

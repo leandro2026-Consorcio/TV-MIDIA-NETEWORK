@@ -53,7 +53,11 @@ export default async function CreatorPage() {
     { data: socialMetricsSetting },
   ] = await Promise.all([
     creatorId
-      ? (supabase.from('social_channels') as any).select('*, social_connections(*)').eq('owner_type', 'creator').eq('owner_id', creatorId).order('created_at', { ascending: false })
+      ? (supabase.from('social_channels') as any)
+        .select('*, social_connections(id, provider, auth_flow, status, scopes, connected_at, expires_at, last_refreshed_at)')
+        .eq('owner_type', 'creator')
+        .eq('owner_id', creatorId)
+        .order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
     creatorId
       ? (supabase.from('creator_rate_cards') as any).select('*').eq('creator_id', creatorId)
