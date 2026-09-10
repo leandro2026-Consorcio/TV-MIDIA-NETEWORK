@@ -149,6 +149,8 @@ export async function GET(request: NextRequest) {
     if (provider === 'facebook' && config.configId) {
       // Facebook Login for Business exige o ID da configuração; ele substitui scope.
       dialogUrl.searchParams.set('config_id', config.configId);
+      // Revalida consentimentos antigos para garantir as permissões da configuração atual.
+      dialogUrl.searchParams.set('auth_type', 'rerequest');
     } else {
       dialogUrl.searchParams.set('scope', config.scopes.join(','));
     }

@@ -255,6 +255,24 @@ export async function GET(request: NextRequest) {
         console.warn('[Facebook Token Extension Warning]', extErr.message);
       }
 
+      // Lê as permissões efetivamente concedidas; não presume que todo escopo pedido foi aceito.
+      let grantedScopes: string[] = [];
+      try {
+        const permissionsUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/me/permissions`);
+        permissionsUrl.searchParams.set('access_token', userToken);
+        const permissionsRes = await fetch(permissionsUrl.toString(), { cache: 'no-store' });
+        if (permissionsRes.ok) {
+          const permissionsData = await permissionsRes.json() as {
+            data?: Array<{ permission?: string; status?: string }>;
+          };
+          grantedScopes = (permissionsData.data || [])
+            .filter((item) => item.status === 'granted' && Boolean(item.permission))
+            .map((item) => item.permission!);
+        }
+      } catch (permissionsErr: any) {
+        console.warn('[Facebook Permissions Warning]', permissionsErr.message);
+      }
+
       // Consulta Páginas administradas
       const accountsUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/me/accounts`);
       accountsUrl.searchParams.set('fields', 'id,name,access_token,tasks,category,instagram_business_account{id,username,name,profile_picture_url}');
@@ -283,6 +301,7 @@ export async function GET(request: NextRequest) {
           tokenExchangeSucceeded: Boolean(tokenData.access_token),
           tokenExtended,
           expiresInPresent: Number.isFinite(userExpiresIn) && userExpiresIn > 0,
+          grantedScopes,
           pagesCount: pages.length,
         });
       }
@@ -291,8 +310,6 @@ export async function GET(request: NextRequest) {
         destination.searchParams.set('message', 'Nenhuma Página do Facebook sob sua administração foi localizada.');
         return NextResponse.redirect(destination);
       }
-
-      const grantedScopes = config.scopes;
 
       for (const page of pages) {
         const pageEncryptedToken = encryptSocialToken(page.access_token);
