@@ -15,6 +15,7 @@ import {
   Key,
   ShieldAlert,
   Search,
+  Music2,
 } from 'lucide-react';
 import {
   verifySocialConnectionAction,
@@ -88,6 +89,7 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
   const activeConnections = diagnostics.filter((d) => d.status === 'active').length;
   const instagramCount = diagnostics.filter((d) => d.provider === 'instagram').length;
   const facebookCount = diagnostics.filter((d) => d.provider === 'facebook').length;
+  const tiktokCount = diagnostics.filter((d) => d.provider === 'tiktok').length;
 
   return (
     <div className="max-w-7xl mx-auto space-y-7 pb-16">
@@ -103,7 +105,7 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
           </div>
           <h1 className="mt-1 text-3xl font-black text-white">Diagnóstico de Integrações Sociais</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Painel operacional para auditoria técnica de conexões OAuth (Instagram & Facebook) sem expor segredos nem tokens.
+            Painel operacional para auditoria de Instagram, Facebook e TikTok sem expor segredos nem tokens.
           </p>
         </div>
 
@@ -126,11 +128,17 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
       )}
 
       {/* Top Metrics Row */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
           <span className="text-[11px] font-bold uppercase text-slate-500">Total Conexões</span>
           <div className="text-3xl font-black text-white mt-2">{totalConnections}</div>
           <span className="text-xs text-slate-400 mt-1 block">{activeConnections} ativas no momento</span>
+        </div>
+
+        <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
+          <span className="text-[11px] font-bold uppercase text-slate-500">TikTok Login</span>
+          <div className="text-3xl font-black text-cyan-400 mt-2">{tiktokCount}</div>
+          <span className="text-xs text-slate-400 mt-1 block">Login Kit / Display API</span>
         </div>
 
         <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5">
@@ -189,6 +197,7 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
               ) : (
                 filtered.map((item) => {
                   const isInstagram = item.provider === 'instagram';
+                  const isTikTok = item.provider === 'tiktok';
                   const isLoading = loadingId === item.connection_id;
 
                   return (
@@ -204,6 +213,8 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
                         <div className="flex items-center gap-2">
                           {isInstagram ? (
                             <Instagram className="w-4 h-4 text-fuchsia-400 shrink-0" />
+                          ) : isTikTok ? (
+                            <Music2 className="w-4 h-4 text-cyan-400 shrink-0" />
                           ) : (
                             <Facebook className="w-4 h-4 text-blue-400 shrink-0" />
                           )}
@@ -234,7 +245,19 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
                       </td>
 
                       <td className="p-4">
-                        <div className="flex items-center gap-1.5 flex-wrap">
+                        {isTikTok ? (
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {[
+                              ['Perfil', item.profile_read_capable],
+                              ['Vídeos', item.video_list_capable],
+                              ['Upload', item.video_upload_capable],
+                              ['Direct', item.direct_post_capable],
+                              ['Métricas', item.metrics_capable],
+                            ].map(([label, capable]) => (
+                              <span key={String(label)} className={`px-2 py-0.5 rounded text-[10px] ${capable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>{label}</span>
+                            ))}
+                          </div>
+                        ) : <div className="flex items-center gap-1.5 flex-wrap">
                           <span className={`px-2 py-0.5 rounded text-[10px] ${item.feed_publish_capable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
                             Feed
                           </span>
@@ -244,7 +267,7 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
                           <span className={`px-2 py-0.5 rounded text-[10px] ${item.story_publish_capable ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
                             Stories
                           </span>
-                        </div>
+                        </div>}
                       </td>
 
                       <td className="p-4 text-[11px]">
@@ -272,7 +295,7 @@ export function SocialDiagnosticsClient({ initialDiagnostics }: Props) {
                             Verificar
                           </button>
 
-                          {isInstagram && (
+                          {(isInstagram || isTikTok) && (
                             <button
                               onClick={() => handleRefresh(item.connection_id)}
                               disabled={isLoading}

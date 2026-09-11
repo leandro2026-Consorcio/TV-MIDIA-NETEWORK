@@ -51,6 +51,7 @@ export default async function CreatorPage() {
     { data: masterSetting },
     { data: socialConnSetting },
     { data: socialMetricsSetting },
+    { data: tiktokConnectionSetting },
   ] = await Promise.all([
     creatorId
       ? (supabase.from('social_channels') as any)
@@ -93,6 +94,7 @@ export default async function CreatorPage() {
     (supabase.from('platform_settings') as any).select('value').eq('key', 'social_auto_publish_master_enabled').maybeSingle(),
     (supabase.from('platform_settings') as any).select('value').eq('key', 'social_connection_enabled').maybeSingle(),
     (supabase.from('platform_settings') as any).select('value').eq('key', 'social_metrics_enabled').maybeSingle(),
+    (supabase.from('platform_settings') as any).select('value').eq('key', 'tiktok_connection_enabled').maybeSingle(),
   ]);
 
   return (
@@ -115,6 +117,7 @@ export default async function CreatorPage() {
       masterAutoPublishEnabled={masterSetting?.value === true || masterSetting?.value === 'true'}
       socialConnectionEnabled={socialConnSetting ? Boolean(socialConnSetting.value) : true}
       socialMetricsEnabled={Boolean(socialMetricsSetting?.value)}
+      tiktokConnectionEnabled={Boolean(tiktokConnectionSetting?.value) && Boolean(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET && process.env.TIKTOK_REDIRECT_URI)}
     />
   );
 }

@@ -1,6 +1,6 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from 'crypto';
 
-export type SocialProvider = 'instagram' | 'facebook';
+export type SocialProvider = 'instagram' | 'facebook' | 'tiktok';
 export type SocialAuthFlow = 'instagram_login' | 'facebook_login';
 
 export interface ProviderConfig {
@@ -94,6 +94,7 @@ export function getGraphVersion(): string {
 }
 
 export function getProviderConfig(provider: SocialProvider): ProviderConfig | null {
+  if (provider === 'tiktok') return null;
   const graphVersion = getGraphVersion();
 
   if (provider === 'instagram') {

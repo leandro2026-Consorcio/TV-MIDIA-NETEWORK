@@ -61,6 +61,7 @@ export default async function CompanySocialPage({
     { data: channels },
     { data: socialConnSetting },
     { data: socialMetricsSetting },
+    { data: tiktokConnectionSetting },
   ] = await Promise.all([
     (supabase.from('social_channels') as any)
       .select('*, social_connections(id, provider, auth_flow, status, scopes, connected_at, expires_at, last_refreshed_at)')
@@ -69,6 +70,7 @@ export default async function CompanySocialPage({
       .order('created_at', { ascending: false }),
     (supabase.from('platform_settings') as any).select('value').eq('key', 'social_connection_enabled').maybeSingle(),
     (supabase.from('platform_settings') as any).select('value').eq('key', 'social_metrics_enabled').maybeSingle(),
+    (supabase.from('platform_settings') as any).select('value').eq('key', 'tiktok_connection_enabled').maybeSingle(),
   ]);
 
   return (
@@ -78,6 +80,7 @@ export default async function CompanySocialPage({
       channels={channels || []}
       socialConnectionEnabled={socialConnSetting ? Boolean(socialConnSetting.value) : true}
       socialMetricsEnabled={Boolean(socialMetricsSetting?.value)}
+      tiktokConnectionEnabled={Boolean(tiktokConnectionSetting?.value) && Boolean(process.env.TIKTOK_CLIENT_KEY && process.env.TIKTOK_CLIENT_SECRET && process.env.TIKTOK_REDIRECT_URI)}
     />
   );
 }

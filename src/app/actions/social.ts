@@ -5,6 +5,12 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { decryptSocialToken, encryptSocialToken } from '@/lib/social-token-crypto';
 import { getProviderConfig } from '@/lib/social/meta';
+import {
+  getTikTokConfig,
+  TIKTOK_REVOKE_URL,
+  TIKTOK_TOKEN_URL,
+  TIKTOK_USER_INFO_URL,
+} from '@/lib/social/tiktok';
 
 export async function getSocialConnectionStatusAction(
   ownerType: 'company' | 'creator' | 'organic_participant',
@@ -140,6 +146,74 @@ export async function disconnectSocialConnectionAction(connectionId: string) {
   }
 }
 
+export async function disconnectTikTokConnectionAction(connectionId: string) {
+  try {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return { success: false, error: 'Não autenticado.' };
+
+    const admin = createAdminClient();
+    const { data: conn } = await (admin.from('social_connections') as any)
+      .select('id,owner_type,owner_id,provider,encrypted_access_token,metadata')
+      .eq('id', connectionId).eq('provider', 'tiktok').maybeSingle();
+    if (!conn) return { success: false, error: 'Conexão TikTok não encontrada.' };
+
+    const [{ data: profile }, { data: ownership }] = await Promise.all([
+      (supabase.from('profiles') as any).select('is_master_admin').eq('id', user.id).maybeSingle(),
+      conn.owner_type === 'company'
+        ? (supabase.from('company_users') as any).select('id').eq('company_id', conn.owner_id).eq('user_id', user.id).eq('is_active', true).in('role', ['owner', 'admin']).maybeSingle()
+        : (supabase.from('creator_profiles') as any).select('id').eq('id', conn.owner_id).eq('user_id', user.id).maybeSingle(),
+    ]);
+    if (!profile?.is_master_admin && !ownership) return { success: false, error: 'Sem autoridade para desconectar.' };
+
+    let providerRevoked = false;
+    if (conn.encrypted_access_token) {
+      const config = getTikTokConfig();
+      if (config) {
+        try {
+          const accessToken = decryptSocialToken(conn.encrypted_access_token);
+          const response = await fetch(TIKTOK_REVOKE_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
+            body: new URLSearchParams({
+              client_key: config.clientKey,
+              client_secret: config.clientSecret,
+              token: accessToken,
+            }),
+            cache: 'no-store',
+          });
+          providerRevoked = response.ok;
+        } catch {
+          providerRevoked = false;
+        }
+      }
+    }
+
+    const now = new Date().toISOString();
+    await (admin.from('social_connections') as any).update({
+      status: 'revoked',
+      encrypted_access_token: null,
+      encrypted_refresh_token: null,
+      metadata: { ...(conn.metadata || {}), revoked_at: now, revoked_by: user.id, provider_revoked: providerRevoked },
+      updated_at: now,
+    }).eq('id', connectionId);
+    await (admin.from('social_channels') as any).update({
+      participation_enabled: false,
+      status: 'revoked',
+      diagnostic_status: 'revoked',
+      diagnostic_message: 'Conexão TikTok revogada pelo usuário.',
+      updated_at: now,
+    }).eq('connection_id', connectionId);
+
+    revalidatePath('/creator');
+    revalidatePath('/company/social');
+    revalidatePath('/admin/social-diagnostics');
+    return { success: true, providerRevoked };
+  } catch (err: any) {
+    return { success: false, error: err.message || 'Erro ao desconectar TikTok.' };
+  }
+}
+
 export async function ensureCanonicalCreatorAction() {
   try {
     const supabase = createClient();
@@ -173,10 +247,11 @@ export async function getSocialDiagnosticsAction() {
       const { data: connections } = await (admin.from('social_connections') as any)
         .select(`
           id, owner_type, owner_id, provider, auth_flow, provider_account_id, scopes, status,
-          connected_at, expires_at, last_refreshed_at,
+          connected_at, expires_at, refresh_expires_at, last_refreshed_at, metadata,
           social_channels (
             id, channel_type, display_name, username, diagnostic_status, diagnostic_message,
             feed_publish_capable, reel_publish_capable, story_publish_capable, insights_capable, metrics_capable,
+            profile_read_capable, video_list_capable, video_upload_capable, direct_post_capable,
             last_diagnosed_at
           )
         `)
@@ -205,9 +280,16 @@ export async function getSocialDiagnosticsAction() {
           story_publish_capable: ch.story_publish_capable || false,
           insights_capable: ch.insights_capable || false,
           metrics_capable: ch.metrics_capable || false,
+          profile_read_capable: ch.profile_read_capable || false,
+          video_list_capable: ch.video_list_capable || false,
+          video_upload_capable: ch.video_upload_capable || false,
+          direct_post_capable: ch.direct_post_capable || false,
           connected_at: conn.connected_at,
           expires_at: conn.expires_at,
+          refresh_expires_at: conn.refresh_expires_at,
           last_refreshed_at: conn.last_refreshed_at,
+          last_error: conn.metadata?.last_error || null,
+          review_status: conn.metadata?.review_status || null,
           last_diagnosed_at: ch.last_diagnosed_at,
         };
       });
@@ -229,7 +311,7 @@ export async function verifySocialConnectionAction(connectionId: string) {
 
     const admin = createAdminClient();
     const { data: conn } = await (admin.from('social_connections') as any)
-      .select('id, provider, auth_flow, encrypted_access_token, expires_at, status')
+      .select('id, provider, auth_flow, provider_account_id, encrypted_access_token, expires_at, status')
       .eq('id', connectionId)
       .single();
 
@@ -246,6 +328,35 @@ export async function verifySocialConnectionAction(connectionId: string) {
 
       revalidatePath('/admin/social-diagnostics');
       return { success: true, status: 'revoked', message: 'Conexão está revogada.' };
+    }
+
+    if (conn.provider === 'tiktok') {
+      let token: string;
+      try {
+        token = decryptSocialToken(conn.encrypted_access_token);
+      } catch {
+        return { success: false, error: 'Token TikTok armazenado não pôde ser validado.' };
+      }
+      const profileUrl = new URL(TIKTOK_USER_INFO_URL);
+      profileUrl.searchParams.set('fields', 'open_id');
+      const response = await fetch(profileUrl, {
+        headers: { Authorization: `Bearer ${token}` },
+        cache: 'no-store',
+      });
+      const payload = await response.json().catch(() => ({})) as any;
+      const valid = response.ok && payload?.error?.code === 'ok'
+        && payload?.data?.user?.open_id === conn.provider_account_id;
+      const now = new Date().toISOString();
+      await (admin.from('social_connections') as any)
+        .update({ status: valid ? 'active' : 'error', updated_at: now })
+        .eq('id', connectionId);
+      await (admin.from('social_channels') as any).update({
+        diagnostic_status: valid ? 'connected' : 'external_error',
+        diagnostic_message: valid ? 'Perfil TikTok validado pela API oficial.' : 'TikTok rejeitou a validação do token.',
+        last_diagnosed_at: now,
+      }).eq('connection_id', connectionId);
+      revalidatePath('/admin/social-diagnostics');
+      return { success: valid, status: valid ? 'active' : 'error', message: valid ? 'Conexão TikTok válida.' : undefined, error: valid ? undefined : 'Token rejeitado pelo TikTok.' };
     }
 
     // Verifica expiração simples por data
@@ -305,13 +416,41 @@ export async function refreshSocialTokenAction(connectionId: string) {
       return { success: false, error: 'Erro ao decifrar token local.' };
     }
 
-    const config = getProviderConfig(conn.provider);
-    if (!config) return { success: false, error: 'Configuração do provedor indisponível.' };
-
     let newExpiresAt: string | null = null;
+    let newRefreshExpiresAt: string | null = conn.refresh_expires_at || null;
     let newToken = token;
+    let newRefreshToken: string | null = null;
 
-    if (conn.auth_flow === 'instagram_login') {
+    if (conn.auth_flow === 'tiktok_login') {
+      if (!conn.encrypted_refresh_token) return { success: false, error: 'Refresh token TikTok ausente.' };
+      const config = getTikTokConfig();
+      if (!config) return { success: false, error: 'Configuração TikTok indisponível.' };
+      let refreshToken: string;
+      try {
+        refreshToken = decryptSocialToken(conn.encrypted_refresh_token);
+      } catch {
+        return { success: false, error: 'Erro ao decifrar refresh token TikTok.' };
+      }
+      const res = await fetch(TIKTOK_TOKEN_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded', 'Cache-Control': 'no-cache' },
+        body: new URLSearchParams({
+          client_key: config.clientKey,
+          client_secret: config.clientSecret,
+          grant_type: 'refresh_token',
+          refresh_token: refreshToken,
+        }),
+        cache: 'no-store',
+      });
+      const data = await res.json() as any;
+      if (!res.ok || !data.access_token || !data.refresh_token) {
+        return { success: false, error: 'TikTok rejeitou a renovação do token.' };
+      }
+      newToken = data.access_token;
+      newRefreshToken = data.refresh_token;
+      newExpiresAt = new Date(Date.now() + Number(data.expires_in) * 1000).toISOString();
+      newRefreshExpiresAt = new Date(Date.now() + Number(data.refresh_expires_in) * 1000).toISOString();
+    } else if (conn.auth_flow === 'instagram_login') {
       // Instagram API with Instagram Login: ig_refresh_token
       const refUrl = new URL('https://graph.instagram.com/refresh_access_token');
       refUrl.searchParams.set('grant_type', 'ig_refresh_token');
@@ -326,6 +465,8 @@ export async function refreshSocialTokenAction(connectionId: string) {
       const expiresIn = data.expires_in || 60 * 86400;
       newExpiresAt = new Date(Date.now() + expiresIn * 1000).toISOString();
     } else {
+      const config = getProviderConfig(conn.provider);
+      if (!config) return { success: false, error: 'Configuração do provedor indisponível.' };
       // Facebook Login: fb_exchange_token
       const refUrl = new URL(`https://graph.facebook.com/${config.graphVersion}/oauth/access_token`);
       refUrl.searchParams.set('grant_type', 'fb_exchange_token');
@@ -348,7 +489,9 @@ export async function refreshSocialTokenAction(connectionId: string) {
     await (admin.from('social_connections') as any)
       .update({
         encrypted_access_token: encrypted,
+        ...(newRefreshToken ? { encrypted_refresh_token: encryptSocialToken(newRefreshToken) } : {}),
         expires_at: newExpiresAt,
+        refresh_expires_at: newRefreshExpiresAt,
         last_refreshed_at: new Date().toISOString(),
         status: 'active',
         updated_at: new Date().toISOString(),

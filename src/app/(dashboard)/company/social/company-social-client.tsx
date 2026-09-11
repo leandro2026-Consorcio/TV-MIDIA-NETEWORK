@@ -13,11 +13,14 @@ import {
   ShieldCheck,
   Sliders,
   ExternalLink,
+  Music2,
 } from 'lucide-react';
 import {
   disconnectSocialConnectionAction,
+  disconnectTikTokConnectionAction,
   setChannelParticipationAction,
 } from '@/app/actions/social';
+import { TikTokConnectionCard } from '@/components/social/tiktok-connection-card';
 
 interface Props {
   user: any;
@@ -25,12 +28,14 @@ interface Props {
   channels: any[];
   socialConnectionEnabled?: boolean;
   socialMetricsEnabled?: boolean;
+  tiktokConnectionEnabled?: boolean;
 }
 
 export function CompanySocialClient({
   company,
   channels,
   socialConnectionEnabled = true,
+  tiktokConnectionEnabled = false,
 }: Props) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -62,16 +67,22 @@ export function CompanySocialClient({
   const facebookChannels = channels.filter(
     (c) => c.provider === 'facebook' || c.channel_type === 'facebook_page'
   );
+  const tiktokChannels = channels.filter(
+    (c) => c.provider === 'tiktok' || c.channel_type === 'tiktok_profile'
+  );
   const hasInstagram = instagramChannels.length > 0;
   const hasFacebook = facebookChannels.length > 0;
 
   const instagramConnectUrl = `/api/social/meta/start?provider=instagram&owner_type=company&owner_id=${company.id}&return_to=${encodeURIComponent(`/company/social?company_id=${company.id}`)}`;
   const facebookConnectUrl = `/api/social/meta/start?provider=facebook&owner_type=company&owner_id=${company.id}&return_to=${encodeURIComponent(`/company/social?company_id=${company.id}`)}`;
+  const tiktokConnectUrl = `/api/social/tiktok/start?owner_type=company&owner_id=${company.id}&return_to=${encodeURIComponent(`/company/social?company_id=${company.id}`)}`;
 
-  const handleDisconnect = async (connId: string) => {
+  const handleDisconnect = async (connId: string, provider?: string) => {
     if (!confirm('Deseja realmente desconectar esta conta das redes sociais da empresa?')) return;
     setLoading(true);
-    const res = await disconnectSocialConnectionAction(connId);
+    const res = provider === 'tiktok'
+      ? await disconnectTikTokConnectionAction(connId)
+      : await disconnectSocialConnectionAction(connId);
     if (!res.success) {
       setFeedback(`Erro: ${res.error}`);
     } else {
@@ -108,7 +119,7 @@ export function CompanySocialClient({
           </div>
           <h1 className="mt-1 text-3xl font-black text-white">Canais Sociais Oficiais</h1>
           <p className="mt-1 text-xs text-slate-400">
-            Conecte as contas oficiais do Instagram e Facebook da sua empresa através da infraestrutura oficial da Meta.
+            Conecte Instagram, Facebook e TikTok como canais independentes da empresa.
           </p>
         </div>
       </header>
@@ -186,7 +197,7 @@ export function CompanySocialClient({
       </div>
 
       {/* Cards de Ação de Conexão */}
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Card Instagram */}
         <div className="rounded-3xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-950/20 via-slate-900 to-slate-900 p-6 sm:p-7 flex flex-col justify-between space-y-6">
           <div className="space-y-3">
@@ -282,6 +293,13 @@ export function CompanySocialClient({
             )}
           </div>
         </div>
+        <TikTokConnectionCard
+          channels={tiktokChannels}
+          connectUrl={tiktokConnectUrl}
+          enabled={socialConnectionEnabled && tiktokConnectionEnabled}
+          loading={loading}
+          onDisconnect={(connectionId) => handleDisconnect(connectionId, 'tiktok')}
+        />
       </div>
 
       {/* Canais Detectados da Empresa */}
@@ -300,12 +318,13 @@ export function CompanySocialClient({
           <div className="grid gap-5 lg:grid-cols-2">
             {channels.map((ch) => {
               const isFacebook = ch.provider === 'facebook';
+              const isTikTok = ch.provider === 'tiktok';
               return (
                 <div key={ch.id} className="rounded-3xl border border-slate-800 bg-slate-900 p-6 space-y-5">
                   <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <div className="p-3 rounded-2xl bg-slate-950 text-cyan-400 border border-slate-800">
-                        {isFacebook ? <Facebook className="w-5 h-5" /> : <Instagram className="w-5 h-5" />}
+                        {isFacebook ? <Facebook className="w-5 h-5" /> : isTikTok ? <Music2 className="w-5 h-5 text-cyan-400" /> : <Instagram className="w-5 h-5" />}
                       </div>
                       <div>
                         <h4 className="text-base font-bold text-white">{ch.display_name}</h4>
@@ -328,7 +347,21 @@ export function CompanySocialClient({
                   {/* Capacidades */}
                   <div className="space-y-2">
                     <span className="text-[11px] font-bold uppercase text-slate-500">Capacidades Detectadas:</span>
-                    <div className="flex flex-wrap gap-1.5">
+                    {isTikTok ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          ['Perfil', ch.profile_read_capable],
+                          ['Vídeos', ch.video_list_capable],
+                          ['Upload', ch.video_upload_capable],
+                          ['Direct Post', ch.direct_post_capable],
+                          ['Métricas', ch.metrics_capable],
+                        ].map(([label, capable]) => (
+                          <span key={String(label)} className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1 ${capable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
+                            {capable ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} {label}
+                          </span>
+                        ))}
+                      </div>
+                    ) : <div className="flex flex-wrap gap-1.5">
                       <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1 ${ch.feed_publish_capable ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
                         {ch.feed_publish_capable ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} Feed
                       </span>
@@ -341,7 +374,7 @@ export function CompanySocialClient({
                       <span className={`text-xs px-2.5 py-1 rounded-lg border flex items-center gap-1 ${ch.insights_capable ? 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20' : 'bg-slate-950 text-slate-500 border-slate-800'}`}>
                         {ch.insights_capable ? <Check className="w-3 h-3" /> : <X className="w-3 h-3" />} Métricas
                       </span>
-                    </div>
+                    </div>}
                   </div>
 
                   {/* Ações */}
@@ -358,7 +391,7 @@ export function CompanySocialClient({
                     </button>
 
                     <button
-                      onClick={() => handleDisconnect(ch.connection_id)}
+                      onClick={() => handleDisconnect(ch.connection_id, ch.provider)}
                       className="text-xs font-bold text-rose-400 hover:text-rose-300 underline"
                     >
                       Remover Canal
