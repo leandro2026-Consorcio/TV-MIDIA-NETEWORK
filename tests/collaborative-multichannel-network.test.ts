@@ -26,6 +26,10 @@ test('frequência semanal preserva o dia', () => assert.equal(buildOccurrences('
 test('dias específicos respeitam seleção', () => assert.equal(buildOccurrences('specific_days', new Date('2026-09-01'), new Date('2026-09-07'), [1, 3]).length, 2));
 
 test('canal conectado não implica opt-in', () => assert.match(migration, /participation_enabled BOOLEAN NOT NULL DEFAULT false/));
+test('opt-in valida o owner canônico do canal no banco', () => {
+  const hardening = fs.readFileSync('supabase/migrations/20260911000381_collaborative_network_security_hardening.sql', 'utf8');
+  assert.match(hardening, /channel_owner_type<>NEW\.owner_type OR channel_owner_id<>NEW\.owner_id/);
+});
 test('opt-in Creator é isolado por owner', () => assert.match(migration, /owner_type TEXT NOT NULL CHECK\(owner_type IN\('company','creator'\)\)/));
 test('opt-in Empresa é isolado por owner', () => assert.match(migration, /Channel settings owner manage/));
 test('inventário é separado por formato', () => assert.match(migration, /UNIQUE\(social_channel_id,format,period_type,period_start\)/));
@@ -57,6 +61,10 @@ test('ledger de Direito de Mídia é imutável', () => assert.match(migration, /
 test('promocional permanece promocional', () => assert.match(migration, /dest_class:=CASE WHEN dest_class='promotional' THEN 'promotional'/));
 test('recompensa não é cashout por padrão', () => assert.match(migration, /'cashout_eligible',false/));
 test('canal próprio não paga a si mesmo', () => assert.throws(() => validateOwnReward('own_social', 1), /não gera recompensa/));
+test('Empresa anunciante não pode remunerar o próprio canal', () => {
+  const hardening = fs.readFileSync('supabase/migrations/20260911000381_collaborative_network_security_hardening.sql', 'utf8');
+  assert.match(hardening, /Empresa anunciante não pode remunerar o próprio canal/);
+});
 test('canal colaborativo admite recompensa', () => assert.doesNotThrow(() => validateOwnReward('creator_social', 10)));
 test('taxa MPM vem de regra versionada', () => assert.match(migration, /platform_fee_rules[\s\S]*effective_from/));
 

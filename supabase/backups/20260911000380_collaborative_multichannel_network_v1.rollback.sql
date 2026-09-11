@@ -2,6 +2,10 @@
 -- Não executa automaticamente. Preserva campanhas/ledgers existentes e só deve ser usado
 -- antes do piloto, após auditoria de dependências e backup do banco.
 BEGIN;
+DROP TRIGGER IF EXISTS trg_prevent_collaborative_self_reward ON public.offer_acceptances;
+DROP FUNCTION IF EXISTS public.prevent_collaborative_self_reward();
+DROP TRIGGER IF EXISTS trg_validate_collaborative_channel_owner ON public.collaborative_channel_settings;
+DROP FUNCTION IF EXISTS public.validate_collaborative_channel_owner();
 DROP VIEW IF EXISTS public.collaborative_campaign_budget_summary;
 DROP FUNCTION IF EXISTS public.finalize_collaborative_publication(UUID,UUID,JSONB,TEXT);
 DROP FUNCTION IF EXISTS public.release_campaign_acceptance(UUID,TEXT,TEXT);
