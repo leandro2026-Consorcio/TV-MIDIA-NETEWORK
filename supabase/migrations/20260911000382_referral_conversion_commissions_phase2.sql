@@ -284,7 +284,7 @@ FOR EACH ROW EXECUTE FUNCTION public.prevent_financial_ledger_mutation();
 CREATE OR REPLACE FUNCTION public.generate_referral_public_code() RETURNS TEXT
 LANGUAGE plpgsql VOLATILE SET search_path=public,pg_temp AS $$
 DECLARE code TEXT;
-BEGIN LOOP code:=upper(substr(encode(gen_random_bytes(12),'hex'),1,12)); EXIT WHEN NOT EXISTS(SELECT 1 FROM public.campaign_referrals WHERE public_code=code); END LOOP; RETURN code; END $$;
+BEGIN LOOP code:=upper(substr(replace(gen_random_uuid()::text,'-',''),1,12)); EXIT WHEN NOT EXISTS(SELECT 1 FROM public.campaign_referrals WHERE public_code=code); END LOOP; RETURN code; END $$;
 
 CREATE OR REPLACE FUNCTION public.ensure_campaign_referral(p_acceptance_id UUID,p_idempotency_key TEXT)
 RETURNS UUID LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
@@ -347,7 +347,7 @@ END $$;
 CREATE OR REPLACE FUNCTION public.apply_conversion_event(p_lead_id UUID,p_event_type TEXT,p_external_event_id TEXT,p_payload JSONB,p_idempotency_key TEXT)
 RETURNS JSONB LANGUAGE plpgsql SECURITY DEFINER SET search_path=public,pg_temp AS $$
 DECLARE l public.referral_leads%ROWTYPE; s public.conversion_sales%ROWTYPE; cfg public.campaign_referral_settings%ROWTYPE;
- rule public.conversion_commission_rule_versions%ROWTYPE; sale_id UUID; commission_id UUID; gross NUMERIC(18,2); fee NUMERIC(18,2); net NUMERIC(18,2); new_status TEXT;
+ rule public.conversion_commission_rule_versions%ROWTYPE; sale_id UUID; v_commission_id UUID; gross NUMERIC(18,2); fee NUMERIC(18,2); net NUMERIC(18,2); new_status TEXT;
 BEGIN
  IF auth.role()<>'service_role' AND NOT public.is_master_admin() THEN RAISE EXCEPTION 'Evento exige serviço confiável.'; END IF;
  IF NOT public.mpm_feature_enabled('conversion_commissions_enabled') THEN RAISE EXCEPTION 'Conversões e comissões estão desabilitadas.'; END IF;
@@ -373,24 +373,24 @@ BEGIN
   IF rule.id IS NULL THEN RAISE EXCEPTION 'Regra de comissão vigente não encontrada.'; END IF;
   IF sale_id IS NULL THEN SELECT * INTO s FROM public.conversion_sales WHERE lead_id=l.id ORDER BY created_at DESC LIMIT 1; sale_id:=s.id; END IF;
   IF sale_id IS NULL THEN RAISE EXCEPTION 'Venda não encontrada para cálculo da comissão.'; END IF;
-  gross:=public.calculate_conversion_commission(rule,COALESCE(s.sale_amount,NULLIF(p_payload->>'sale_amount','')::numeric)); fee:=round(gross*rule.mpm_fee_rate/100,2); net:=gross-fee;
-  SELECT c.id INTO commission_id FROM public.conversion_commissions c WHERE c.sale_id=s.id;
-  IF commission_id IS NULL THEN
+  gross:=public.calculate_conversion_commission(rule.id,COALESCE(s.sale_amount,NULLIF(p_payload->>'sale_amount','')::numeric)); fee:=round(gross*rule.mpm_fee_rate/100,2); net:=gross-fee;
+  SELECT c.id INTO v_commission_id FROM public.conversion_commissions c WHERE c.sale_id=s.id;
+  IF v_commission_id IS NULL THEN
    INSERT INTO public.conversion_commissions(sale_id,lead_id,creator_id,campaign_id,franchise_id,rule_version_id,gross_commission_amount,mpm_fee_rate,mpm_fee_amount,creator_net_amount,commission_rule_version,currency,trigger_event,status,eligible_at,idempotency_key,snapshot)
    VALUES(sale_id,l.id,l.creator_id,l.campaign_id,l.franchise_id,rule.id,gross,rule.mpm_fee_rate,fee,net,rule.version,rule.currency,cfg.commission_trigger_event,
     CASE WHEN p_event_type=cfg.commission_trigger_event THEN 'eligible' ELSE 'forecast' END,
-    CASE WHEN p_event_type=cfg.commission_trigger_event THEN now() ELSE NULL END,'commission:'||sale_id::text,to_jsonb(rule)) RETURNING id INTO commission_id;
+    CASE WHEN p_event_type=cfg.commission_trigger_event THEN now() ELSE NULL END,'commission:'||sale_id::text,to_jsonb(rule)) RETURNING id INTO v_commission_id;
    IF p_event_type<>cfg.commission_trigger_event THEN
     INSERT INTO public.conversion_commission_ledger(commission_id,creator_id,franchise_id,event_type,idempotency_key,metadata)
-    VALUES(commission_id,l.creator_id,l.franchise_id,'accrued','forecast:'||commission_id::text,jsonb_build_object('projected_gross',gross,'projected_fee',fee,'projected_creator_net',net,'rule_version',rule.version));
+    VALUES(v_commission_id,l.creator_id,l.franchise_id,'accrued','forecast:'||v_commission_id::text,jsonb_build_object('projected_gross',gross,'projected_fee',fee,'projected_creator_net',net,'rule_version',rule.version));
    END IF;
   END IF;
   IF p_event_type=cfg.commission_trigger_event THEN
-   UPDATE public.conversion_commissions SET status='eligible',eligible_at=COALESCE(eligible_at,now()),updated_at=now() WHERE id=commission_id AND status='forecast';
+   UPDATE public.conversion_commissions SET status='eligible',eligible_at=COALESCE(eligible_at,now()),updated_at=now() WHERE id=v_commission_id AND status='forecast';
    INSERT INTO public.commission_receivables(commission_id,sale_id,lead_id,creator_id,campaign_id,franchise_id,gross_amount,fee_amount,creator_net_amount,due_date)
-   VALUES(commission_id,sale_id,l.id,l.creator_id,l.campaign_id,l.franchise_id,gross,fee,net,current_date+30) ON CONFLICT(commission_id) DO NOTHING;
+   VALUES(v_commission_id,sale_id,l.id,l.creator_id,l.campaign_id,l.franchise_id,gross,fee,net,current_date+30) ON CONFLICT(commission_id) DO NOTHING;
    INSERT INTO public.conversion_commission_ledger(commission_id,creator_id,franchise_id,event_type,gross_delta,fee_delta,creator_delta,idempotency_key,metadata)
-   VALUES(commission_id,l.creator_id,l.franchise_id,'eligible',gross,fee,net,'eligible:'||commission_id::text,jsonb_build_object('rule_version',rule.version)) ON CONFLICT(idempotency_key) DO NOTHING;
+   VALUES(v_commission_id,l.creator_id,l.franchise_id,'eligible',gross,fee,net,'eligible:'||v_commission_id::text,jsonb_build_object('rule_version',rule.version)) ON CONFLICT(idempotency_key) DO NOTHING;
   END IF;
  END IF;
  IF p_event_type='sale.cancelled' AND EXISTS(SELECT 1 FROM public.conversion_commissions c JOIN public.conversion_sales x ON x.id=c.sale_id WHERE x.lead_id=l.id AND c.status NOT IN('reversed','cancelled')) THEN
@@ -402,7 +402,7 @@ BEGIN
   UPDATE public.commission_receivables SET status='reversed',updated_at=now() WHERE lead_id=l.id;
   UPDATE public.conversion_sales SET status='cancelled',updated_at=now() WHERE lead_id=l.id;
  END IF;
- RETURN jsonb_build_object('success',true,'sale_id',sale_id,'commission_id',commission_id);
+ RETURN jsonb_build_object('success',true,'sale_id',sale_id,'commission_id',v_commission_id);
 END $$;
 
 CREATE OR REPLACE FUNCTION public.create_commission_closing(p_franchise_id UUID,p_period_start DATE,p_period_end DATE,p_idempotency_key TEXT,p_simulation_only BOOLEAN DEFAULT true)

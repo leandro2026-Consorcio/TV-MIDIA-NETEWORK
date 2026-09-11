@@ -12,6 +12,7 @@ const qr = fs.readFileSync('src/app/api/referrals/[code]/qr/route.ts','utf8');
 
 test('reutiliza campaign e campaign_offers sem novo marketplace',()=>{ assert.match(sql,/ALTER TABLE public\.campaigns/); assert.match(sql,/ALTER TABLE public\.campaign_offers/); assert.doesNotMatch(sql,/CREATE TABLE public\.campaigns/); });
 test('referral tem código público seguro, link e QR único',()=>{ assert.match(sql,/public_code TEXT NOT NULL UNIQUE/); assert.match(landing,/campaign_referrals/); assert.match(qr,/QRCode\.toString/); });
+test('código público não depende de schema externo no search_path',()=>{ assert.match(sql,/replace\(gen_random_uuid\(\)::text/); assert.doesNotMatch(sql,/gen_random_bytes/); });
 test('telefone é normalizado e identificador mascarado',()=>{ assert.equal(normalizePhone('+55 (66) 99999-0000'),'5566999990000'); assert.match(maskIdentifier('Maria Silva','66999990000'),/^Ma\*\*\* · \*\*\*0000$/); });
 test('Lead canônico preserva atribuição e janela versionada',()=>{ assert.match(sql,/referral_attribution_rule_versions/); assert.match(sql,/trg_referral_lead_attribution_immutable/); assert.match(sql,/attribution_expires_at/); });
 test('duplicado vira possible_duplicate e não é apagado',()=>{ assert.match(sql,/validation:='possible_duplicate'/); assert.match(sql,/possible_duplicate_of/); });
@@ -41,4 +42,5 @@ test('dados privados do Lead não vão ao funil Creator',()=>{ const fn=sql.slic
 test('billing e payout reais começam OFF e simulação é default',()=>{ assert.match(sql,/'commission_billing_enabled','false'/); assert.match(sql,/'creator_cash_payout_enabled','false'/); assert.match(sql,/simulation_only BOOLEAN NOT NULL DEFAULT true/); });
 test('flags operacionais falham fechadas também no banco',()=>{ assert.match(sql,/mpm_feature_enabled\('creator_referral_leads_enabled'\)/); assert.match(sql,/mpm_feature_enabled\('conversion_commissions_enabled'\)/); assert.match(api,/external_lead_api_enabled/); });
 test('evento de venda exige identificador externo para idempotência',()=>assert.match(sql,/external_sale_id é obrigatório para eventos de venda/));
+test('cálculo recebe UUID da regra e evita variável ambígua',()=>{ assert.match(sql,/calculate_conversion_commission\(rule\.id,/); assert.match(sql,/v_commission_id UUID/); });
 test('fingerprint não expõe contato',()=>assert.equal(fingerprint('secret').length,64));
