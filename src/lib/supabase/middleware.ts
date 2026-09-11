@@ -21,6 +21,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/tv') ||
     pathname.startsWith('/organic-tv') ||
     pathname.startsWith('/organic/register') ||
+    pathname === '/termos-de-uso' ||
     pathname === '/politica-de-privacidade' ||
     pathname === '/exclusao-de-dados' ||
     pathname.startsWith('/downloads/') ||
