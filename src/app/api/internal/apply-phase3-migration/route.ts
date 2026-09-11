@@ -20,8 +20,14 @@ function authorized(value: string | null) {
 
 export async function POST(request: NextRequest) {
   if (!authorized(request.headers.get('x-mpm-migration-key'))) return NextResponse.json({ success: false }, { status: 401 });
-  const connectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
-  if (!connectionString) return NextResponse.json({ success: false, error: 'Postgres indisponível.' }, { status: 500 });
+  const rawConnectionString = process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL;
+  if (!rawConnectionString) return NextResponse.json({ success: false, error: 'Postgres indisponível.' }, { status: 500 });
+  let connectionString = rawConnectionString;
+  try {
+    const parsed = new URL(rawConnectionString);
+    parsed.searchParams.delete('sslmode');
+    connectionString = parsed.toString();
+  } catch {}
   const mode = request.nextUrl.searchParams.get('mode') === 'validate' ? 'validate' : 'apply';
   const client = new pg.Client({ connectionString, ssl: { rejectUnauthorized: false } });
   try {
