@@ -83,7 +83,17 @@ export async function GET(request: NextRequest) {
     });
     const token = await tokenResponse.json() as any;
     if (!tokenResponse.ok || !token.access_token || !token.refresh_token || !token.open_id) {
-      console.error('[TikTok OAuth] Token exchange rejeitado:', tokenResponse.status);
+      const safeDescription = String(token?.error_description || '')
+        .replaceAll(config.clientKey, '[REDACTED_CLIENT_KEY]')
+        .replaceAll(config.clientSecret, '[REDACTED_CLIENT_SECRET]')
+        .replaceAll(code, '[REDACTED_CODE]')
+        .slice(0, 300);
+      console.error('[TikTok OAuth] Token exchange rejeitado:', {
+        status: tokenResponse.status,
+        error: String(token?.error || 'unknown').slice(0, 80),
+        errorDescription: safeDescription,
+        logId: String(token?.log_id || '').slice(0, 100),
+      });
       throw new Error('token_exchange');
     }
 
