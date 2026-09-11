@@ -25,7 +25,7 @@ export async function getCollaborativeNetworkDashboardAction() {
       .eq('status', 'offered').order('created_at', { ascending: false }).limit(30),
   ]);
   const companyIds = (companies || []).map((company: any) => company.id);
-  const [{ data: campaigns }, { data: channels }, { data: acceptances }] = await Promise.all([
+  const [{ data: campaigns }, { data: channels }, { data: acceptances }, { data: channelSettings }] = await Promise.all([
     companyIds.length
       ? (supabase.from('campaigns') as any).select('*,collaborative_campaign_budget_summary(*)').in('company_id', companyIds).eq('campaign_type', 'collaborative').order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
@@ -33,11 +33,24 @@ export async function getCollaborativeNetworkDashboardAction() {
     creator
       ? (supabase.from('offer_acceptances') as any).select('*,campaign_offers(format,reward_mode),campaigns(name)').eq('participant_type', 'creator').eq('participant_id', creator.id).order('accepted_at', { ascending: false })
       : Promise.resolve({ data: [] }),
+    (supabase.from('collaborative_channel_settings') as any)
+      .select('id,social_channel_id,participation_enabled,approval_mode,status'),
   ]);
+  const settingsByChannel = new Map((channelSettings || []).map((setting: any) => [setting.social_channel_id, setting]));
+  const collaborativeChannels = (channels || []).map((channel: any) => {
+    const setting: any = settingsByChannel.get(channel.id);
+    return {
+      ...channel,
+      collaborative_setting_id: setting?.id || null,
+      participation_enabled: setting?.participation_enabled === true,
+      collaborative_approval_mode: setting?.approval_mode || null,
+      collaborative_status: setting?.status || null,
+    };
+  });
   return {
     success: true as const,
     userId: user.id,
-    companies: companies || [], campaigns: campaigns || [], channels: channels || [], creator,
+    companies: companies || [], campaigns: campaigns || [], channels: collaborativeChannels, creator,
     offers: offers || [], acceptances: acceptances || [],
     flags: Object.fromEntries((flags || []).map((row: any) => [row.key, row.value === true || row.value === 'true'])),
   };
