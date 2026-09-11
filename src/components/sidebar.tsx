@@ -40,6 +40,7 @@ import {
   Share2,
   BarChart3,
   Users,
+  Handshake,
   ChevronDown,
   ChevronRight,
   X,
@@ -336,6 +337,7 @@ export function Sidebar({
           ]
         },
         { name: 'Minhas Campanhas', href: '/campaigns', icon: Megaphone },
+        { name: 'Rede Colaborativa', href: '/collaborative-network', icon: Network },
         { name: 'Redes Sociais', href: '/company/social', icon: Share2 },
         { name: 'Convites VIP', href: '/company/invites', icon: Gift },
         { name: 'Meu Plano', href: '/plans', icon: CreditCard },
@@ -362,6 +364,7 @@ export function Sidebar({
       items: [
         { name: 'Início (Painel Creator)', href: '/creator', icon: Sparkles },
         { name: 'Campanhas & Propostas', href: '/creator', icon: Megaphone },
+        { name: 'Oportunidades', href: '/collaborative-network', icon: Handshake },
         { name: 'Marketplace de Creators', href: '/marketplace', icon: Store },
         { name: 'Programa de Expansão', href: '/creator', icon: Network },
         { name: 'Comissões & Extrato', href: '/seller-statement', icon: Receipt },
