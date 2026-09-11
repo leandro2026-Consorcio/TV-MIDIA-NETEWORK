@@ -85,7 +85,7 @@ export async function POST(request: NextRequest) {
         [rule.rows[0].id, fixture.campaign_id, fixture.media_id]);
       const targetStatuses = await client.query(`SELECT status,count(*)::int FROM public.propagation_targets
         WHERE rule_id=$1 GROUP BY status ORDER BY status`, [rule.rows[0].id]);
-      const detection = await client.query(`SELECT detection_mode FROM public.propagation_events WHERE id=($1->>'event_id')::uuid`, [first.rows[0].result]);
+      const detection = await client.query(`SELECT detection_mode FROM public.propagation_events WHERE id=($1::jsonb->>'event_id')::uuid`, [first.rows[0].result]);
       await client.query(`UPDATE public.multichannel_rules SET ends_at=now()-interval '1 second' WHERE id=$1`, [rule.rows[0].id]);
       const scheduler = await client.query(`SELECT public.process_multichannel_scheduler('homology-fase3') AS result`);
       const fallback = await client.query(`SELECT mode FROM public.multichannel_rules WHERE id=$1`, [rule.rows[0].id]);
