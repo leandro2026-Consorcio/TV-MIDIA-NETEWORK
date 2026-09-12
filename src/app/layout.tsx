@@ -10,11 +10,11 @@ const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Mídia por Mídia | Rede de TVs, Creators e Mídia Compartilhada',
+    default: 'Mídia por Mídia | Rede Inteligente de TVs, Creators e Mídia',
     template: '%s | Mídia por Mídia',
   },
   description:
-    'Conecte sua empresa a uma rede de mídia com TVs, creators, campanhas e distribuição multicanal. Divulgue sua marca, comercialize mídia e amplie seu alcance.',
+    'Conecte sua empresa a uma rede de TVs, Creators, campanhas e oportunidades. Divulgue, comercialize mídia e amplie sua presença com tecnologia.',
   applicationName: 'Mídia por Mídia',
   authors: [
     { name: 'MSD Digital', url: 'https://msddigital.com.br' },
@@ -58,9 +58,9 @@ export const metadata: Metadata = {
     locale: 'pt_BR',
     url: '/',
     siteName: 'Mídia por Mídia',
-    title: 'Mídia por Mídia | Rede de TVs, Creators e Mídia Compartilhada',
+    title: 'Mídia por Mídia | Rede Inteligente de TVs, Creators e Mídia',
     description:
-      'Conecte sua empresa a uma rede de mídia com TVs, creators, campanhas e distribuição multicanal.',
+      'Conecte sua empresa a uma rede de TVs, Creators, campanhas e oportunidades. Divulgue, comercialize mídia e amplie sua presença com tecnologia.',
     images: [
       {
         url: '/og.png',
