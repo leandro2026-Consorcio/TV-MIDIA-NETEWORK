@@ -61,7 +61,7 @@ function Brand() {
 }
 
 function MpmMark({ compact = false }: { compact?: boolean }) {
-  return <span className={`inline-grid place-items-center rounded-full border border-cyan-200/45 bg-cyan-300 text-center text-[#06111f] shadow-[0_0_48px_rgba(34,211,238,.24)] ${compact ? 'h-16 w-16' : 'h-24 w-24'}`}><strong className={compact ? 'text-base font-black leading-none' : 'text-xl font-black leading-none'}>MPM</strong><small className={`mt-1 block font-black lowercase tracking-tight ${compact ? 'text-[7px]' : 'text-[9px]'}`}>midiapormidia</small></span>;
+  return <span className={`inline-grid overflow-hidden rounded-2xl border border-cyan-200/45 bg-white p-1 shadow-[0_0_48px_rgba(34,211,238,.24)] ${compact ? 'h-16 w-16' : 'h-24 w-24'}`}><Image src="/brand/midia-por-midia-logo.png" alt="Mídia por Mídia" width={1024} height={1024} className="h-full w-full object-contain" /></span>;
 }
 
 function Eyebrow({ children }: { children: React.ReactNode }) {
