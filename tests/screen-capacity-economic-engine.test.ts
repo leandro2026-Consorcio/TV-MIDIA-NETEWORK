@@ -2,11 +2,12 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { capacitySummary, certifiedCapacity, commercialSplit, equivalentSlots, mediaRightRelease, minutesForPeriod, nextDynamicItem, sellableInventory } from '../src/lib/mpm/screen-capacity.ts';
+import { buildDynamicPlaybackQueue, capacitySummary, certifiedCapacity, commercialSplit, equivalentSlots, mediaRightRelease, minutesForPeriod, nextDynamicItem, sellableInventory } from '../src/lib/mpm/screen-capacity.ts';
 
 const migration=fs.readFileSync(path.join(process.cwd(),'supabase/migrations/20260912000389_screen_capacity_economic_engine.sql'),'utf8');
 const rollback=fs.readFileSync(path.join(process.cwd(),'supabase/rollbacks/20260912000389_screen_capacity_economic_engine_rollback.sql'),'utf8');
 const operations=fs.readFileSync(path.join(process.cwd(),'supabase/migrations/20260912000390_screen_capacity_cycle_operations.sql'),'utf8');
+const activation=fs.readFileSync(path.join(process.cwd(),'supabase/migrations/20260912000391_screen_capacity_controlled_activation.sql'),'utf8');
 const weekdays=(hours:number)=>[1,2,3,4,5].map(weekday=>({weekday,startMinute:8*60,endMinute:(8+hours)*60}));
 
 test('15 segundos equivalem a uma unidade',()=>assert.equal(equivalentSlots(.25),1));
@@ -46,3 +47,16 @@ test('agenda insuficiente bloqueia oversell do plano',()=>assert.match(operation
 test('primeiro ciclo e híbrido posterior são operacionais no ledger de Direito de Mídia',()=>{assert.match(operations,/cycle_number=1/);assert.match(operations,/_post_media_right_entry/);});
 test('liberação por disponibilidade independe de demanda da Rede',()=>assert.match(operations,/demand_independent/));
 test('certificação exige 30 dias estáveis e Master',()=>{assert.match(operations,/samples<30/);assert.match(operations,/Somente Master pode certificar/);});
+test('grade materializada alterna buckets por progresso e respeita duração equivalente',()=>{
+  const queue=buildDynamicPlaybackQueue([
+    {value:'vendido',bucket:'sold',durationSeconds:15},
+    {value:'proprio',bucket:'own',durationSeconds:30},
+    {value:'filler',bucket:'filler',durationSeconds:15},
+  ],{sold:2,own:4,filler:Number.MAX_SAFE_INTEGER},{},6);
+  assert.deepEqual(queue.slice(0,4),['vendido','proprio','vendido','proprio']);
+});
+test('filler ocupa folga sem alterar meta comercial',()=>assert.deepEqual(buildDynamicPlaybackQueue([{value:'noticia',bucket:'filler',durationSeconds:15}],{sold:3000,filler:Number.MAX_SAFE_INTEGER},{},3),['noticia','noticia','noticia']));
+test('rollout é individual e começa vazio',()=>{assert.match(activation,/screen_capacity_rollouts/);assert.match(activation,/dynamic_player_enabled BOOLEAN NOT NULL DEFAULT false/);});
+test('heartbeat alimenta segundos somente dentro da agenda',()=>{assert.match(activation,/record_screen_capacity_heartbeat/);assert.match(activation,/IF in_window/);});
+test('Proof of Play agrega unidades de 15 segundos sem substituir o log granular',()=>{assert.match(activation,/AFTER INSERT ON public\.playback_logs/);assert.match(activation,/ceil\(NEW\.planned_duration_seconds::numeric\/15\)/);});
+test('progresso da grade é persistido por bucket e ciclo',()=>{assert.match(activation,/screen_capacity_delivery_counters/);assert.match(activation,/ON CONFLICT\(capacity_period_id,bucket\)/);});

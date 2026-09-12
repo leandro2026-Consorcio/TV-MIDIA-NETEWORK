@@ -397,6 +397,15 @@ export async function heartbeatAction(deviceToken: string) {
     })
     .eq('id', screen.id);
 
+  // A RPC ignora TVs fora do rollout controlado e nunca interfere no heartbeat.
+  // Falha de agregacao nao pode derrubar o Player nem marcar a TV offline.
+  const { error: capacityHeartbeatError } = await (supabase.rpc as any)('record_screen_capacity_heartbeat', {
+    p_screen_id: screen.id,
+  });
+  if (capacityHeartbeatError && capacityHeartbeatError.code !== '42883') {
+    console.warn('Agregacao de capacidade indisponivel:', capacityHeartbeatError.message);
+  }
+
   return {
     success: true,
     buildVersion: PLAYER_BUILD_VERSION,

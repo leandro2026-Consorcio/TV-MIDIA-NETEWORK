@@ -7,6 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Screen, Playlist } from '@/types';
 import { pairScreenAction, deactivateScreenAction } from '@/app/actions/pairing';
 import { assignPlaylistToScreenAction, unassignPlaylistFromScreenAction } from '@/app/actions/playlist-admin';
+import { ScreenCapacityActivationPanel } from '@/components/screen-capacity-activation-panel';
 import { 
   Tv, 
   ArrowLeft, 
@@ -359,6 +360,8 @@ export default function ScreenDetailPage() {
             </div>
           )}
       </div>
+
+      {isAdminOrMaster && screen.status !== 'inactive' && <ScreenCapacityActivationPanel screenId={screenId} />}
 
       {/* Banner Orientador: Configure como esta TV vai funcionar */}
       <div className="rounded-2xl border border-sky-500/30 bg-gradient-to-r from-sky-500/10 via-purple-500/10 to-slate-900 p-6 shadow-xl">

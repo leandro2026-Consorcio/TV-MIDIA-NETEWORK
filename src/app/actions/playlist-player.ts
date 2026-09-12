@@ -7,6 +7,7 @@ import {
   normalizeContentLocation,
 } from '@/lib/content-location';
 import crypto from 'crypto';
+import { buildDynamicPlaybackQueue, DynamicPlaybackBucket } from '@/lib/mpm/screen-capacity';
 
 function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
@@ -102,6 +103,7 @@ export interface PlayerPlaylistItem {
   original_url?: string | null;
   published_at?: string | null;
   image_url?: string | null;
+  capacity_bucket?: DynamicPlaybackBucket;
 }
 
 /**
@@ -165,6 +167,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     item_type: 'commercial_campaign' | 'internal_campaign' | 'playlist_media';
     sort_order: number;
     playback_duration_seconds: number;
+    capacity_bucket: DynamicPlaybackBucket;
     media: any;
   }> = [];
 
@@ -187,6 +190,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
           item_type: 'playlist_media',
           sort_order: item.sort_order,
           playback_duration_seconds: item.playback_duration_seconds,
+          capacity_bucket: 'own',
           media,
         });
       }
@@ -234,8 +238,14 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
             ? 'internal_campaign'
             : 'commercial_campaign',
             sort_order: scheduledItems.length + 1,
-            playback_duration_seconds: item.playback_duration_seconds,
-            media,
+          playback_duration_seconds: item.playback_duration_seconds,
+          capacity_bucket: (() => {
+            const campaignType = (campaigns || []).find((campaign: any) => campaign.id === item.campaign_id)?.campaign_type;
+            if (campaignType === 'internal') return 'mpm_reserve';
+            if (['paid', 'marketplace', 'commercial'].includes(campaignType)) return 'sold';
+            return 'network';
+          })(),
+          media,
           });
         }
       }
@@ -286,6 +296,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
         signed_url: signedData.signedUrl,
         playback_duration_seconds: item.playback_duration_seconds,
         sort_order: item.sort_order,
+        capacity_bucket: item.capacity_bucket,
       });
     }
   }
@@ -360,6 +371,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
         original_url: item.original_url,
         published_at: item.published_at,
         image_url: imageUrl,
+        capacity_bucket: 'filler',
       });
     }
 
@@ -367,6 +379,54 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
       const mixMode = contentSettings.content_mix_mode === 'content_first' ? 'content_first' : 'ads_first';
       const interval = Math.min(5, Math.max(1, Number(contentSettings.mix_interval || contentSettings.ads_between_content || 4)));
       finalItems = interleaveInformativeItems(itemsWithSignedUrls, operationalItems, mixMode, interval);
+    }
+  }
+
+  // Rollout estritamente por TV. A flag global continua OFF; ausência de
+  // override, ciclo ou qualquer erro preserva exatamente a fila legada.
+  const { data: rollout } = await ((supabase as any).from('screen_capacity_rollouts'))
+    .select('dynamic_player_enabled,starts_at,ends_at')
+    .eq('screen_id', screen.id)
+    .eq('dynamic_player_enabled', true)
+    .lte('starts_at', now)
+    .or(`ends_at.is.null,ends_at.gte.${now}`)
+    .maybeSingle();
+
+  if (rollout?.dynamic_player_enabled) {
+    const { data: capacityPeriod } = await (supabase.from('inventory_capacity_periods') as any)
+      .select('id,period_start,period_end,network_capacity,own_inventory,mpm_reserve,sponsor_reserve,commercial_inventory,sold_inventory,delivered_capacity')
+      .eq('status', 'active')
+      .lte('period_start', currentBusinessDate())
+      .gte('period_end', currentBusinessDate())
+      .in('media_inventory_id', (
+        await (supabase.from('media_inventory') as any)
+          .select('id')
+          .eq('source_type', 'company_screen')
+          .eq('source_id', screen.id)
+      ).data?.map((row: any) => row.id) || [])
+      .order('period_start', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (capacityPeriod) {
+      const { data: counters } = await ((supabase as any).from('screen_capacity_delivery_counters'))
+        .select('bucket,equivalent_slots')
+        .eq('capacity_period_id', capacityPeriod.id);
+      const delivered = Object.fromEntries((counters || []).map((row: any) => [row.bucket, Number(row.equivalent_slots || 0)]));
+      const dynamicSource = finalItems.map((item) => ({
+        value: item,
+        bucket: item.capacity_bucket || 'filler',
+        durationSeconds: item.playback_duration_seconds,
+      }));
+      const dynamicItems = buildDynamicPlaybackQueue(dynamicSource, {
+        sold: Number(capacityPeriod.sold_inventory || 0),
+        sponsor: Number(capacityPeriod.sponsor_reserve || 0),
+        network: Number(capacityPeriod.network_capacity || 0),
+        mpm_reserve: Number(capacityPeriod.mpm_reserve || 0),
+        own: Number(capacityPeriod.own_inventory || 0) * 2,
+        filler: Number.MAX_SAFE_INTEGER,
+      }, delivered, 60).map((item, index) => ({ ...item, id: `${item.id}:dynamic:${index}` }));
+      if (dynamicItems.length > 0) finalItems = dynamicItems;
     }
   }
 

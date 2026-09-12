@@ -65,3 +65,56 @@ export function commercialSplit(grossCents: number, feePercent = 10, isSelfPurch
   const platformCents = Math.round(grossCents * feePercent / 100);
   return { grossCents, platformCents, ownerCents: grossCents - platformCents, selfPurchase: false };
 }
+
+export type DynamicPlaybackBucket = 'sold' | 'sponsor' | 'network' | 'mpm_reserve' | 'own' | 'filler';
+
+export type DynamicPlaybackItem<T = unknown> = {
+  value: T;
+  bucket: DynamicPlaybackBucket;
+  durationSeconds: number;
+};
+
+/** Materializa uma janela renovavel; o ciclo permanece como fonte economica. */
+export function buildDynamicPlaybackQueue<T>(
+  items: DynamicPlaybackItem<T>[],
+  targets: Partial<Record<DynamicPlaybackBucket, number>>,
+  delivered: Partial<Record<DynamicPlaybackBucket, number>> = {},
+  maxItems = 60,
+) {
+  const byBucket = new Map<DynamicPlaybackBucket, DynamicPlaybackItem<T>[]>();
+  for (const item of items) {
+    const list = byBucket.get(item.bucket) || [];
+    list.push(item);
+    byBucket.set(item.bucket, list);
+  }
+
+  const used = { ...delivered };
+  const cursor: Partial<Record<DynamicPlaybackBucket, number>> = {};
+  const result: T[] = [];
+  const order: DynamicPlaybackBucket[] = ['sold', 'sponsor', 'network', 'mpm_reserve', 'own', 'filler'];
+
+  while (result.length < Math.max(0, maxItems)) {
+    const candidates = order.filter((bucket) => {
+      if (!(byBucket.get(bucket)?.length)) return false;
+      if (bucket === 'filler') return true;
+      return Number(used[bucket] || 0) < Number(targets[bucket] || 0);
+    });
+    if (!candidates.length) break;
+
+    const contractual = candidates.filter((bucket) => bucket !== 'filler');
+    const bucket = contractual.length
+      ? contractual.reduce((best, current) => {
+          const bestProgress = Number(used[best] || 0) / Math.max(1, Number(targets[best] || 0));
+          const currentProgress = Number(used[current] || 0) / Math.max(1, Number(targets[current] || 0));
+          return currentProgress < bestProgress ? current : best;
+        })
+      : 'filler';
+    const bucketItems = byBucket.get(bucket)!;
+    const index = Number(cursor[bucket] || 0) % bucketItems.length;
+    const selected = bucketItems[index];
+    result.push(selected.value);
+    cursor[bucket] = index + 1;
+    used[bucket] = Number(used[bucket] || 0) + Math.max(1, Math.ceil(selected.durationSeconds / EQUIVALENT_SLOT_SECONDS));
+  }
+  return result;
+}
