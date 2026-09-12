@@ -120,7 +120,7 @@ export default function NetworkInventoryPage() {
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-400 block">Inventário Concedido</span>
-            <span className="text-2xl font-extrabold text-white font-mono">{totals.granted} CR</span>
+            <span className="text-2xl font-extrabold text-white font-mono">{totals.granted} inserções</span>
           </div>
           <div className="bg-sky-500/10 p-3 rounded-xl text-sky-400 border border-sky-500/20">
             <Layers className="w-6 h-6" />
@@ -130,7 +130,7 @@ export default function NetworkInventoryPage() {
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-400 block">Inventário Utilizado</span>
-            <span className="text-2xl font-extrabold text-purple-400 font-mono">{totals.used} CR</span>
+            <span className="text-2xl font-extrabold text-purple-400 font-mono">{totals.used} inserções</span>
           </div>
           <div className="bg-purple-500/10 p-3 rounded-xl text-purple-400 border border-purple-500/20">
             <ArrowUpRight className="w-6 h-6" />
@@ -140,7 +140,7 @@ export default function NetworkInventoryPage() {
         <div className="bg-slate-900 border border-slate-800 p-6 rounded-2xl shadow-xl flex items-center justify-between">
           <div>
             <span className="text-xs font-semibold text-slate-400 block">Inventário Restante</span>
-            <span className="text-2xl font-extrabold text-emerald-400 font-mono">{totals.remaining} CR</span>
+            <span className="text-2xl font-extrabold text-emerald-400 font-mono">{totals.remaining} inserções</span>
           </div>
           <div className="bg-emerald-500/10 p-3 rounded-xl text-emerald-400 border border-emerald-500/20">
             <ShieldCheck className="w-6 h-6" />
@@ -214,7 +214,7 @@ export default function NetworkInventoryPage() {
                 <tr>
                   <th className="py-3 px-4">Anunciante</th>
                   <th className="py-3 px-4">Mídia</th>
-                  <th className="py-3 px-4 font-mono">Consumo (CR)</th>
+                  <th className="py-3 px-4 font-mono">Consumo (inserções)</th>
                   <th className="py-3 px-4">Data da Exibição</th>
                   <th className="py-3 px-4">Status</th>
                 </tr>
@@ -228,7 +228,7 @@ export default function NetworkInventoryPage() {
                     <td className="py-3 px-4 text-slate-300 font-sans">
                       {u.media_assets?.title || 'Mídia'}
                     </td>
-                    <td className="py-3 px-4 text-purple-400 font-bold">{u.credits_used} CR</td>
+                    <td className="py-3 px-4 text-purple-400 font-bold">{u.credits_used} inserções</td>
                     <td className="py-3 px-4 text-slate-400 text-[11px] font-sans">
                       {new Date(u.created_at).toLocaleString('pt-BR')}
                     </td>

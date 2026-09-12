@@ -9,6 +9,8 @@ import { TrialStatusCard } from '@/components/trial-status-card';
 import { CompactOnboardingCard } from '@/components/compact-onboarding-card';
 import { HelpButton } from '@/components/help-button';
 import { OnboardingTour } from '@/components/onboarding-tour';
+import { ScreenCapacityOverview } from '@/components/screen-capacity-overview';
+import { getScreenCapacityOverviewAction } from '@/app/actions/screen-capacity';
 
 export default function DashboardPage() {
   const [stats, setStats] = useState({
@@ -25,6 +27,7 @@ export default function DashboardPage() {
   });
   const [loading, setLoading] = useState(true);
   const [onboarding, setOnboarding] = useState<any>(null);
+  const [screenCapacity, setScreenCapacity] = useState<any>(null);
   const supabase = createClient();
 
   useEffect(() => {
@@ -108,6 +111,7 @@ export default function DashboardPage() {
           isMaster,
         });
         if (!isMaster) setOnboarding(await getOnboardingContextAction());
+        setScreenCapacity(await getScreenCapacityOverviewAction());
       } catch (err) {
         console.error('Erro ao carregar estatísticas:', err);
       } finally {
@@ -166,6 +170,8 @@ export default function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      <ScreenCapacityOverview data={screenCapacity} />
 
       {/* Metrics Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
