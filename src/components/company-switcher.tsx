@@ -19,18 +19,18 @@ export function CompanySwitcher({
 
   if (!companies || companies.length === 0) {
     return (
-      <div className="flex items-center gap-2 text-slate-400 text-xs bg-slate-900 border border-slate-800 px-3 py-2 rounded-xl">
+      <div className="flex min-w-0 items-center gap-2 text-slate-400 text-xs bg-slate-900 border border-slate-800 px-2 sm:px-3 py-2 rounded-xl">
         <Building2 className="w-4 h-4 text-slate-500" />
-        <span>Nenhuma empresa vinculada</span>
+        <span className="truncate">Nenhuma empresa vinculada</span>
       </div>
     );
   }
 
   return (
-    <div className="relative">
+    <div className="relative min-w-0 flex-1 sm:flex-none">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-3 bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-2 rounded-xl text-left transition min-w-[200px]"
+        className="flex w-full min-w-0 max-w-[210px] items-center gap-2 sm:gap-3 bg-slate-900 border border-slate-800 hover:border-slate-700 px-2 sm:px-3 py-2 rounded-xl text-left transition sm:min-w-[200px]"
       >
         <div className="bg-sky-500/10 text-sky-400 p-1.5 rounded-lg border border-sky-500/20">
           <Building2 className="w-4 h-4" />
@@ -47,7 +47,7 @@ export function CompanySwitcher({
       </button>
 
       {isOpen && (
-        <div className="absolute top-full left-0 mt-2 w-64 bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
+        <div className="absolute top-full left-0 mt-2 w-[min(16rem,calc(100vw-1.5rem))] bg-slate-900 border border-slate-800 rounded-xl shadow-2xl z-50 overflow-hidden py-1">
           <div className="px-3 py-2 text-[10px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80">
             Empresas Acessíveis
           </div>

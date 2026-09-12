@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, useMemo } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { Company } from '@/types';
 import { ArrowLeft, Download, Loader2, AlertCircle, Monitor } from 'lucide-react';
+import { useDashboardCompany } from '@/contexts/dashboard-company-context';
 
 export default function NewScreenPage() {
   const [name, setName] = useState('');
@@ -22,7 +23,13 @@ export default function NewScreenPage() {
   const [error, setError] = useState<string | null>(null);
 
   const router = useRouter();
-  const supabase = createClient();
+  const searchParams = useSearchParams();
+  const { activeCompany } = useDashboardCompany();
+  const supabase = useMemo(() => createClient(), []);
+
+  useEffect(() => {
+    setDeviceType(searchParams.get('device') === 'windows_monitor' ? 'windows_monitor' : 'tv');
+  }, [searchParams]);
 
   useEffect(() => {
     async function loadCompanies() {
@@ -60,7 +67,10 @@ export default function NewScreenPage() {
           const { data: compList } = await query;
           if (compList && compList.length > 0) {
             setCompanies(compList as Company[]);
-            setCompanyId(compList[0].id);
+            const selected = activeCompany && compList.some((company: Company) => company.id === activeCompany.id)
+              ? activeCompany.id
+              : compList[0].id;
+            setCompanyId(selected);
           }
         }
       } catch (err) {
@@ -71,7 +81,7 @@ export default function NewScreenPage() {
     }
 
     loadCompanies();
-  }, [supabase]);
+  }, [supabase, activeCompany]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -145,7 +155,7 @@ export default function NewScreenPage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="min-w-0 max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <Link
@@ -154,14 +164,14 @@ export default function NewScreenPage() {
         >
           <ArrowLeft className="w-5 h-5" />
         </Link>
-        <div>
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-white tracking-tight">Cadastrar Nova Tela</h1>
           <p className="text-slate-400 text-sm">Escolha TV ou Monitor Windows para iniciar o pareamento</p>
         </div>
       </div>
 
       {/* Form Card */}
-      <div className="bg-slate-900 border border-slate-800 p-8 rounded-2xl shadow-xl">
+      <div className="min-w-0 bg-slate-900 border border-slate-800 p-4 sm:p-8 rounded-2xl shadow-xl">
         {error && (
           <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-sm flex items-center gap-3">
             <AlertCircle className="w-5 h-5 shrink-0" />
@@ -191,7 +201,7 @@ export default function NewScreenPage() {
                 </p>
                 <a
                   href="/downloads/mpm-player/windows"
-                  className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-3.5 py-2 font-bold text-white hover:bg-sky-600 transition shadow-md shadow-sky-500/20"
+                  className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-sky-500 px-3.5 py-2 text-center font-bold text-white hover:bg-sky-600 transition shadow-md shadow-sky-500/20 sm:w-auto"
                 >
                   <Download className="h-4 w-4" /> BAIXAR PARA WINDOWS (MPM-Player-Setup.exe)
                 </a>

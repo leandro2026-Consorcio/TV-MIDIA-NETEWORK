@@ -400,7 +400,7 @@ export function Sidebar({
       title: 'REDE ORGÂNICA',
       items: [
         { name: 'Início', href: '/dashboard', icon: LayoutDashboard },
-        { name: 'Minhas Telas', href: '/screens', icon: Tv },
+        { name: 'Minhas Telas', href: '/organic', icon: Tv },
         { name: 'Rede Orgânica', href: '/organic', icon: MonitorPlay },
         { name: 'Créditos & Benefícios', href: '/wallet', icon: Wallet },
         { name: 'Prêmios Orgânicos', href: '/organic-rewards', icon: Gift },

@@ -2,7 +2,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/server';
 import { HelpButton } from '@/components/help-button';
 import { OnboardingTour } from '@/components/onboarding-tour';
-import { Download, Monitor, ArrowRight } from 'lucide-react';
+import { Download, Monitor, ArrowRight, Tv } from 'lucide-react';
+import { ConditionalPwaInstall } from '@/components/conditional-pwa-install';
 
 const labels: Record<string, string> = {
   company: 'Empresa',
@@ -58,40 +59,51 @@ export default async function GettingStartedHelpPage() {
         </section>
       )}
 
-      <section className="rounded-3xl border border-sky-500/30 bg-slate-900 p-6 shadow-xl">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-b border-slate-800 pb-5">
+      <section className="min-w-0 rounded-3xl border border-sky-500/30 bg-slate-900 p-4 sm:p-6 shadow-xl">
+        <div className="border-b border-slate-800 pb-5">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">Guia Oficial do Player</span>
+          <h2 className="mt-1 text-xl font-bold text-white">Como você vai usar sua tela?</h2>
+        </div>
+
+        <div className="mt-5 grid gap-5 lg:grid-cols-2">
+          <article className="min-w-0 rounded-2xl border border-sky-500/30 bg-slate-950 p-4 sm:p-5">
           <div className="flex items-center gap-3">
             <div className="rounded-2xl bg-sky-500/10 p-3 text-sky-400 border border-sky-500/20">
-              <Monitor className="h-6 w-6" />
+              <Tv className="h-6 w-6" />
             </div>
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-sky-400">Guia Oficial do Player</span>
-              <h2 className="text-xl font-bold text-white">Como instalar uma TV ou Monitor Windows</h2>
+              <h3 className="text-lg font-bold text-white">📺 SMART TV</h3>
+              <p className="text-sm font-bold text-emerald-400">Sem instalação</p>
             </div>
           </div>
-          <a
-            href="/downloads/mpm-player/windows"
-            className="inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-sky-600 transition shadow-lg shadow-sky-500/20"
-          >
-            <Download className="h-4 w-4" /> Baixar Player Windows (.exe)
-          </a>
-        </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-3 text-xs">
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/20 font-bold text-sky-400">1</span>
-            <h3 className="font-bold text-white text-sm">Baixe o Instalador</h3>
-            <p className="text-slate-400">Baixe o <strong>MPM-Player-Setup.exe</strong> no computador conectado à TV. Compatível com Windows 10 e Windows 11.</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-sky-500/20 font-bold text-sky-400">2</span>
-            <h3 className="font-bold text-white text-sm">Instalação em 1 Clique</h3>
-            <p className="text-slate-400">Dê duplo clique e clique em <em>Instalar Agora</em>. Sem necessidade de administrador, PowerShell ou terminal.</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-4 space-y-2">
-            <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/20 font-bold text-emerald-400">3</span>
-            <h3 className="font-bold text-white text-sm">Pareamento Instantâneo</h3>
-            <p className="text-slate-400">O player abre em tela cheia com o código de 6 dígitos. Digite o código no menu <strong>Minhas TVs</strong> para parear.</p>
-          </div>
+          <p className="mt-4 text-sm text-slate-300">Use diretamente pelo navegador da Smart TV. <strong className="text-white">Não precisa baixar nenhum programa.</strong></p>
+          <ol className="mt-4 space-y-3 text-xs text-slate-400">
+            <li><strong className="text-white">1. Abra o navegador da TV:</strong> acesse <span className="break-all font-mono text-sky-300">midiapormidia.com.br/tv</span>.</li>
+            <li><strong className="text-white">2. Veja o código:</strong> a TV exibirá o código de pareamento.</li>
+            <li><strong className="text-white">3. Use seu celular:</strong> Minhas TVs → Adicionar TV → Parear TV e digite o código.</li>
+            <li><strong className="text-white">4. Pronto:</strong> a TV fica vinculada à conta e inicia o Player MPM.</li>
+          </ol>
+          <Link href="/tv" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-bold text-white hover:bg-sky-600 sm:w-auto">
+            <Tv className="h-4 w-4" /> CONECTAR SMART TV
+          </Link>
+          <ConditionalPwaInstall />
+          </article>
+
+          <article className="min-w-0 rounded-2xl border border-purple-500/30 bg-slate-950 p-4 sm:p-5">
+            <div className="flex items-center gap-3">
+              <div className="rounded-2xl border border-purple-500/20 bg-purple-500/10 p-3 text-purple-400"><Monitor className="h-6 w-6" /></div>
+              <div><h3 className="text-lg font-bold text-white">🖥 WINDOWS / MONITOR PROFISSIONAL</h3><p className="text-xs text-slate-400">Para computador, mini PC ou TV conectada a um equipamento Windows.</p></div>
+            </div>
+            <ol className="mt-4 space-y-3 text-xs text-slate-400">
+              <li><strong className="text-white">1. Baixe o Player:</strong> MPM-Player-Setup.exe.</li>
+              <li><strong className="text-white">2. Instale:</strong> compatível com Windows 10 e Windows 11.</li>
+              <li><strong className="text-white">3. Código de pareamento:</strong> o Player abre e mostra o código.</li>
+              <li><strong className="text-white">4. Pareie:</strong> Minhas TVs → Adicionar TV → digitar código.</li>
+            </ol>
+            <a href="/downloads/mpm-player/windows" className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-purple-600 px-4 py-2.5 text-xs font-bold text-white hover:bg-purple-500 sm:w-auto">
+              <Download className="h-4 w-4" /> BAIXAR PLAYER WINDOWS (.EXE)
+            </a>
+          </article>
         </div>
       </section>
 

@@ -9,6 +9,7 @@ import { Sidebar } from '@/components/sidebar';
 import { Header } from '@/components/header';
 import { OnboardingProgressBar } from '@/components/onboarding-progress-bar';
 import { Loader2, ShieldAlert } from 'lucide-react';
+import { DashboardCompanyProvider } from '@/contexts/dashboard-company-context';
 
 export default function DashboardLayout({
   children,
@@ -95,11 +96,14 @@ export default function DashboardLayout({
           const { data: companyList } = await companiesQuery;
           if (companyList && companyList.length > 0) {
             setCompanies(companyList as Company[]);
-            setActiveCompany(companyList[0] as Company);
+            const savedCompanyId = window.sessionStorage.getItem('mpm.activeCompanyId');
+            const selectedCompany = (companyList as Company[]).find((company) => company.id === savedCompanyId)
+              || companyList[0] as Company;
+            setActiveCompany(selectedCompany);
             if (!profileData?.is_master_admin) {
               const { data: trial } = await (supabase.from('company_trials') as any)
                 .select('status')
-                .eq('company_id', companyList[0].id)
+                .eq('company_id', selectedCompany.id)
                 .in('status', ['active', 'expired', 'cancelled'])
                 .order('created_at', { ascending: false })
                 .limit(1)
@@ -154,7 +158,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex">
+    <div className="min-h-screen max-w-full bg-slate-950 text-slate-100 flex">
       {/* Mobile Drawer Overlay */}
       {isMobileMenuOpen && (
         <div className="fixed inset-0 z-50 md:hidden flex">
@@ -195,11 +199,14 @@ export default function DashboardLayout({
           profile={profile}
           companies={companies}
           activeCompany={activeCompany}
-          onSelectCompany={(company) => setActiveCompany(company)}
+          onSelectCompany={(company) => {
+            setActiveCompany(company);
+            window.sessionStorage.setItem('mpm.activeCompanyId', company.id);
+          }}
           onOpenMobileMenu={() => setIsMobileMenuOpen(true)}
         />
 
-        <main className="p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
+        <main className="min-w-0 p-4 sm:p-6 lg:p-8 flex-1 overflow-y-auto max-w-7xl w-full mx-auto">
           <OnboardingProgressBar />
           {mustChangePassword && !dismissPasswordAlert && pathname !== '/reset-password' && (
             <div className="mb-6 bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
@@ -231,7 +238,9 @@ export default function DashboardLayout({
               </div>
             </div>
           )}
-          {children}
+          <DashboardCompanyProvider activeCompany={activeCompany}>
+            {children}
+          </DashboardCompanyProvider>
         </main>
       </div>
     </div>

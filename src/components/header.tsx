@@ -20,9 +20,9 @@ export function Header({
   onOpenMobileMenu,
 }: HeaderProps) {
   return (
-    <header className="h-16 border-b border-slate-800 bg-slate-950/80 backdrop-blur px-4 sm:px-6 flex items-center justify-between sticky top-0 z-40">
+    <header className="h-16 min-w-0 max-w-full border-b border-slate-800 bg-slate-950/80 backdrop-blur px-3 sm:px-6 flex items-center justify-between gap-2 sticky top-0 z-40">
       {/* Active Company Selector & Mobile Hamburger */}
-      <div className="flex items-center gap-2 sm:gap-4">
+      <div className="flex min-w-0 flex-1 items-center gap-1 sm:gap-4">
         {onOpenMobileMenu && (
           <button
             type="button"
@@ -41,9 +41,9 @@ export function Header({
       </div>
 
       {/* User Info & Profile */}
-      <div className="flex items-center gap-3">
-        <div className="text-right">
-          <p className="text-sm font-semibold text-slate-100 flex items-center gap-1.5 justify-end">
+      <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+        <div className="hidden text-right sm:block max-w-48">
+          <p className="text-sm font-semibold text-slate-100 flex items-center gap-1.5 justify-end truncate">
             {profile.full_name || profile.email}
             {profile.is_master_admin && (
               <span title="Master Admin Global">
@@ -51,7 +51,7 @@ export function Header({
               </span>
             )}
           </p>
-          <p className="text-xs text-slate-400">{profile.email}</p>
+          <p className="text-xs text-slate-400 truncate">{profile.email}</p>
         </div>
 
         <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">
