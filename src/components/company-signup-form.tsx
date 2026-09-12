@@ -164,14 +164,13 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
               <Field
                 name="password"
                 label="Senha inicial de acesso"
-                type="text"
-                defaultValue="midiapormidia@123"
+                type="password"
                 required
                 minLength={6}
-                placeholder="midiapormidia@123"
+                placeholder="Crie uma senha pessoal"
               />
               <p className="mt-1.5 text-[11px] text-sky-400 flex items-center gap-1">
-                <span>🔑 Senha inicial padrão: <strong className="font-mono text-sky-200">midiapormidia@123</strong> (recomendado alterar no primeiro acesso).</span>
+                <span>Use uma senha exclusiva, com pelo menos 6 caracteres.</span>
               </p>
             </div>
           </div>
@@ -211,9 +210,9 @@ export function CompanySignupForm({ inviteCode }: { inviteCode?: string }) {
               className="mt-0.5 h-4 w-4 rounded border-slate-700 bg-slate-900 text-sky-500 focus:ring-0"
             />
             <div className="space-y-1">
-              <strong className="block font-bold text-white">Quero participar da rede Mídia por Mídia da minha cidade</strong>
+              <strong className="block font-bold text-white">Quero fazer parte da Rede Mídia por Mídia</strong>
               <span className="block text-slate-300 leading-relaxed">
-                Ao participar, sua empresa poderá aparecer para outras empresas participantes com nome fantasia, cidade e segmento para parcerias e campanhas locais. Você pode alterar essa preferência no painel quando quiser.
+                Ao participar, sua empresa poderá utilizar benefícios e oportunidades disponíveis para seu perfil e região, conforme plano e regras da Rede. Você pode alterar essa preferência no painel.
               </span>
             </div>
           </label>

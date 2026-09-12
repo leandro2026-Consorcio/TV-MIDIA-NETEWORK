@@ -14,8 +14,8 @@ import { createClient } from '@/lib/supabase/server';
 
 export const revalidate = 60;
 
-const signupHref = '/empresa/cadastro';
-const creatorHref = '/register?role=creator';
+const signupHref = '/participar';
+const creatorHref = '/participar';
 const agencyHref = 'https://wa.me/5566996086030?text=Ol%C3%A1!%20Sou%20de%20uma%20ag%C3%AAncia%20e%20quero%20usar%20a%20Rede%20M%C3%ADdia%20por%20M%C3%ADdia.';
 const franchiseHref = 'https://wa.me/5566996086030?text=Ol%C3%A1!%20Quero%20criar%20uma%20rede%20de%20m%C3%ADdia%20para%20minha%20marca.';
 

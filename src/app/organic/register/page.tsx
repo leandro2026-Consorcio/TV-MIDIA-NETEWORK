@@ -10,7 +10,7 @@ export default function OrganicRegisterPage() {
   const [form, setForm] = useState({
     name: '',
     email: '',
-    password: 'midiapormidia@123',
+    password: '',
     city: '',
     state: 'MT',
   });
@@ -23,8 +23,7 @@ export default function OrganicRegisterPage() {
     setBusy(true);
     setMessage('');
 
-    const effectivePassword = form.password?.trim() || 'midiapormidia@123';
-    const isInitialDefault = effectivePassword === 'midiapormidia@123';
+    const effectivePassword = form.password.trim();
 
     const supabase = createClient();
     const { data, error } = await supabase.auth.signUp({
@@ -34,8 +33,8 @@ export default function OrganicRegisterPage() {
         data: {
           full_name: form.name,
           account_type: 'organic',
-          initial_password: isInitialDefault,
-          must_change_password: isInitialDefault,
+          initial_password: false,
+          must_change_password: false,
         },
       },
     });
@@ -74,10 +73,8 @@ export default function OrganicRegisterPage() {
         <Link href="/" className="text-sm text-cyan-300">
           ← Voltar ao site
         </Link>
-        <h1 className="mt-8 text-3xl font-black">Quero ser uma Tela Orgânica</h1>
-        <p className="mt-3 text-slate-400">
-          Cadastre-se como pessoa participante. Você não receberá acesso empresarial.
-        </p>
+        <h1 className="mt-8 text-3xl font-black">Quero participar como pessoa</h1>
+        <p className="mt-3 text-slate-400">Você não precisa ter empresa para começar. Participe com sua TV, audiência, conteúdo ou contatos.</p>
 
         <form onSubmit={submit} className="mt-8 space-y-4 rounded-3xl border border-cyan-400/20 bg-slate-900 p-7">
           <Field label="Nome" value={form.name} onChange={(v: string) => setForm({ ...form, name: v })} />
@@ -85,14 +82,12 @@ export default function OrganicRegisterPage() {
           <div>
             <Field
               label="Senha de acesso"
-              type="text"
+              type="password"
               minLength={6}
               value={form.password}
               onChange={(v: string) => setForm({ ...form, password: v })}
             />
-            <span className="block mt-1 text-[11px] text-cyan-300">
-              🔑 Senha inicial padrão: <strong className="font-mono">midiapormidia@123</strong> (recomendado alterar no primeiro acesso).
-            </span>
+            <span className="block mt-1 text-[11px] text-cyan-300">Crie uma senha pessoal e exclusiva.</span>
           </div>
           <div className="grid grid-cols-[1fr_90px] gap-3">
             <Field label="Cidade" value={form.city} onChange={(v: string) => setForm({ ...form, city: v })} />

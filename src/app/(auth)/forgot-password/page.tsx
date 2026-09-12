@@ -82,7 +82,7 @@ export default function ForgotPasswordPage() {
               <div className="p-3.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-xs text-sky-200 text-left flex items-start gap-2.5">
                 <KeyRound className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Aviso para contas novas:</strong> Se você acabou de se cadastrar na plataforma, a senha inicial padrão é <code className="bg-sky-900/60 px-1.5 py-0.5 rounded font-mono font-bold text-sky-100">midiapormidia@123</code>.
+                  <strong>Aviso para contas novas:</strong> Use a senha pessoal criada no cadastro. Não utilizamos senha pública compartilhada.
                 </span>
               </div>
               <div className="pt-2">
@@ -106,7 +106,7 @@ export default function ForgotPasswordPage() {
               <div className="mb-6 p-3.5 bg-sky-500/10 border border-sky-500/20 rounded-xl text-xs text-sky-200 flex items-start gap-2.5">
                 <KeyRound className="w-4 h-4 text-sky-400 shrink-0 mt-0.5" />
                 <span>
-                  <strong>Dica de Primeiro Acesso:</strong> Se esta é uma conta recém-criada, a senha inicial atribuída é <code className="bg-sky-900/60 px-1 py-0.5 rounded font-mono text-sky-100">midiapormidia@123</code>. Se ainda não a alterou, tente fazer login com ela.
+                  <strong>Dica de Primeiro Acesso:</strong> Use a senha pessoal criada no cadastro. Caso não a lembre, solicite a redefinição por e-mail.
                 </span>
               </div>
 

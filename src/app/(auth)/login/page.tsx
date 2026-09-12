@@ -168,11 +168,10 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Dica de Senha Inicial Padrão */}
               <div className="p-3 bg-slate-950/70 border border-slate-800 rounded-xl text-xs text-slate-400 flex items-center gap-2">
                 <KeyRound className="w-4 h-4 text-sky-400 shrink-0" />
                 <span>
-                  Primeiro acesso? Senha inicial padrão: <strong className="text-sky-300 font-mono">midiapormidia@123</strong>
+                  Primeiro acesso? Use a senha pessoal criada no cadastro ou recupere o acesso.
                 </span>
               </div>
 
@@ -204,7 +203,7 @@ export default function LoginPage() {
                   </p>
                   <div className="p-3 bg-slate-950 border border-slate-800 rounded-xl text-xs text-slate-400 text-left">
                     <p className="font-semibold text-slate-200 mb-1">Dica de primeiro acesso:</p>
-                    Se você acabou de se cadastrar, sua senha padrão inicial é <code className="text-sky-300 font-mono">midiapormidia@123</code>.
+                    Use a senha pessoal criada no cadastro. Se precisar, redefina o acesso pelo e-mail.
                   </div>
                   <button
                     type="button"
