@@ -55,7 +55,7 @@ const fallbackPlans = [
 
 function Brand() {
   return <Link href="#inicio" className="flex min-w-0 items-center gap-3" aria-label="Mídia por Mídia — início">
-    <span className="grid h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-white"><Image src="/brand/midia-por-midia-logo.png" alt="" width={1024} height={1024} className="h-full w-full scale-[1.42] object-cover object-center" /></span>
+    <span className="grid h-10 w-10 shrink-0 overflow-hidden rounded-xl bg-white p-0.5"><Image src="/brand/midia-por-midia-logo.png" alt="" width={1024} height={1024} className="h-full w-full object-contain" /></span>
     <span className="min-w-0 leading-none"><strong className="block truncate text-[15px] font-black tracking-tight text-white sm:text-base">Mídia por Mídia</strong><span className="mt-1.5 hidden text-[9px] font-extrabold uppercase tracking-[.22em] text-cyan-300/70 sm:block">Conecta · valoriza · multiplica</span></span>
   </Link>;
 }
