@@ -1,5 +1,4 @@
 import Link from 'next/link';
-import { getPublicShowcaseDataAction } from '@/app/actions/showcase';
 import { getMarketplaceScreensAction } from '@/app/actions/marketplace-omnichannel';
 import {
   MapPin,
@@ -16,13 +15,17 @@ import {
 export const revalidate = 60;
 
 export default async function OndeAnunciarPage({ searchParams }: { searchParams?: { city?: string; category?: string } }) {
-  const [res, marketplaceRes] = await Promise.all([
-    getPublicShowcaseDataAction(),
+  const [allMarketplaceRes, marketplaceRes] = await Promise.all([
+    getMarketplaceScreensAction(),
     getMarketplaceScreensAction({ city: searchParams?.city, venueCategory: searchParams?.category }),
   ]);
-  const data = res.success ? res.data : null;
   const locations = marketplaceRes.success ? marketplaceRes.screens : [];
-  const metrics = data?.metrics || { total_companies: 0, total_public_screens: 0, cities_count: 0, cities: [] };
+  const allScreens = allMarketplaceRes.success ? allMarketplaceRes.screens : [];
+  const metrics = {
+    total_companies: new Set(allScreens.map((screen: any) => screen.companyId)).size,
+    total_public_screens: allScreens.length,
+    cities_count: allMarketplaceRes.success ? allMarketplaceRes.cities.length : 0,
+  };
 
   return (
     <div className="min-h-screen bg-slate-950 text-white selection:bg-purple-500 selection:text-white">
