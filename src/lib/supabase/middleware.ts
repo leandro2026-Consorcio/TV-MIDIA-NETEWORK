@@ -7,6 +7,7 @@ export async function updateSession(request: NextRequest) {
   // 1. Definição de Rotas Públicas (Livre Acesso)
   const isPublicRoute =
     pathname === '/' ||
+    pathname === '/racon' ||
     pathname.startsWith('/login') ||
     pathname.startsWith('/register') ||
     pathname.startsWith('/empresa/cadastro') ||
