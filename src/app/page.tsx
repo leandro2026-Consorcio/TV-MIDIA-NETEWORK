@@ -1,1068 +1,210 @@
 import Link from 'next/link';
-import { WhatsAppButton } from '@/components/whatsapp-button';
-import { PublicShowcaseSection } from '@/components/public-showcase-section';
+import type { LucideIcon } from 'lucide-react';
+import {
+  ArrowDown, ArrowRight, BadgeCheck, BarChart3, Building2, Check, ChevronDown,
+  CircleDollarSign, Clock3, Facebook, Gauge, Handshake, Instagram, Layers3,
+  MapPin, Megaphone, Menu, Network, Orbit, PanelTop, Radio, Route, Share2,
+  Smartphone, Sparkles, Store, Target, Tv, Users, Zap,
+} from 'lucide-react';
 import { getPublicSignupSettingsAction } from '@/app/actions/onboarding';
+import { WhatsAppButton } from '@/components/whatsapp-button';
 import { formatPrice } from '@/lib/platform-pricing';
 import { createClient } from '@/lib/supabase/server';
-import {
-  ArrowRight,
-  BadgeCheck,
-  BarChart3,
-  Building2,
-  Check,
-  ChevronDown,
-  CirclePlay,
-  Clock3,
-  Coins,
-  Gift,
-  Handshake,
-  ImageUp,
-  Laptop,
-  LayoutDashboard,
-  ListChecks,
-  Mail,
-  MapPin,
-  Menu,
-  MessageSquare,
-  MonitorPlay,
-  Phone,
-  Play,
-  Sparkles,
-  School,
-  Share2,
-  Tv,
-  Upload,
-  UserPlus,
-  Users,
-  Video,
-  Wifi,
-  Zap,
-} from 'lucide-react';
 
-const signupHref = '/empresa/cadastro';
-
-// Mantém os preços públicos atualizados sem tornar a página indisponível se o
-// banco oscilar: o Next pode servir a última versão válida enquanto revalida.
 export const revalidate = 60;
 
-const steps = [
-  {
-    number: '01',
-    icon: UserPlus,
-    title: 'Cadastre sua empresa',
-    text: 'Crie sua conta em poucos minutos e receba 60 dias grátis, sem cartão.',
-  },
-  {
-    number: '02',
-    icon: MonitorPlay,
-    title: 'Conecte sua TV e envie sua mídia',
-    text: 'Abra o link da TV, faça o pareamento e envie imagens ou vídeos da sua propaganda.',
-  },
-  {
-    number: '03',
-    icon: Handshake,
-    title: 'Divulgue e convide parceiros',
-    text: 'Coloque sua propaganda no ar e convide 3 empresas estratégicas para testar também.',
-  },
-];
+const signupHref = '/empresa/cadastro';
+const creatorHref = '/register?role=creator';
+const agencyHref = 'https://wa.me/5566996086030?text=Ol%C3%A1!%20Sou%20de%20uma%20ag%C3%AAncia%20e%20quero%20usar%20a%20Rede%20M%C3%ADdia%20por%20M%C3%ADdia.';
+const franchiseHref = 'https://wa.me/5566996086030?text=Ol%C3%A1!%20Quero%20criar%20uma%20rede%20de%20m%C3%ADdia%20para%20minha%20marca.';
 
-const benefits = [
-  {
-    icon: Sparkles,
-    title: '60 dias grátis para experimentar',
-    text: 'Teste o painel, cadastre sua TV e publique suas mídias sem compromisso.',
-  },
-  {
-    icon: Zap,
-    title: 'Acesso imediato',
-    text: 'Terminou o cadastro? Você já entra no painel para configurar sua empresa.',
-  },
-  {
-    icon: BadgeCheck,
-    title: 'Sem aprovação manual',
-    text: 'Com o cadastro público ativo, sua empresa é liberada automaticamente.',
-  },
-  {
-    icon: Wifi,
-    title: 'TV fácil de configurar',
-    text: 'Abra o link na TV, digite o código e conecte sua tela em poucos passos.',
-  },
-  {
-    icon: CirclePlay,
-    title: 'Divulgação no seu espaço',
-    text: 'Mostre promoções, serviços e campanhas nas TVs da sua própria empresa.',
-  },
-  {
-    icon: MapPin,
-    title: 'Rede local de parceiros',
-    text: 'Convide empresas da sua cidade e ajude a criar uma rede de mídia mais forte.',
-  },
-  {
-    icon: Laptop,
-    title: 'Computadores também viram mídia',
-    text: 'Um computador ligado a um monitor pode reproduzir a programação, gerar créditos e ampliar sua rede.',
-  },
-];
+const companyBenefits = [
+  [Megaphone, 'Divulgue sua empresa', 'Use sua TV para promoções, campanhas, ofertas e comunicação.'],
+  [Network, 'Apareça em outros pontos', 'Conquiste Direito de Mídia para circular em TVs elegíveis da Rede.'],
+  [CircleDollarSign, 'Comercialize capacidade', 'Disponibilize inventário quando plano e operação estiverem habilitados.'],
+  [Handshake, 'Participe de oportunidades', 'Campanhas, creators, indicações e benefícios podem circular no ecossistema.'],
+] as const;
 
-const resources = [
-  { icon: LayoutDashboard, label: 'Cadastrar sua empresa' },
-  { icon: Tv, label: 'Cadastrar sua TV' },
-  { icon: Upload, label: 'Enviar imagens e vídeos' },
-  { icon: ListChecks, label: 'Criar sua programação' },
-  { icon: Play, label: 'Rodar propaganda na tela' },
-  { icon: Video, label: 'Usar conteúdo de respiro' },
-  { icon: BarChart3, label: 'Acompanhar o checklist inicial' },
-  { icon: Users, label: 'Convidar 3 empresas parceiras' },
-];
-
-const pricingPlans = [
-  {
-    id: '1-tv',
-    title: '1 TV',
-    price: 'R$ 29,90',
-    period: '/mês',
-    subtitle: 'Ideal para quem deseja iniciar a divulgação em tela própria.',
-    badge: 'Iniciante',
-    popular: false,
-    includesPrevious: null,
-    features: [
-      'Inclua mídias (vídeos e imagens)',
-      'Alterne entre notícias em tempo real e propagandas',
-      'Conecte sua Smart TV direto na internet sem necessidade de outros equipamentos',
-      'Controle total de quantidade de visualizações',
-      'Número ilimitado de imagens ou vídeos',
-      'Exibição em formato Vertical ou Horizontal',
-    ],
-  },
-  {
-    id: '2-tvs',
-    title: '2 TVs',
-    price: 'R$ 49,90',
-    period: '/mês',
-    subtitle: 'Monetize e venda espaços nas suas telas para terceiros.',
-    badge: 'Venda de Espaço',
-    popular: false,
-    includesPrevious: '1 TV',
-    features: [
-      'Adicione venda de propagandas pelo nosso site ou permita que pessoas comprem espaços dentro da sua TV',
-      'Escolha os nichos que podem aparecer na sua TV',
-      'Receba 90% de todo o valor negociado nas suas telas',
-    ],
-  },
-  {
-    id: '3-tvs',
-    title: '3 TVs',
-    price: 'R$ 69,90',
-    period: '/mês',
-    subtitle: 'Amplie seu alcance criando redes de mídia compartilhada.',
-    badge: 'Mídia Compartilhada',
-    popular: false,
-    includesPrevious: '1 e 2 TVs',
-    features: [
-      'Compartilhe propagandas gerando créditos (apareça em mais TVs sem investimento financeiro)',
-      'Convide parceiros para entrarem para seu grupo de mídia compartilhada',
-      'Controle total de créditos e débitos dos compartilhamentos',
-    ],
-  },
-  {
-    id: '4-tvs',
-    title: '4 TVs',
-    price: 'R$ 89,90',
-    period: '/mês',
-    subtitle: 'Gestão multi-usuário e relatórios detalhados.',
-    badge: 'Gestão Avançada',
-    popular: false,
-    includesPrevious: '1, 2 e 3 TVs',
-    features: [
-      'Mais de um usuário para controle e gestão do painel',
-      'Emita relatórios de visualizações e relatórios operacionais',
-      'Troque o valor da mensalidade por espaços nas suas TVs',
-    ],
-  },
-  {
-    id: '5-tvs',
-    title: '5 TVs',
-    price: 'R$ 99,90',
-    period: '/mês',
-    additionalTv: '+ R$ 14,99 por TV adicional',
-    subtitle: 'Sem mensalidades e faturamento potencial superior a R$ 3.000,00.',
-    badge: '⭐ Mais Escolhido / Faturamento Máximo',
-    popular: true,
-    includesPrevious: '1, 2, 3 e 4 TVs',
-    features: [
-      'Não pague mensalidades e ganhe valores mensais',
-      'Entre para o grupo de mídia compartilhada e escolha em quais locais quer aparecer',
-      'Venda espaços dentro da sua TV para eventos na sua cidade ou região',
-      'Rendas em anúncios vendidos podem superar R$ 3.000,00/mês',
-    ],
-  },
-];
+const technology = [
+  [Gauge, 'Capacidade inteligente', 'Entende quanto cada ponto consegue operar.'],
+  [Layers3, 'Grade dinâmica', 'Organiza campanhas, prioridades e inventário.'],
+  [PanelTop, 'Inventário controlado', 'Acompanha disponibilidade e compromissos.'],
+  [Route, 'Distribuição por regras', 'Direciona campanhas entre pontos elegíveis.'],
+  [BadgeCheck, 'Proof of Play', 'Registra quando e onde a mídia foi executada.'],
+  [BarChart3, 'Exibição Validada', 'Separa execução técnica de eventos validados.'],
+  [Share2, 'Multicanal', 'Reúne TVs e canais digitais na mesma estratégia.'],
+  [Users, 'Creator Network', 'Conecta creators a campanhas e oportunidades.'],
+] as const;
 
 const faqs = [
-  {
-    question: 'Precisa de aprovação manual para começar?',
-    answer:
-      'Não. O cadastro é 100% automático. Assim que você cria sua conta, recebe acesso imediato ao painel para cadastrar sua empresa, configurar suas TVs e enviar suas mídias.',
-  },
-  {
-    question: 'Precisa de cartão de crédito para os 60 dias grátis?',
-    answer:
-      'Não! O teste gratuito dura 60 dias a partir da criação da conta e não exige nenhum cartão de crédito ou compromisso financeiro inicial.',
-  },
-  {
-    question: 'Quais são os planos e mensalidades disponíveis?',
-    answer:
-      'Possuímos planos flexíveis de 1 a 5 TVs com vantagens acumulativas: 1 TV por R$ 29,90/mês, 2 TVs por R$ 49,90/mês, 3 TVs por R$ 69,90/mês, 4 TVs por R$ 89,90/mês e 5 TVs por R$ 99,90/mês (+ R$ 14,99 por TV adicional). Todos iniciam com 60 dias grátis.',
-  },
-  {
-    question: 'Como funciona o programa Indique e Ganhe para membros?',
-    answer:
-      'Após se tornar membro, para cada empresa indicada em qualquer plano que assinar e pagar a 1ª mensalidade, quem indicou ganha 1 mensalidade inteiramente grátis para sua empresa. Não há limite de indicações!',
-  },
-  {
-    question: 'Como funciona a venda de propagandas na minha TV?',
-    answer:
-      'A partir do plano de 2 TVs, você pode disponibilizar espaços da sua tela à venda no nosso site. Outras empresas compram anúncios diretamente e você recebe 90% de todo o valor negociado nas suas telas.',
-  },
-  {
-    question: 'Preciso comprar aparelhos ou equipamentos específicos?',
-    answer:
-      'Não. Qualquer Smart TV conectada à internet ou dispositivo comum com navegador web pode ser conectado diretamente sem necessidade de comprar TV Box ou equipamentos extras.',
-  },
-  {
-    question: 'Quais mídias e formatos são suportados?',
-    answer:
-      'Você pode enviar imagens e vídeos ilimitados na orientação Vertical ou Horizontal, além de alternar com exibição de notícias em tempo real e conteúdos de respiro.',
-  },
-  {
-    question: 'Como funciona a mídia compartilhada por créditos?',
-    answer:
-      'Toda empresa que compra mídia em telas parceiras pode participar da rede quando não houver bloqueio para o segmento anunciado. As exibições são registradas e uma fração do valor pode retornar em créditos para os parceiros que disponibilizam suas telas. Monitores Windows também podem gerar créditos, com uma regra de alcance proporcional ao dispositivo.',
-  },
-  {
-    question: 'Onde a rede pode funcionar?',
-    answer:
-      'Em TVs de recepções e salas de espera, monitores Windows, escolas, coworkings, clínicas, lojas e empresas com muitos computadores. Cada ponto ajuda a criar uma rede local de informação, ofertas e oportunidades entre parceiros.',
-  },
-  {
-    question: 'Onde fica localizada a Mídia por Mídia e qual é o contato?',
-    answer:
-      'Nossa sede está localizada na Av. das Embaúbas, 2114 - Setor Comercial, Sinop-MT (CEP 78550-110), inscrita no CNPJ 10.764.218/0001-76. Nosso contato direto via telefone e WhatsApp é (66) 99608-6030.',
-  },
-];
+  ['Direito de Mídia é dinheiro ou Crédito MPM?', 'Não. Direito de Mídia é a possibilidade de usar inserções elegíveis em outros pontos. Não é dinheiro, ponto, saldo financeiro ou sinônimo de Crédito MPM.'],
+  ['A plataforma comprova quantas pessoas viram a campanha?', 'A plataforma registra execuções técnicas por Proof of Play e pode identificar Exibições Validadas. Esses dados não representam visualização humana garantida.'],
+  ['A comercialização da TV garante renda?', 'Não. Ela depende de plano, disponibilidade, demanda, elegibilidade e liberação operacional. Qualquer exemplo é potencial de comercialização, nunca promessa de renda.'],
+  ['Instagram, Facebook e TikTok publicam tudo automaticamente?', 'A distribuição respeita permissões e capacidades de cada plataforma. Modos automáticos só operam para conteúdos autorizados e dentro das regras liberadas.'],
+  ['Preciso de equipamento especial para conectar uma TV?', 'Uma Smart TV ou dispositivo com navegador pode acessar o player. A compatibilidade final depende do navegador, da conexão e do formato da operação.'],
+] as const;
 
-const structuredData = {
-  '@context': 'https://schema.org',
-  '@graph': [
-    {
-      '@type': 'LocalBusiness',
-      '@id': 'https://midiapormidia.com.br/#organization',
-      name: 'Mídia por Mídia - Rede Indoor Local',
-      legalName: 'Mídia por Mídia',
-      taxID: '10.764.218/0001-76',
-      url: 'https://midiapormidia.com.br/',
-      telephone: '+55-66-99608-6030',
-      logo: {
-        '@type': 'ImageObject',
-        url: 'https://midiapormidia.com.br/media-tv-icon.svg',
-      },
-      image: 'https://midiapormidia.com.br/og.png',
-      description:
-        'Plataforma de mídia indoor e TV corporativa em Sinop-MT e Brasil. Cadastre TVs, publique propagandas e crie redes de mídias parceiras.',
-      address: {
-        '@type': 'PostalAddress',
-        streetAddress: 'Av. das Embaúbas, 2114 - Setor Comercial',
-        addressLocality: 'Sinop',
-        addressRegion: 'MT',
-        postalCode: '78550-110',
-        addressCountry: 'BR',
-      },
-      geo: {
-        '@type': 'GeoCoordinates',
-        latitude: '-11.8641',
-        longitude: '-55.5053',
-      },
-      areaServed: [
-        {
-          '@type': 'City',
-          name: 'Sinop',
-        },
-        {
-          '@type': 'State',
-          name: 'Mato Grosso',
-        },
-        {
-          '@type': 'Country',
-          name: 'Brasil',
-        },
-      ],
-      priceRange: 'R$ 0,00 - R$ 99,90',
-      parentOrganization: {
-        '@type': 'Organization',
-        name: 'MSD Digital',
-        url: 'https://msddigital.com.br/',
-      },
-    },
-    {
-      '@type': 'WebSite',
-      '@id': 'https://midiapormidia.com.br/#website',
-      url: 'https://midiapormidia.com.br/',
-      name: 'Mídia por Mídia',
-      alternateName: 'Rede Indoor Local Sinop-MT',
-      inLanguage: 'pt-BR',
-      publisher: {
-        '@id': 'https://midiapormidia.com.br/#organization',
-      },
-    },
-    {
-      '@type': 'SoftwareApplication',
-      '@id': 'https://midiapormidia.com.br/#software',
-      name: 'Mídia por Mídia',
-      applicationCategory: 'BusinessApplication',
-      applicationSubCategory: 'Digital Signage',
-      operatingSystem: 'Web',
-      url: 'https://midiapormidia.com.br/',
-      inLanguage: 'pt-BR',
-      description:
-        'Plataforma de mídia indoor para cadastrar Smart TVs, publicar imagens/vídeos e gerenciar redes de mídia indoor local.',
-      provider: {
-        '@id': 'https://midiapormidia.com.br/#organization',
-      },
-      areaServed: {
-        '@type': 'Country',
-        name: 'Brasil',
-      },
-      offers: {
-        '@type': 'Offer',
-        name: 'Teste gratuito por 60 dias sem cartão de crédito',
-        price: '0',
-        priceCurrency: 'BRL',
-        url: 'https://midiapormidia.com.br/empresa/cadastro',
-        availability: 'https://schema.org/InStock',
-      },
-    },
-    {
-      '@type': 'FAQPage',
-      '@id': 'https://midiapormidia.com.br/#faq',
-      mainEntity: faqs.map(({ question, answer }) => ({
-        '@type': 'Question',
-        name: question,
-        acceptedAnswer: {
-          '@type': 'Answer',
-          text: answer,
-        },
-      })),
-    },
-  ],
-};
+const fallbackPlans = [
+  ['plano-1', 'Plano 1 TV', 'Comece sua Rede com uma tela.', 1, 14900],
+  ['plano-2', 'Plano 2 TVs', 'Mais cobertura com desconto progressivo.', 2, 22900],
+  ['plano-3', 'Plano 3 TVs', 'Equilíbrio entre alcance e economia.', 3, 29900],
+  ['plano-4', 'Plano 4 TVs', 'Expansão para operações maiores.', 4, 39900],
+  ['plano-5', 'Plano 5 TVs', 'Maior alcance e melhor valor por tela.', 5, 44900],
+] as const;
 
-function Logo() {
-  return (
-    <Link href="#inicio" className="flex items-center gap-2.5" aria-label="Mídia por Mídia - início">
-      <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-400/20">
-        <Tv className="h-5 w-5" strokeWidth={2.5} />
-      </span>
-      <span className="leading-none">
-        <strong className="block text-[15px] font-extrabold tracking-tight text-white sm:text-base">
-          Mídia por Mídia
-        </strong>
-        <span className="mt-1 hidden text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500 sm:block">
-          Rede Indoor Local
-        </span>
-      </span>
-    </Link>
-  );
+function Brand() {
+  return <Link href="#inicio" className="flex min-w-0 items-center gap-3" aria-label="Mídia por Mídia — início">
+    <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[14px] bg-cyan-300 text-[#06111f] shadow-[0_0_28px_rgba(103,232,249,.2)]"><Tv className="h-5 w-5" strokeWidth={2.5} /></span>
+    <span className="min-w-0 leading-none"><strong className="block truncate text-[15px] font-black tracking-tight text-white sm:text-base">Mídia por Mídia</strong><span className="mt-1.5 hidden text-[9px] font-extrabold uppercase tracking-[.22em] text-cyan-300/70 sm:block">Rede inteligente de mídia</span></span>
+  </Link>;
 }
 
-function SectionTitle({
-  eyebrow,
-  title,
-  description,
-  centered = true,
-}: {
-  eyebrow: string;
-  title: string;
-  description?: string;
-  centered?: boolean;
-}) {
-  return (
-    <div className={centered ? 'mx-auto max-w-3xl text-center' : 'max-w-2xl'}>
-      <p className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-cyan-400">{eyebrow}</p>
-      <h2 className="text-3xl font-extrabold tracking-[-0.035em] text-white sm:text-4xl lg:text-5xl">
-        {title}
-      </h2>
-      {description && (
-        <p className="mt-5 text-base leading-7 text-slate-400 sm:text-lg">{description}</p>
-      )}
-    </div>
-  );
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return <p className="mb-4 flex items-center gap-2 text-[11px] font-black uppercase tracking-[.22em] text-cyan-300"><span className="h-px w-7 bg-cyan-300/70" />{children}</p>;
 }
+
+function Heading({ eyebrow, title, text, center = false }: { eyebrow: string; title: string; text?: string; center?: boolean }) {
+  return <div className={center ? 'mx-auto max-w-4xl text-center' : 'max-w-3xl'}>
+    <div className={center ? 'flex justify-center' : ''}><Eyebrow>{eyebrow}</Eyebrow></div>
+    <h2 className="text-balance text-3xl font-black leading-[1.04] tracking-[-.045em] text-white sm:text-4xl lg:text-6xl">{title}</h2>
+    {text && <p className="mt-5 text-base leading-7 text-slate-400 sm:text-lg sm:leading-8">{text}</p>}
+  </div>;
+}
+
+function Primary({ href, children, external = false }: { href: string; children: React.ReactNode; external?: boolean }) {
+  const cls = 'group inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-cyan-300 px-5 text-sm font-black text-[#06111f] shadow-[0_12px_36px_rgba(34,211,238,.17)] transition hover:-translate-y-.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-cyan-200';
+  const content = <>{children}<ArrowRight className="h-4 w-4 transition group-hover:translate-x-.5" /></>;
+  return external ? <a href={href} target="_blank" rel="noopener noreferrer" className={cls}>{content}</a> : <Link href={href} className={cls}>{content}</Link>;
+}
+
+function Secondary({ href, children }: { href: string; children: React.ReactNode }) {
+  return <Link href={href} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-white/15 bg-white/[.04] px-5 text-sm font-extrabold text-white transition hover:border-cyan-300/50 hover:bg-cyan-300/[.08]">{children}</Link>;
+}
+
+function Feature({ icon: Icon, title, text }: { icon: LucideIcon; title: string; text: string }) {
+  return <article className="group border-t border-white/10 py-6 transition hover:border-cyan-300/50"><div className="flex items-start gap-4"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl border border-cyan-300/15 bg-cyan-300/[.07] text-cyan-300 transition group-hover:bg-cyan-300 group-hover:text-[#06111f]"><Icon className="h-5 w-5" /></span><div><h3 className="text-lg font-black text-white">{title}</h3><p className="mt-2 text-sm leading-6 text-slate-400">{text}</p></div></div></article>;
+}
+
+function Status({ active, children }: { active: boolean; children: React.ReactNode }) {
+  return <span className={`inline-flex items-center gap-2 rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[.14em] ${active ? 'border-emerald-300/20 bg-emerald-300/[.08] text-emerald-300' : 'border-amber-300/20 bg-amber-300/[.08] text-amber-200'}`}><span className={`h-1.5 w-1.5 rounded-full ${active ? 'bg-emerald-300' : 'bg-amber-300'}`} />{children}</span>;
+}
+
+function flagValue(value: unknown) { return value === true || value === 'true'; }
 
 export default async function Home() {
   const { settings } = await getPublicSignupSettingsAction();
   const supabase = createClient();
-  const [{ data: expansionPlans }, { data: showcaseRes }] = await Promise.all([
-    (supabase.from('expansion_plans') as any)
-      .select('code,name,description,featured,expansion_plan_versions(included_screens,monthly_price_cents,extra_screen_price_cents,effective_to)')
-      .eq('status','active').eq('public_available',true).order('display_order'),
+  const [{ data: dbPlans }, { data: showcase }, { data: flagRows }] = await Promise.all([
+    (supabase.from('expansion_plans') as any).select('code,name,description,featured,expansion_plan_versions(included_screens,monthly_price_cents,effective_to)').eq('status', 'active').eq('public_available', true).order('display_order'),
     (supabase.rpc as any)('get_public_showcase_data'),
+    (supabase.from('platform_settings') as any).select('key,value').in('key', ['inventory_v2','social_v2','creator_v2','payout_v2','multichannel_replication_enabled','social_to_tv_replication_enabled','dynamic_screen_capacity_enabled']),
   ]);
-  const showcaseData = showcaseRes || { metrics: { total_companies: 0, total_public_screens: 0, cities_count: 0, cities: [] }, companies: [], creators: [], rewards: [], locations: [] };
-  const expansionByScreens = new Map<number, any>((expansionPlans || []).map((plan:any) => {
-    const version=(plan.expansion_plan_versions||[]).find((item:any)=>!item.effective_to); return [Number(version?.included_screens),{...plan,version}];
-  }));
-  const currentPrices:Record<string,number>={'1-tv':14900,'2-tvs':22900,'3-tvs':29900,'4-tvs':39900,'5-tvs':44900,'additional-tv':5900};
-  for(const [screens,plan] of expansionByScreens){currentPrices[`${screens}-tv${screens>1?'s':''}`]=Number(plan.version.monthly_price_cents);currentPrices['additional-tv']=Number(plan.version.extra_screen_price_cents)}
-  const displayedPricingPlans = pricingPlans.map((plan) => ({
-    ...plan,
-    title: expansionByScreens.get(Number(plan.id.split('-')[0]))?.name || plan.title,
-    subtitle: expansionByScreens.get(Number(plan.id.split('-')[0]))?.description || plan.subtitle,
-    popular: expansionByScreens.get(Number(plan.id.split('-')[0]))?.featured ?? plan.popular,
-    price: formatPrice(currentPrices[plan.id]),
-    additionalTv: plan.id === '5-tvs'
-      ? `+ ${formatPrice(currentPrices['additional-tv'])} por TV adicional`
-      : undefined,
-  }));
-  const displayedFaqs = faqs.map((faq) => faq.question === 'Quais são os planos e mensalidades disponíveis?'
-    ? {
-        ...faq,
-        answer: `Possuímos planos flexíveis de 1 a 5 TVs: 1 TV por ${formatPrice(currentPrices['1-tv'])}/mês, 2 TVs por ${formatPrice(currentPrices['2-tvs'])}/mês, 3 TVs por ${formatPrice(currentPrices['3-tvs'])}/mês, 4 TVs por ${formatPrice(currentPrices['4-tvs'])}/mês e 5 TVs por ${formatPrice(currentPrices['5-tvs'])}/mês (+ ${formatPrice(currentPrices['additional-tv'])} por TV adicional).`,
-      }
-    : faq);
-  const displayedStructuredData = {
-    ...structuredData,
-    '@graph': structuredData['@graph'].map((entry) => {
-      if (entry['@type'] === 'Organization') {
-        const highestPrice = Math.max(...Object.values(currentPrices));
-        return { ...entry, priceRange: `R$ 0,00 - ${formatPrice(highestPrice)}` };
-      }
-      if (entry['@type'] === 'SoftwareApplication') {
-        return {
-          ...entry,
-          offers: {
-            ...entry.offers,
-            name: `Teste gratuito por ${settings.trialDays} dias sem cartão de crédito`,
-          },
-        };
-      }
-      if (entry['@type'] === 'FAQPage') {
-        return {
-          ...entry,
-          mainEntity: displayedFaqs.map(({ question, answer }) => ({
-            '@type': 'Question',
-            name: question,
-            acceptedAnswer: { '@type': 'Answer', text: answer },
-          })),
-        };
-      }
-      return entry;
-    }),
+  const flags = new Map<string, boolean>((flagRows || []).map((r: any) => [r.key, flagValue(r.value)]));
+  const metrics = showcase?.metrics || { total_companies: 0, total_public_screens: 0, cities_count: 0 };
+  const creatorsCount = Array.isArray(showcase?.creators) ? showcase.creators.length : 0;
+  const hasMetrics = Number(metrics.total_companies) > 0 || Number(metrics.total_public_screens) > 0 || Number(metrics.cities_count) > 0 || creatorsCount > 0;
+  const mappedPlans = (dbPlans || []).map((p: any) => {
+    const v = (p.expansion_plan_versions || []).find((x: any) => !x.effective_to);
+    return v ? { code: p.code, name: p.name, description: p.description, featured: Boolean(p.featured), screens: Number(v.included_screens), price: Number(v.monthly_price_cents) } : null;
+  }).filter(Boolean);
+  const plans = mappedPlans.length ? mappedPlans : fallbackPlans.map(([code,name,description,screens,price]) => ({ code,name,description,screens,price,featured: screens === 3 }));
+  const multichannelActive = flags.get('social_v2') === true && flags.get('multichannel_replication_enabled') === true && flags.get('social_to_tv_replication_enabled') === true;
+
+  const structuredData = {
+    '@context': 'https://schema.org', '@graph': [
+      { '@type': 'Organization', '@id': 'https://midiapormidia.com.br/#organization', name: 'Mídia por Mídia', taxID: '10.764.218/0001-76', url: 'https://midiapormidia.com.br/', telephone: '+55-66-99608-6030', logo: 'https://midiapormidia.com.br/media-tv-icon.svg', description: 'Rede inteligente de mídia que conecta empresas, TVs, creators, agências e canais digitais.', address: { '@type': 'PostalAddress', streetAddress: 'Av. das Embaúbas, 2114 - Setor Comercial', addressLocality: 'Sinop', addressRegion: 'MT', postalCode: '78550-110', addressCountry: 'BR' } },
+      { '@type': 'WebSite', '@id': 'https://midiapormidia.com.br/#website', url: 'https://midiapormidia.com.br/', name: 'Mídia por Mídia', inLanguage: 'pt-BR', publisher: { '@id': 'https://midiapormidia.com.br/#organization' } },
+      { '@type': 'Service', name: 'Rede inteligente de mídia Mídia por Mídia', serviceType: 'Rede de mídia indoor, creators e distribuição multicanal', provider: { '@id': 'https://midiapormidia.com.br/#organization' }, areaServed: { '@type': 'Country', name: 'Brasil' } },
+      { '@type': 'FAQPage', mainEntity: faqs.map(([q,a]) => ({ '@type': 'Question', name: q, acceptedAnswer: { '@type': 'Answer', text: a } })) },
+    ],
   };
-  return (
-    <main id="inicio" className="min-h-screen overflow-hidden bg-[#07101f] text-white selection:bg-cyan-300 selection:text-slate-950">
-      <script
-        type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(displayedStructuredData) }}
-      />
-      <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[0.07] bg-[#07101f]/85 backdrop-blur-xl">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-3 px-4 sm:h-[72px] sm:px-6 lg:px-8">
-          <Logo />
 
-          <nav className="hidden items-center gap-7 text-sm font-medium text-slate-300 lg:flex" aria-label="Navegação principal">
-            <a href="#como-funciona" className="transition hover:text-cyan-300">Como funciona</a>
-            <a href="#rede-parceiros" className="transition hover:text-cyan-300">Rede de parceiros</a>
-            <a href="#vitrine" className="transition hover:text-cyan-300">Vitrine da Rede</a>
-            <a href="#beneficios" className="transition hover:text-cyan-300">Benefícios</a>
-            <a href="#planos" className="transition hover:text-cyan-300">Planos e Preços</a>
-            <a href="#convites" className="transition hover:text-cyan-300">Convites</a>
-            <a href="#duvidas" className="transition hover:text-cyan-300">Dúvidas</a>
-          </nav>
+  return <main id="inicio" className="min-h-screen overflow-hidden bg-[#06111f] text-white selection:bg-cyan-200 selection:text-[#06111f]">
+    <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
 
-          <div className="flex items-center gap-2 sm:gap-3">
-            <Link href="/login" className="px-2 py-2 text-sm font-semibold text-slate-300 transition hover:text-white sm:px-3">
-              Entrar
-            </Link>
-            <Link href={signupHref} className="hidden rounded-xl bg-cyan-400 px-4 py-2.5 text-sm font-extrabold text-slate-950 shadow-lg shadow-cyan-400/15 transition hover:-translate-y-0.5 hover:bg-cyan-300 sm:block">
-              Testar 60 dias grátis
-            </Link>
-            <a href="#como-funciona" className="grid h-10 w-10 place-items-center rounded-xl border border-white/10 text-slate-300 lg:hidden" aria-label="Ver como funciona">
-              <Menu className="h-5 w-5" />
-            </a>
-          </div>
+    <header className="fixed inset-x-0 top-0 z-50 border-b border-white/[.08] bg-[#06111f]/90 backdrop-blur-xl"><div className="mx-auto flex h-16 max-w-[1440px] items-center justify-between gap-3 px-4 sm:h-[72px] sm:px-6 lg:px-8">
+      <Brand />
+      <nav className="hidden items-center gap-5 text-[13px] font-bold text-slate-300 xl:flex" aria-label="Navegação principal">
+        {[['Como funciona','#como-funciona'],['Empresas','#empresas'],['Agências','#agencias'],['Creators','#creators'],['Redes e franquias','#redes'],['Nossa Rede','#nossa-rede'],['Planos','#planos']].map(([label,href]) => <a key={href} href={href} className="transition hover:text-cyan-300">{label}</a>)}
+        <Link href="/onde-anunciar" className="transition hover:text-cyan-300">Anuncie</Link>
+      </nav>
+      <div className="flex items-center gap-2"><Link href="/login" className="hidden px-3 py-2 text-sm font-extrabold text-slate-300 hover:text-white sm:block">Entrar</Link><Link href={signupHref} className="hidden rounded-xl bg-cyan-300 px-4 py-2.5 text-sm font-black text-[#06111f] hover:bg-white md:block">Fazer parte da Rede</Link>
+        <details className="group relative xl:hidden"><summary className="grid h-10 w-10 cursor-pointer list-none place-items-center rounded-xl border border-white/10 bg-white/[.04] [&::-webkit-details-marker]:hidden" aria-label="Abrir menu"><Menu className="h-5 w-5 group-open:hidden" /><span className="hidden text-xl group-open:block">×</span></summary><nav className="absolute right-0 top-12 w-[min(88vw,320px)] rounded-2xl border border-white/10 bg-[#0a192a] p-3 shadow-2xl">{[['Como funciona','#como-funciona'],['Para empresas','#empresas'],['Para agências','#agencias'],['Para creators','#creators'],['Redes e franquias','#redes'],['Nossa Rede','#nossa-rede'],['Planos','#planos']].map(([label,href]) => <a key={href} href={href} className="block rounded-xl px-4 py-3 text-sm font-bold text-slate-200 hover:bg-white/[.06]">{label}</a>)}<div className="mt-2 grid grid-cols-2 gap-2 border-t border-white/10 pt-3"><Link href="/login" className="grid min-h-11 place-items-center rounded-xl border border-white/10 text-sm font-bold">Entrar</Link><Link href={signupHref} className="grid min-h-11 place-items-center rounded-xl bg-cyan-300 text-xs font-black text-[#06111f]">Fazer parte</Link></div></nav></details>
+      </div>
+    </div></header>
+
+    <section className="relative isolate px-4 pb-20 pt-28 sm:px-6 sm:pb-28 sm:pt-32 lg:px-8 lg:pt-32">
+      <div className="absolute inset-0 -z-10 bg-[linear-gradient(rgba(255,255,255,.035)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.035)_1px,transparent_1px)] bg-[size:52px_52px] [mask-image:linear-gradient(to_bottom,black,transparent_92%)]" />
+      <div className="mx-auto grid max-w-[1440px] items-center gap-14 lg:grid-cols-[1.02fr_.98fr] lg:gap-16">
+        <div><div className="mb-7 inline-flex items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/[.07] px-3.5 py-2 text-[10px] font-black uppercase tracking-[.18em] text-cyan-200 sm:text-xs"><Radio className="h-3.5 w-3.5" />Rede inteligente de mídia</div>
+          <h1 className="max-w-4xl text-balance text-[clamp(2.65rem,5.2vw,4.65rem)] font-black leading-[.95] tracking-[-.06em]">Cada nova empresa aumenta o alcance de <span className="bg-gradient-to-r from-cyan-200 via-cyan-400 to-blue-500 bg-clip-text text-transparent">todas.</span></h1>
+          <p className="mt-7 max-w-2xl text-lg font-medium leading-8 text-slate-300 sm:text-xl">TVs, empresas, creators, agências e canais digitais conectados em um único ecossistema de mídia.</p>
+          <p className="mt-3 max-w-2xl text-base leading-7 text-slate-500">Divulgue sua marca, distribua campanhas pela cidade, comercialize capacidade elegível e transforme mídia em novas oportunidades.</p>
+          <div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><Primary href={signupHref}>Quero fazer parte da Rede</Primary><Secondary href="/onde-anunciar">Quero anunciar</Secondary><a href="#agencias" className="inline-flex min-h-12 items-center justify-center gap-2 px-4 text-sm font-extrabold text-slate-300 hover:text-cyan-300">Sou agência <ArrowDown className="h-4 w-4" /></a></div>
+          <div className="mt-8 flex flex-wrap gap-x-5 gap-y-2 text-xs font-bold text-slate-500">{['Mídia indoor','Creators','Proof of Play','Distribuição multicanal'].map(x => <span key={x} className="flex items-center gap-2"><span className="h-1.5 w-1.5 rounded-full bg-cyan-300" />{x}</span>)}</div>
         </div>
-      </header>
-
-      <section className="relative px-4 pb-20 pt-28 sm:px-6 sm:pb-28 sm:pt-36 lg:px-8 lg:pt-44">
-        <div className="absolute left-1/2 top-0 h-[560px] w-[900px] -translate-x-1/2 rounded-full bg-cyan-500/[0.09] blur-[120px]" />
-        <div className="absolute -right-32 top-64 h-80 w-80 rounded-full bg-blue-600/10 blur-[100px]" />
-
-        <div className="relative mx-auto grid max-w-7xl items-center gap-14 lg:grid-cols-[1.05fr_.95fr] lg:gap-16">
-          <div className="text-center lg:text-left">
-            <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-cyan-400/25 bg-cyan-400/[0.08] px-3.5 py-2 text-[11px] font-extrabold uppercase tracking-[0.14em] text-cyan-300 sm:text-xs">
-              <Sparkles className="h-3.5 w-3.5" />
-              60 dias grátis <span className="text-slate-600">•</span> acesso imediato
-            </div>
-
-            <h1 className="text-4xl font-black leading-[1.06] tracking-[-0.045em] text-white sm:text-5xl lg:text-[64px]">
-              Transforme sua TV em{' '}
-              <span className="bg-gradient-to-r from-cyan-300 to-sky-500 bg-clip-text text-transparent">
-                mídia local.
-              </span>
-            </h1>
-
-            <p className="mx-auto mt-6 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg sm:leading-8 lg:mx-0">
-              Cadastre sua empresa, acesse o painel na hora, envie sua propaganda e conecte sua TV — tudo sem aprovação manual.
-            </p>
-            <p className="mx-auto mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base lg:mx-0">
-              E ainda receba 3 convites VIP para fortalecer a rede de mídia da sua cidade com empresas parceiras.
-            </p>
-
-            <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-center lg:justify-start">
-              <Link href={signupHref} className="group inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-6 text-base font-extrabold text-slate-950 shadow-xl shadow-cyan-500/20 transition hover:-translate-y-0.5 hover:bg-cyan-300">
-                Quero testar grátis agora
-                <ArrowRight className="h-5 w-5 transition group-hover:translate-x-1" />
-              </Link>
-              <Link href={signupHref} className="inline-flex min-h-14 items-center justify-center rounded-2xl border border-white/15 bg-white/[0.04] px-6 text-base font-bold text-white transition hover:border-white/25 hover:bg-white/[0.08]">
-                Criar empresa grátis
-              </Link>
-              <a href="#como-funciona" className="inline-flex min-h-14 items-center justify-center px-4 text-sm font-bold text-slate-400 transition hover:text-white">
-                Ver como funciona
-              </a>
-            </div>
-
-            <div className="mt-7 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-xs font-medium text-slate-500 lg:justify-start">
-              {['Sem cartão', 'Sem aprovação manual', 'Acesso imediato', 'Para empresas em todo o Brasil'].map((item) => (
-                <span key={item} className="flex items-center gap-1.5">
-                  <Check className="h-3.5 w-3.5 text-emerald-400" /> {item}
-                </span>
-              ))}
-            </div>
+        <div className="relative mx-auto w-full max-w-2xl"><div className="relative min-h-[450px] overflow-hidden rounded-[32px] border border-white/10 bg-[#091827]/90 p-5 shadow-[0_40px_120px_rgba(0,0,0,.45)] sm:min-h-[520px] sm:p-7">
+          <div className="flex items-center justify-between"><div><p className="text-[10px] font-black uppercase tracking-[.2em] text-cyan-300">Campanha em movimento</p><p className="mt-1 text-sm font-bold">Um ponto publica. A Rede amplifica.</p></div><Status active>Rede conectada</Status></div>
+          <div className="relative mt-10 grid grid-cols-3 grid-rows-3 items-center gap-4 sm:gap-6">
+            {[[Store,'Empresa','col-start-1 row-start-1','text-amber-300'],[Instagram,'Instagram','col-start-3 row-start-1','text-fuchsia-300'],[Tv,'TVs','col-start-1 row-start-3','text-cyan-300'],[Users,'Creators','col-start-3 row-start-3','text-violet-300']].map(([Icon,label,pos,color]) => { const I=Icon as LucideIcon; return <div key={String(label)} className={`${pos} rounded-2xl border border-white/10 bg-white/[.04] p-3 text-center sm:p-4`}><I className={`mx-auto h-5 w-5 ${color}`} /><p className="mt-2 text-xs font-black">{String(label)}</p></div>; })}
+            <div className="col-start-2 row-start-2 z-10 grid aspect-square place-items-center rounded-full border border-cyan-200/40 bg-cyan-300 text-[#06111f] shadow-[0_0_60px_rgba(34,211,238,.28)]"><div className="text-center"><Orbit className="mx-auto h-8 w-8 animate-[spin_14s_linear_infinite]" /><strong className="mt-1 block text-xl font-black">MPM</strong></div></div>
+            <div className="pointer-events-none absolute left-[16%] right-[16%] top-1/2 h-px bg-gradient-to-r from-cyan-300/10 via-cyan-300/80 to-cyan-300/10" /><div className="pointer-events-none absolute bottom-[16%] left-1/2 top-[16%] w-px bg-gradient-to-b from-cyan-300/10 via-cyan-300/80 to-cyan-300/10" />
           </div>
+          <div className="mt-9 grid grid-cols-3 gap-2 border-t border-white/10 pt-5 text-center">{[['01','Cria'],['02','Distribui'],['03','Comprova']].map(([n,l]) => <div key={n}><span className="text-[10px] font-black text-cyan-300">{n}</span><p className="mt-1 text-xs font-bold text-slate-300">{l}</p></div>)}</div>
+        </div></div>
+      </div>
+    </section>
 
-          <div className="relative mx-auto w-full max-w-xl lg:max-w-none">
-            <div className="absolute -inset-6 rounded-[36px] bg-gradient-to-br from-cyan-400/15 via-transparent to-blue-600/15 blur-2xl" />
-            <div className="relative overflow-hidden rounded-[28px] border border-white/10 bg-[#0b1728] p-3 shadow-2xl shadow-black/40 sm:p-5">
-              <div className="mb-4 flex items-center justify-between px-1">
-                <div>
-                  <p className="text-xs font-semibold text-slate-500">Olá, sua empresa!</p>
-                  <p className="mt-1 text-base font-extrabold text-white">Seu início na Mídia por Mídia</p>
-                </div>
-                <span className="rounded-full bg-emerald-400/10 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-emerald-300">Ativo</span>
-              </div>
+    <div className="border-y border-white/[.08] bg-cyan-300 text-[#06111f]"><div className="mx-auto flex max-w-[1440px] flex-wrap justify-center gap-x-5 gap-y-2 px-4 py-4 text-[11px] font-black uppercase tracking-[.12em] sm:justify-between">{['TVs','Empresas','Creators','Redes sociais','Agências','Inventário','Distribuição','Tecnologia'].map(x => <span key={x}>{x}</span>)}</div></div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="col-span-2 rounded-2xl border border-cyan-400/20 bg-gradient-to-r from-cyan-400/[0.12] to-blue-500/[0.06] p-4 sm:p-5">
-                  <div className="flex items-start justify-between">
-                    <div>
-                      <p className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">Teste gratuito</p>
-                      <div className="mt-2 flex items-end gap-2">
-                        <strong className="text-4xl font-black text-white sm:text-5xl">60</strong>
-                        <span className="pb-1.5 text-sm text-slate-400">dias restantes</span>
-                      </div>
-                    </div>
-                    <div className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-400 text-slate-950">
-                      <Clock3 className="h-5 w-5" />
-                    </div>
-                  </div>
-                  <div className="mt-4 h-1.5 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full w-full rounded-full bg-gradient-to-r from-cyan-400 to-sky-500" />
-                  </div>
-                </div>
+    <section id="nossa-rede" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto max-w-[1440px]">
+      <div className="grid gap-12 lg:grid-cols-[.85fr_1.15fr] lg:items-end"><Heading eyebrow="Nossa Rede" title="Uma TV é uma tela. Muitas TVs são uma Rede de mídia." text="Cada nova TV conectada adiciona um ponto de distribuição. A campanha deixa de existir dentro de uma única empresa e pode circular entre negócios da cidade." />
+        <div className="grid grid-cols-2 gap-px overflow-hidden rounded-3xl border border-white/10 bg-white/10 sm:grid-cols-4">{[['TVs conectadas',metrics.total_public_screens],['Empresas',metrics.total_companies],['Cidades',metrics.cities_count],['Creators',creatorsCount]].map(([l,v]) => <div key={String(l)} className="bg-[#091827] p-5 sm:p-6"><strong className="text-3xl font-black">{hasMetrics ? Number(v).toLocaleString('pt-BR') : '—'}</strong><p className="mt-2 text-xs font-bold uppercase tracking-[.12em] text-slate-500">{l}</p></div>)}</div>
+      </div>
+      {!hasMetrics && <p className="mt-5 rounded-2xl border border-white/10 bg-white/[.025] px-5 py-4 text-sm text-slate-400">Indicadores públicos em atualização. A Rede exibe apenas dados autorizados e pontos comerciais com visibilidade habilitada.</p>}
+      <div id="como-funciona" className="mt-16 scroll-mt-24 overflow-hidden rounded-[32px] border border-white/10 bg-[#091827]"><div className="grid lg:grid-cols-[.8fr_1.2fr]"><div className="border-b border-white/10 p-7 sm:p-10 lg:border-b-0 lg:border-r"><Eyebrow>Efeito Rede</Eyebrow><h3 className="text-3xl font-black tracking-tight sm:text-4xl">Quanto maior a Rede, mais poderosa ela se torna.</h3><p className="mt-5 text-base leading-7 text-slate-400">Cada participante não é apenas um cliente. É um novo ponto de distribuição para toda a Rede.</p></div><div className="grid gap-px bg-white/10 sm:grid-cols-5">{['Mais TVs','Mais inventário','Mais campanhas','Mais oportunidades','Mais participantes'].map((x,i) => <div key={x} className="flex min-h-28 items-center gap-4 bg-[#0b1c2f] p-5 sm:min-h-48 sm:flex-col sm:items-start sm:justify-between"><span className="text-xs font-black text-cyan-300">0{i+1}</span><strong className="text-base font-black sm:text-lg">{x}</strong>{i<4&&<ArrowRight className="ml-auto h-4 w-4 text-slate-600 sm:ml-0 sm:rotate-90" />}</div>)}</div></div></div>
+    </div></section>
 
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
-                  <Tv className="h-5 w-5 text-cyan-300" />
-                  <p className="mt-5 text-2xl font-black">0</p>
-                  <p className="mt-1 text-xs text-slate-500">TVs cadastradas</p>
-                </div>
-                <div className="rounded-2xl border border-white/[0.07] bg-white/[0.035] p-4">
-                  <ImageUp className="h-5 w-5 text-violet-300" />
-                  <p className="mt-5 text-2xl font-black">0</p>
-                  <p className="mt-1 text-xs text-slate-500">Mídias publicadas</p>
-                </div>
-                <div className="col-span-2 flex items-center justify-between rounded-2xl border border-amber-300/15 bg-amber-300/[0.06] p-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-amber-300/15 text-amber-300"><Gift className="h-5 w-5" /></span>
-                    <div>
-                      <p className="text-sm font-bold text-white">Convites VIP</p>
-                      <p className="text-xs text-slate-500">Chame empresas parceiras</p>
-                    </div>
-                  </div>
-                  <strong className="text-2xl font-black text-amber-300">3</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
+    <section id="empresas" className="scroll-mt-20 border-y border-white/[.07] bg-[#081625] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto max-w-[1440px]">
+      <div className="grid gap-10 lg:grid-cols-[.9fr_1.1fr] lg:gap-16"><div><Heading eyebrow="Para empresas" title="Sua TV deixa de ser apenas uma tela. Ela passa a ser um ativo de mídia." text="Use sua tela, participe da infraestrutura local e amplie sua presença em outros pontos elegíveis." /><div className="mt-8"><Primary href={signupHref}>Quero minha empresa na Rede</Primary></div></div><div className="grid gap-x-8 sm:grid-cols-2">{companyBenefits.map(([icon,title,text]) => <Feature key={title} icon={icon} title={title} text={text} />)}</div></div>
+      <div className="mt-20 grid gap-5 lg:grid-cols-2">
+        <article className="rounded-[28px] border border-cyan-300/20 bg-cyan-300/[.055] p-6 sm:p-9"><div className="flex flex-wrap items-center justify-between gap-3"><Eyebrow>Direito de Mídia</Eyebrow><Status active={flags.get('inventory_v2') === true}>{flags.get('inventory_v2') ? 'Disponível por regras' : 'Liberação controlada'}</Status></div><h3 className="text-2xl font-black sm:text-4xl">Compartilhe mídia. Ganhe Direito de Mídia.</h3><div className="mt-8 grid gap-3 sm:grid-cols-[1fr_auto_1fr_auto_1fr] sm:items-center">{[['Sua TV','Disponibiliza inserções elegíveis'],['Direito','Calculado pelas regras da Rede'],['Sua marca','Circula em TVs elegíveis']].map(([t,x],i) => <div key={t} className="contents"><div className="rounded-2xl border border-white/10 bg-[#06111f]/70 p-4"><strong className="text-sm font-black">{t}</strong><p className="mt-2 text-xs leading-5 text-slate-400">{x}</p></div>{i<2&&<ArrowRight className="mx-auto h-4 w-4 rotate-90 text-cyan-300 sm:rotate-0" />}</div>)}</div><p className="mt-6 text-xs text-slate-500">Direito de Mídia não é Crédito MPM, inventário, dinheiro ou pontos.</p></article>
+        <article className="rounded-[28px] border border-violet-300/20 bg-violet-300/[.045] p-6 sm:p-9"><Eyebrow>Distribuição inteligente</Eyebrow><h3 className="text-2xl font-black sm:text-4xl">Você não precisa escolher dezenas de telas.</h3><p className="mt-4 text-base leading-7 text-slate-400">Selecione locais preferenciais e deixe a tecnologia organizar o restante entre pontos elegíveis, conforme disponibilidade e limites.</p><div className="mt-7 flex flex-wrap gap-2">{['Cidade','Categoria','Disponibilidade','Limites','Inventário','Regras da campanha'].map(x => <span key={x} className="rounded-full border border-white/10 bg-white/[.04] px-3 py-2 text-xs font-bold text-slate-300">{x}</span>)}</div></article>
+      </div>
+    </div></section>
 
-      <section className="border-y border-white/[0.06] bg-white/[0.025] px-4 py-10 sm:px-6">
-        <div className="mx-auto flex max-w-5xl flex-col items-center justify-between gap-6 text-center md:flex-row md:text-left">
-          <div>
-            <h2 className="text-xl font-extrabold text-white sm:text-2xl">Cadastre sua empresa agora</h2>
-            <p className="mt-2 text-sm text-slate-400 sm:text-base">O cadastro é rápido e libera seu painel gratuito por 60 dias.</p>
-          </div>
-          <Link href={signupHref} className="inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-xl bg-white px-5 font-extrabold text-slate-950 transition hover:bg-cyan-100 sm:w-auto">
-            Criar minha conta grátis <ArrowRight className="h-4 w-4" />
-          </Link>
-        </div>
-      </section>
+    <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto max-w-[1440px]"><div className="overflow-hidden rounded-[36px] border border-cyan-300/20 bg-[linear-gradient(135deg,#0b2335_0%,#0b172b_52%,#17132e_100%)] p-6 sm:p-10 lg:p-14"><div className="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center">
+      <div><div className="flex flex-wrap items-center gap-3"><Eyebrow>Multicanal</Eyebrow><Status active={multichannelActive}>{multichannelActive ? 'Disponibilidade controlada' : 'Em implantação controlada'}</Status></div><h2 className="text-balance text-4xl font-black leading-[1.02] tracking-[-.05em] sm:text-5xl lg:text-6xl">Publique uma vez. Faça sua marca aparecer em muitos lugares.</h2><p className="mt-6 text-base leading-7 text-slate-300 sm:text-lg">Uma campanha pode começar em uma rede social e continuar nas TVs da cidade — ou nascer para a TV e ser reaproveitada em outros canais.</p><p className="mt-4 text-sm leading-6 text-slate-500">Distribuição conforme permissões e capacidades de cada plataforma. TikTok possui capacidades específicas e não implica publicação automática irrestrita.</p></div>
+      <div className="rounded-[28px] border border-white/10 bg-[#06111f]/65 p-5 sm:p-8"><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">{[[[Instagram,'Instagram'],[Facebook,'Facebook'],[Smartphone,'TikTok']],[[Tv,'TVs'],[Users,'Creators'],[Store,'Empresas']]].map((side,si) => <div key={si} className={`space-y-3 ${si ? 'col-start-3' : 'col-start-1'}`}>{side.map(([Icon,label]) => {const I=Icon as LucideIcon;return <div key={String(label)} className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] p-3"><I className="h-5 w-5 text-cyan-300"/><span className="text-xs font-black">{String(label)}</span></div>})}</div>)}<div className="col-start-2 row-start-1 grid h-20 w-20 place-items-center rounded-full bg-cyan-300 text-base font-black text-[#06111f]">MPM</div></div><div className="mt-6 grid gap-2 border-t border-white/10 pt-5 sm:grid-cols-4">{[['Manual','Você decide'],['Aprovação','Você confirma'],['Automático','Por regras'],['Temporário','Por período']].map(([t,x]) => <div key={t} className="rounded-xl bg-white/[.035] p-3"><strong className="text-xs">{t}</strong><p className="mt-1 text-[11px] text-slate-500">{x}</p></div>)}</div></div>
+    </div></div></div></section>
 
-      <section id="como-funciona" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <SectionTitle
-            eyebrow="Simples do início ao play"
-            title="Como funciona em 3 passos"
-            description="Da criação da conta à primeira propaganda na tela, você faz tudo com orientação dentro do painel."
-          />
+    <section id="creators" className="scroll-mt-20 border-y border-white/[.07] bg-[#081625] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto max-w-[1440px]">
+      <div className="grid gap-12 lg:grid-cols-[.9fr_1.1fr] lg:items-center"><div><div className="flex flex-wrap items-center gap-3"><Eyebrow>Para creators</Eyebrow><Status active={flags.get('creator_v2') === true}>{flags.get('creator_v2') ? 'Creator Network ativa' : 'Acesso sob liberação'}</Status></div><h2 className="text-balance text-4xl font-black leading-[1.02] tracking-[-.05em] sm:text-5xl lg:text-6xl">Sua audiência também pode virar oportunidade.</h2><p className="mt-6 text-lg leading-8 text-slate-300">Ofereça pacotes, receba propostas, trabalhe com marcas, troque conteúdo por mídia e participe de campanhas e indicações elegíveis.</p><p className="mt-4 text-2xl font-black text-fuchsia-300">Audiência também é inventário.</p><div className="mt-8"><Primary href={creatorHref}>Quero ser Creator</Primary></div></div>
+        <div className="grid gap-4 sm:grid-cols-2">{[['Pacote de Stories','Defina entregas e condições'],['Reel + Stories','Monte ofertas combinadas'],['Indicação','Apresente empresas à Rede'],['Missões','Participe conforme disponibilidade']].map(([t,x],i) => <article key={t} className={`rounded-[26px] border p-6 ${i===0?'border-fuchsia-300/30 bg-fuchsia-300/[.08] sm:translate-y-6':'border-white/10 bg-white/[.035]'}`}><span className="text-[10px] font-black text-fuchsia-300">0{i+1}</span><h3 className="mt-4 text-xl font-black">{t}</h3><p className="mt-2 text-sm text-slate-400">{x}</p><p className="mt-6 border-t border-white/10 pt-4 text-xs text-slate-500">Valores e elegibilidade definidos por perfil e campanha.</p></article>)}</div>
+      </div>
+      <div className="mt-20 rounded-[30px] border border-amber-300/20 bg-amber-300/[.045] p-6 sm:p-10"><div className="grid gap-8 lg:grid-cols-[.75fr_1.25fr] lg:items-center"><div><Eyebrow>Oportunidades</Eyebrow><h3 className="text-3xl font-black sm:text-4xl">Sua empresa não precisa apenas comprar mídia. Ela pode criar oportunidades.</h3><p className="mt-4 text-sm text-slate-500">Conceito sem CTA operacional enquanto os fluxos públicos passam por liberação controlada.</p></div><div className="grid gap-3 sm:grid-cols-2">{['Divulgar e ganhar','Indicar e ganhar','Trocar mídia','Vender divulgação','Oferecer benefícios','Criar missões'].map(x => <div key={x} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-[#06111f]/50 p-4 text-sm font-black"><Sparkles className="h-4 w-4 text-amber-300"/>{x}</div>)}</div></div></div>
+    </div></section>
 
-          <div className="relative mt-14 grid gap-4 md:grid-cols-3 md:gap-6">
-            <div className="absolute left-[16%] right-[16%] top-9 hidden h-px bg-gradient-to-r from-transparent via-cyan-400/40 to-transparent md:block" />
-            {steps.map(({ number, icon: Icon, title, text }) => (
-              <article key={number} className="group relative rounded-3xl border border-white/[0.08] bg-[#0b1728] p-6 transition hover:-translate-y-1 hover:border-cyan-400/30 sm:p-8">
-                <div className="mb-8 flex items-center justify-between">
-                  <span className="relative z-10 grid h-16 w-16 place-items-center rounded-2xl border border-cyan-400/20 bg-cyan-400/[0.08] text-cyan-300">
-                    <Icon className="h-7 w-7" />
-                  </span>
-                  <span className="text-4xl font-black text-white/[0.06]">{number}</span>
-                </div>
-                <h3 className="text-xl font-extrabold text-white">{title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-400 sm:text-base">{text}</p>
-              </article>
-            ))}
-          </div>
+    <section id="agencias" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto grid max-w-[1440px] overflow-hidden rounded-[34px] border border-white/10 bg-[#0a1a2b] lg:grid-cols-2"><div className="p-7 sm:p-10 lg:p-14"><Eyebrow>Para agências</Eyebrow><h2 className="text-balance text-4xl font-black leading-[1.02] tracking-[-.05em] sm:text-5xl">Uma nova infraestrutura de mídia para agências.</h2><p className="mt-5 text-xl font-black leading-8 text-cyan-300">Seu cliente não precisa aparecer em uma única tela. Ele pode ocupar uma cidade.</p><p className="mt-5 text-base leading-7 text-slate-400">Planeje campanhas em TVs, creators e canais digitais com segmentação por local e acompanhamento centralizado.</p><div className="mt-8"><Primary href={agencyHref} external>Quero usar a Rede</Primary></div></div><div className="border-t border-white/10 bg-[#071421] p-7 sm:p-10 lg:border-l lg:border-t-0 lg:p-14">{[[Target,'Cliente'],[Building2,'Agência'],[Network,'Rede MPM']].map(([Icon,label],i) => {const I=Icon as LucideIcon;return <div key={String(label)}><div className={`flex items-center gap-4 rounded-2xl border p-4 ${i===2?'border-cyan-300/30 bg-cyan-300/[.08]':'border-white/10 bg-white/[.035]'}`}><I className="h-5 w-5 text-cyan-300"/><strong className="text-sm font-black">{String(label)}</strong></div>{i<2&&<ArrowDown className="mx-auto my-2 h-4 w-4 text-slate-600"/>}</div>})}<div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3">{['TVs','Creators','Instagram','Facebook','TikTok*','Proof of Play'].map(x => <span key={x} className="rounded-xl border border-white/10 bg-white/[.03] px-3 py-3 text-center text-xs font-bold text-slate-300">{x}</span>)}</div><p className="mt-6 text-lg font-black">A agência traz a estratégia. <span className="text-cyan-300">A Rede entrega distribuição.</span></p></div></div></section>
 
-          <div className="mt-10 text-center">
-            <Link href={signupHref} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-7 font-extrabold text-slate-950 transition hover:-translate-y-0.5 hover:bg-cyan-300">
-              Começar agora gratuitamente <ArrowRight className="h-5 w-5" />
-            </Link>
-          </div>
-        </div>
-      </section>
+    <section id="redes" className="scroll-mt-20 border-y border-white/[.07] bg-[#081625] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-2 lg:items-center"><div className="order-2 rounded-[30px] border border-white/10 bg-[#06111f]/70 p-6 sm:p-9 lg:order-1"><div className="mx-auto grid h-24 w-24 place-items-center rounded-full border border-cyan-300/30 bg-cyan-300/[.08]"><Building2 className="h-8 w-8 text-cyan-300"/></div><div className="mx-auto h-8 w-px bg-cyan-300/30"/><div className="grid grid-cols-3 gap-3">{['10 TVs','50 TVs','100 TVs'].map(x => <div key={x} className="rounded-2xl border border-white/10 bg-white/[.04] p-4 text-center text-sm font-black">{x}</div>)}</div><div className="mt-5 grid gap-3 sm:grid-cols-3">{[['Marca','presença coordenada'],['Empresas','recebem mídia'],['Rede','cresce conectada']].map(([t,x]) => <div key={t} className="border-t border-white/10 pt-4 text-center"><strong className="text-xs font-black uppercase text-cyan-300">{t}</strong><p className="mt-2 text-xs text-slate-500">{x}</p></div>)}</div></div><div className="order-1 lg:order-2"><Heading eyebrow="Redes e franquias" title="Transforme unidades, parceiros e clientes em uma rede própria de mídia." text="Estruture programas dentro da Mídia por Mídia e conecte pontos participantes sem construir toda a infraestrutura do zero."/><div className="mt-8"><Primary href={franchiseHref} external>Quero criar minha Rede</Primary></div></div></div></section>
 
-      <section id="beneficios" className="scroll-mt-20 bg-[#091526] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <SectionTitle
-            eyebrow="Feito para ser fácil"
-            title="Por que usar a Mídia por Mídia?"
-            description="Você cuida do seu negócio. A plataforma simplifica o caminho para sua empresa aparecer mais."
-          />
+    <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto max-w-[1440px]"><Heading eyebrow="Tecnologia embarcada" title="Parece simples porque a tecnologia trabalha por trás." text="Não é uma playlist. É um motor de mídia que organiza capacidade, inventário, distribuição e comprovação."/><div className="mt-12 grid gap-x-8 sm:grid-cols-2 lg:grid-cols-4">{technology.map(([icon,title,text]) => <Feature key={title} icon={icon} title={title} text={text}/>)}</div>
+      <div className="mt-20 grid gap-5 lg:grid-cols-2"><article className="rounded-[30px] border border-white/10 bg-[#091827] p-6 sm:p-9"><div className="flex flex-wrap items-center justify-between gap-3"><Eyebrow>Capacidade individual</Eyebrow><Status active={flags.get('dynamic_screen_capacity_enabled') === true}>{flags.get('dynamic_screen_capacity_enabled') ? 'Recurso controlado' : 'Em homologação'}</Status></div><h3 className="text-3xl font-black">Nem todas as TVs produzem a mesma capacidade.</h3><p className="mt-4 text-sm leading-6 text-slate-400">Uma empresa aberta 8 horas opera de forma diferente de uma escola aberta das 7h às 22h. A plataforma foi preparada para reconhecer essa diferença.</p><div className="mt-7 grid grid-cols-2 gap-3">{[[Clock3,'8h/dia','TV padrão'],[Zap,'15h/dia','Operação estendida']].map(([Icon,n,l]) => {const I=Icon as LucideIcon;return <div key={String(n)} className="rounded-2xl border border-white/10 bg-white/[.035] p-4"><I className="h-5 w-5 text-cyan-300"/><strong className="mt-5 block text-2xl">{String(n)}</strong><span className="text-xs text-slate-500">{String(l)}</span></div>})}</div></article>
+        <article className="rounded-[30px] border border-cyan-300/20 bg-cyan-300/[.045] p-6 sm:p-9"><Eyebrow>Proof of Play</Eyebrow><h3 className="text-3xl font-black">Menos promessa. Mais comprovação.</h3><p className="mt-4 text-sm leading-6 text-slate-400">A plataforma registra a execução para acompanhar onde e quando o conteúdo foi exibido.</p><div className="mt-7 overflow-hidden rounded-2xl border border-white/10">{['TV','Local','Campanha','Data e hora','Execução'].map((x,i) => <div key={x} className="flex justify-between border-b border-white/10 bg-[#06111f]/60 px-4 py-3 last:border-0"><span className="text-xs font-bold text-slate-500">{x}</span><span className="text-xs font-black text-slate-200">{i===4?'Registrada':'Dado protegido'}</span></div>)}</div><p className="mt-5 text-xs text-slate-500">Comprova execução técnica; não representa quantidade de pessoas que viram a mídia.</p></article>
+      </div>
+    </div></section>
 
-          <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {benefits.map(({ icon: Icon, title, text }) => (
-              <article key={title} className="rounded-3xl border border-white/[0.07] bg-[#07101f] p-6 sm:p-7">
-                <span className="grid h-12 w-12 place-items-center rounded-2xl bg-cyan-400/[0.09] text-cyan-300">
-                  <Icon className="h-5 w-5" />
-                </span>
-                <h3 className="mt-6 text-lg font-extrabold text-white">{title}</h3>
-                <p className="mt-3 text-sm leading-6 text-slate-400">{text}</p>
-              </article>
-            ))}
-          </div>
-        </div>
-      </section>
+    <section className="border-y border-white/[.07] bg-[#081625] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-12 lg:grid-cols-[.85fr_1.15fr] lg:items-center"><div><Eyebrow>Uma campanha atravessando a cidade</Eyebrow><h2 className="text-balance text-4xl font-black leading-[1.02] tracking-[-.05em] sm:text-5xl lg:text-6xl">Sua marca deixa de ocupar uma tela. Ela passa a ocupar uma cidade.</h2><p className="mt-6 text-lg leading-8 text-slate-300">O comércio local deixa de ser apenas comprador de publicidade e passa a participar da própria infraestrutura de mídia.</p></div><div className="space-y-3 border-l border-cyan-300/25 pl-6 sm:pl-10">{[['08:00','Escola'],['10:30','Farmácia'],['12:15','Restaurante'],['17:00','Academia'],['19:30','Creator + social']].map(([time,place],i) => <div key={time} className="relative rounded-2xl border border-white/10 bg-[#06111f]/60 p-4 sm:flex sm:items-center sm:gap-5"><span className="absolute -left-[31px] top-6 h-2.5 w-2.5 rounded-full bg-cyan-300 ring-4 ring-[#081625] sm:-left-[45px]"/><strong className="text-xs font-black text-cyan-300">{time}</strong><span className="mt-1 block text-sm font-black sm:mt-0 sm:w-28">{place}</span><p className="mt-1 text-xs text-slate-500 sm:mt-0">{i===4?'Novo canal, conforme permissões.':'A campanha continua circulando.'}</p></div>)}</div></div><div className="mx-auto mt-14 flex max-w-[1440px] flex-col items-start justify-between gap-6 border-t border-white/10 pt-8 sm:flex-row sm:items-end"><p className="max-w-3xl text-sm leading-6 text-slate-500"><strong className="block text-cyan-300">Começa local. Pode crescer sem fronteiras.</strong> Conforme novos participantes entram, a Rede pode crescer entre cidades, regiões e estados. Expansão futura não significa cobertura atual garantida.</p><Secondary href="/onde-anunciar">Conhecer pontos públicos</Secondary></div></section>
 
-      <section id="rede-parceiros" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <SectionTitle
-            eyebrow="Uma rede que devolve valor"
-            title="Sua tela divulga. A rede reconhece."
-            description="Na Mídia por Mídia, a propaganda local circula entre empresas parceiras e transforma atenção em oportunidade para toda a comunidade."
-          />
+    <section id="planos" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto max-w-[1440px]"><div className="flex flex-col justify-between gap-8 lg:flex-row lg:items-end"><Heading eyebrow="Planos" title="Entre para a Rede no tamanho certo para sua operação." text="Preços carregados da configuração comercial vigente. Benefícios e liberações dependem do plano."/>{settings.enabled&&<p className="rounded-full border border-white/10 bg-white/[.035] px-4 py-2 text-xs font-bold text-slate-400">Degustação de {settings.trialDays} dias • sem cartão</p>}</div><div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">{plans.map((p:any) => <article key={p.code} className={`flex flex-col rounded-[26px] border p-5 ${p.featured?'border-cyan-300/50 bg-cyan-300/[.08]':'border-white/10 bg-[#091827]'}`}>{p.featured&&<span className="mb-4 w-fit rounded-full bg-cyan-300 px-2.5 py-1 text-[9px] font-black uppercase text-[#06111f]">Destaque</span>}<p className="text-xs font-black uppercase text-slate-500">{p.screens} {p.screens===1?'TV':'TVs'}</p><h3 className="mt-2 text-lg font-black">{p.name}</h3><div className="mt-5"><strong className="text-3xl font-black">{formatPrice(p.price)}</strong><span className="text-xs text-slate-500">/mês</span></div><p className="mt-4 min-h-14 text-xs leading-5 text-slate-400">{p.description}</p><ul className="mt-5 flex-1 space-y-2 border-t border-white/10 pt-5">{['TV conectada e mídia própria','Campanhas e acompanhamento','Direito de Mídia elegível','Inventário conforme plano','Tecnologia MPM'].map(x => <li key={x} className="flex gap-2 text-xs leading-5 text-slate-300"><Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-cyan-300"/>{x}</li>)}</ul><Link href={`${signupHref}?plano=${p.screens}-tv${p.screens>1?'s':''}`} className="mt-6 grid min-h-11 place-items-center rounded-xl border border-white/10 bg-white/[.06] text-xs font-black hover:bg-cyan-300 hover:text-[#06111f]">Participar da Rede</Link></article>)}</div><p className="mt-6 text-xs text-slate-500">Inventário, pagamentos, repasses e automações dependem de elegibilidade, disponibilidade e recursos liberados. Não há promessa de renda.</p></div></section>
 
-          <div className="mt-14 grid gap-5 lg:grid-cols-3">
-            <article className="rounded-3xl border border-cyan-400/20 bg-gradient-to-br from-cyan-400/[0.12] to-transparent p-7 sm:p-8">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-cyan-400/15 text-cyan-300">
-                <Share2 className="h-7 w-7" />
-              </div>
-              <h3 className="mt-7 text-xl font-extrabold text-white">Mídia local compartilhada</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Quando uma empresa compra mídia em pontos parceiros, o anúncio pode aparecer nas telas elegíveis da rede. Se o parceiro não bloquear aquele segmento, todos participam da circulação de forma organizada e transparente.
-              </p>
-            </article>
+    <section id="duvidas" className="border-y border-white/[.07] bg-[#081625] px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="mx-auto grid max-w-[1200px] gap-12 lg:grid-cols-[.75fr_1.25fr]"><Heading eyebrow="Perguntas importantes" title="Clareza antes de conectar sua marca."/><div className="space-y-3">{faqs.map(([q,a]) => <details key={q} className="group rounded-2xl border border-white/10 bg-[#06111f]/65 open:border-cyan-300/30"><summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-sm font-black [&::-webkit-details-marker]:hidden sm:p-6 sm:text-base">{q}<ChevronDown className="h-5 w-5 shrink-0 text-slate-500 transition group-open:rotate-180"/></summary><p className="px-5 pb-5 text-sm leading-6 text-slate-400 sm:px-6 sm:pb-6">{a}</p></details>)}</div></div></section>
 
-            <article className="rounded-3xl border border-amber-300/20 bg-gradient-to-br from-amber-300/[0.12] to-transparent p-7 sm:p-8">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-amber-300/15 text-amber-300">
-                <Coins className="h-7 w-7" />
-              </div>
-              <h3 className="mt-7 text-xl font-extrabold text-white">Cada exibição pode gerar créditos</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                As telas parceiras registram as exibições. Esses registros podem gerar créditos para a empresa que disponibiliza espaço, ajudando a financiar a própria divulgação dentro da rede.
-              </p>
-            </article>
+    <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8"><div className="relative mx-auto max-w-[1200px] overflow-hidden rounded-[36px] bg-cyan-300 p-7 text-[#06111f] sm:p-12 lg:p-16"><p className="text-xs font-black uppercase tracking-[.2em]">O próximo ponto pode ser o seu</p><h2 className="mt-5 max-w-4xl text-balance text-4xl font-black leading-[.98] tracking-[-.055em] sm:text-5xl lg:text-6xl">Sua empresa já pode ter uma TV. Agora ela pode fazer parte de uma Rede inteira.</h2><p className="mt-6 max-w-3xl text-base font-semibold leading-7 text-[#06111f]/75">Conecte sua empresa, divulgue sua marca, participe de campanhas, trabalhe com creators e ajude a construir uma Rede que cresce junto com o comércio local.</p><div className="mt-9 flex flex-col gap-3 sm:flex-row sm:flex-wrap"><Link href={signupHref} className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[#06111f] px-5 text-sm font-black text-white">Quero fazer parte da Rede <ArrowRight className="h-4 w-4"/></Link><Link href="/onde-anunciar" className="grid min-h-12 place-items-center rounded-xl border border-[#06111f]/25 bg-white/45 px-5 text-sm font-black">Quero anunciar</Link><a href={agencyHref} target="_blank" rel="noopener noreferrer" className="grid min-h-12 place-items-center px-4 text-sm font-black underline">Sou agência</a></div></div></section>
 
-            <article className="rounded-3xl border border-violet-300/20 bg-gradient-to-br from-violet-300/[0.12] to-transparent p-7 sm:p-8">
-              <div className="grid h-14 w-14 place-items-center rounded-2xl bg-violet-300/15 text-violet-300">
-                <Laptop className="h-7 w-7" />
-              </div>
-              <h3 className="mt-7 text-xl font-extrabold text-white">Computador também é um ponto de mídia</h3>
-              <p className="mt-3 text-sm leading-6 text-slate-300">
-                Um monitor Windows em uma recepção, sala de espera ou estação compartilhada pode rodar a programação, servir como fonte de propaganda e gerar créditos conforme a regra de alcance do dispositivo.
-              </p>
-            </article>
-          </div>
-
-          <div className="mt-8 rounded-3xl border border-white/[0.08] bg-[#0b1728] p-7 sm:p-9">
-            <div className="flex flex-col gap-8 lg:flex-row lg:items-center lg:justify-between">
-              <div className="max-w-3xl">
-                <p className="text-xs font-black uppercase tracking-[0.2em] text-cyan-300">Imagine a rede funcionando</p>
-                <h3 className="mt-3 text-2xl font-black text-white sm:text-3xl">Escolas, coworkings e empresas com muitos computadores podem virar novos pontos de contato.</h3>
-                <p className="mt-4 text-sm leading-7 text-slate-400 sm:text-base">
-                  Uma escola pode informar cursos, eventos e parceiros nos computadores da recepção. Um coworking pode divulgar serviços para profissionais que circulam diariamente. Uma empresa pode usar os computadores de colaboradores em áreas comuns para exibir comunicados, benefícios e ofertas locais — sempre com programação aprovada e controle da empresa.
-                </p>
-                <Link href="/organic/register" className="mt-6 inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-violet-400 px-5 font-extrabold text-slate-950 transition hover:bg-violet-300">
-                  Quero transformar minha tela em ponto orgânico <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-              <div className="grid shrink-0 gap-3 sm:grid-cols-3 lg:grid-cols-1">
-                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><School className="h-5 w-5 text-cyan-300" /> Escolas</div>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><Building2 className="h-5 w-5 text-amber-300" /> Coworkings</div>
-                <div className="flex items-center gap-3 rounded-2xl border border-white/[0.08] bg-white/[0.035] px-4 py-3 text-sm font-bold text-slate-200"><Users className="h-5 w-5 text-violet-300" /> Equipes</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <PublicShowcaseSection data={showcaseData} />
-
-      <section id="planos" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <SectionTitle
-            eyebrow="Transparente e sem fidelidade"
-            title="Planos e Preços"
-            description="Escolha a quantidade de TVs e aproveite todas as vantagens acumulativas. Mude ou cancele quando quiser."
-          />
-
-          <div className="mt-8 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full border border-cyan-400/30 bg-cyan-400/[0.1] px-5 py-2.5 text-xs sm:text-sm font-extrabold uppercase tracking-wider text-cyan-300 shadow-lg shadow-cyan-500/10">
-              <Sparkles className="h-4 w-4 text-cyan-300" />
-              Primeiros 60 dias 100% grátis • Sem cartão de crédito
-            </div>
-          </div>
-
-          <div className="mt-12 grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
-            {displayedPricingPlans.map((plan) => (
-              <div
-                key={plan.id}
-                className={`relative flex flex-col justify-between rounded-3xl border p-6 transition hover:-translate-y-1.5 ${
-                  plan.popular
-                    ? 'border-cyan-400/60 bg-gradient-to-b from-[#0f2842] via-[#0b1c31] to-[#071222] shadow-2xl shadow-cyan-500/20 sm:col-span-2 lg:col-span-3 xl:col-span-1'
-                    : 'border-white/[0.09] bg-[#0b1728] hover:border-cyan-400/30'
-                }`}
-              >
-                {plan.popular && (
-                  <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 whitespace-nowrap rounded-full bg-gradient-to-r from-cyan-400 to-sky-500 px-3.5 py-1 text-[10px] font-black uppercase tracking-wider text-slate-950 shadow-md">
-                    Destaque
-                  </div>
-                )}
-
-                <div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xl font-black text-white">{plan.title}</span>
-                    {plan.badge && (
-                      <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                        plan.popular ? 'bg-cyan-400/20 text-cyan-300' : 'bg-white/[0.06] text-slate-300'
-                      }`}>
-                        {plan.badge}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-4 flex items-baseline gap-1">
-                    <span className="text-3xl font-black tracking-tight text-white">{plan.price}</span>
-                    <span className="text-xs font-semibold text-slate-400">{plan.period}</span>
-                  </div>
-                  {plan.additionalTv && (
-                    <p className="mt-1 text-xs font-bold text-cyan-300">{plan.additionalTv}</p>
-                  )}
-
-                  <p className="mt-3 text-xs leading-5 text-slate-400">{plan.subtitle}</p>
-
-                  {plan.includesPrevious && (
-                    <div className="mt-4 rounded-xl border border-cyan-400/25 bg-cyan-400/[0.07] px-3 py-2 text-[11px] font-extrabold text-cyan-300">
-                      ✓ Inclui todas as vantagens do plano de {plan.includesPrevious} +
-                    </div>
-                  )}
-
-                  <div className="my-5 h-px bg-white/[0.08]" />
-
-                  <ul className="space-y-2.5 text-xs text-slate-300">
-                    {plan.features.map((feature, idx) => (
-                      <li key={idx} className="flex items-start gap-2">
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-cyan-400" />
-                        <span className="leading-5">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                <div className="mt-8 border-t border-white/[0.06] pt-4">
-                  <Link
-                    href={`${signupHref}?plano=${plan.id}`}
-                    className={`inline-flex w-full min-h-12 items-center justify-center gap-2 rounded-xl text-xs font-extrabold transition ${
-                      plan.popular
-                        ? 'bg-cyan-400 text-slate-950 hover:bg-cyan-300 shadow-lg shadow-cyan-400/20'
-                        : 'bg-white/[0.08] text-white hover:bg-white/[0.15] border border-white/10'
-                    }`}
-                  >
-                    Testar 60 dias grátis <ArrowRight className="h-3.5 w-3.5" />
-                  </Link>
-                </div>
-              </div>
-            ))}
-          </div>
-
-          {/* Banner Indique e Ganhe */}
-          <div className="mt-12 overflow-hidden rounded-3xl border border-amber-400/30 bg-gradient-to-r from-amber-500/10 via-amber-400/[0.05] to-transparent p-6 backdrop-blur-md sm:p-8">
-            <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
-              <div className="flex items-start gap-4">
-                <div className="grid h-12 w-12 shrink-0 place-items-center rounded-2xl bg-amber-400/20 text-amber-300 shadow-inner">
-                  <Gift className="h-6 w-6" />
-                </div>
-                <div>
-                  <div className="inline-flex items-center gap-2 rounded-full bg-amber-400/20 px-3 py-1 text-[11px] font-black uppercase tracking-wider text-amber-300">
-                    🎁 Programa Indique e Ganhe para Membros
-                  </div>
-                  <h3 className="mt-2 text-xl font-extrabold text-white">
-                    Ganhe 1 Mensalidade Grátis a Cada Empresa Indicada!
-                  </h3>
-                  <p className="mt-2 max-w-3xl text-xs leading-6 text-slate-300 sm:text-sm">
-                    Após se tornar membro, convide outras empresas! Para <strong className="text-white">cada membro/empresa indicada</strong> em <strong className="text-white">qualquer plano</strong> que pagar a primeira mensalidade, <strong className="text-amber-300">quem indicou ganha 1 mensalidade inteiramente grátis!</strong>
-                  </p>
-                </div>
-              </div>
-
-              <div className="shrink-0">
-                <Link
-                  href={signupHref}
-                  className="inline-flex min-h-12 items-center justify-center gap-2 rounded-2xl bg-amber-300 px-6 text-xs font-extrabold text-slate-950 shadow-lg shadow-amber-400/15 transition hover:-translate-y-0.5 hover:bg-amber-200"
-                >
-                  Quero ser membro e indicar <ArrowRight className="h-4 w-4" />
-                </Link>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="convites" className="scroll-mt-20 px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="relative mx-auto max-w-7xl overflow-hidden rounded-[32px] border border-cyan-400/20 bg-gradient-to-br from-[#10273b] via-[#0b1c31] to-[#10172d] p-6 sm:p-10 lg:p-16">
-          <div className="absolute -right-24 -top-24 h-80 w-80 rounded-full bg-cyan-400/10 blur-3xl" />
-          <div className="relative grid items-center gap-12 lg:grid-cols-[1.1fr_.9fr]">
-            <div>
-              <span className="inline-flex items-center gap-2 rounded-full bg-amber-300/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-300">
-                <Gift className="h-4 w-4" /> 3 convites VIP incluídos
-              </span>
-              <h2 className="mt-6 text-3xl font-black tracking-[-0.04em] sm:text-4xl lg:text-5xl">
-                Convide empresas estratégicas para crescer com você
-              </h2>
-              <p className="mt-5 max-w-2xl text-base leading-7 text-slate-300 sm:text-lg">
-                Chame parceiros, fornecedores, clientes ou empresas próximas para testar a plataforma por 60 dias grátis.
-              </p>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500 sm:text-base">
-                Quanto mais empresas participam, maior e mais forte fica a rede de mídia local da sua cidade.
-              </p>
-              <Link href={signupHref} className="mt-8 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-amber-300 px-6 font-extrabold text-slate-950 transition hover:-translate-y-0.5 hover:bg-amber-200 sm:w-auto">
-                Começar e ganhar meus convites <ArrowRight className="h-5 w-5" />
-              </Link>
-            </div>
-
-            <div className="space-y-3">
-              {[
-                '3 convites VIP incluídos',
-                'Cada convidado recebe 60 dias grátis',
-                'Sua cidade ganha uma rede de divulgação mais forte',
-                'Empresas parceiras podem indicar novas empresas',
-              ].map((item, index) => (
-                <div key={item} className="flex items-center gap-4 rounded-2xl border border-white/[0.08] bg-white/[0.04] p-4 backdrop-blur-sm">
-                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-cyan-400/10 text-sm font-black text-cyan-300">{index + 1}</span>
-                  <span className="text-sm font-semibold text-slate-200 sm:text-base">{item}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="bg-[#091526] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto grid max-w-7xl items-center gap-12 lg:grid-cols-2 lg:gap-20">
-          <div>
-            <SectionTitle
-              eyebrow="Sem espera"
-              title="Você entra no painel na hora"
-              description="Depois do cadastro, o sistema cria sua empresa, ativa o teste gratuito e mostra um passo a passo para colocar sua primeira propaganda na TV."
-              centered={false}
-            />
-            <div className="mt-8 space-y-3">
-              {['Empresa criada automaticamente', 'Teste de 60 dias ativado', 'Checklist para sua primeira exibição'].map((item) => (
-                <div key={item} className="flex items-center gap-3 text-sm font-semibold text-slate-300 sm:text-base">
-                  <span className="grid h-6 w-6 place-items-center rounded-full bg-emerald-400/10 text-emerald-300"><Check className="h-3.5 w-3.5" /></span>
-                  {item}
-                </div>
-              ))}
-            </div>
-            <Link href={signupHref} className="mt-9 inline-flex min-h-14 w-full items-center justify-center gap-2 rounded-2xl bg-cyan-400 px-7 font-extrabold text-slate-950 transition hover:bg-cyan-300 sm:w-auto">
-              Acessar grátis por 60 dias <ArrowRight className="h-5 w-5" />
-            </Link>
-          </div>
-
-          <div className="rounded-[28px] border border-white/[0.08] bg-[#07101f] p-5 shadow-2xl shadow-black/20 sm:p-7">
-            <div className="flex items-center justify-between border-b border-white/[0.07] pb-5">
-              <div>
-                <p className="text-xs font-semibold text-slate-500">Seu progresso</p>
-                <p className="mt-1 font-extrabold text-white">Checklist inicial</p>
-              </div>
-              <span className="rounded-full bg-cyan-400/10 px-3 py-1.5 text-xs font-bold text-cyan-300">1 de 4</span>
-            </div>
-            <div className="mt-5 space-y-3">
-              {[
-                { label: 'Empresa cadastrada', done: true },
-                { label: 'Cadastrar primeira TV', done: false },
-                { label: 'Enviar primeira mídia', done: false },
-                { label: 'Colocar programação no ar', done: false },
-              ].map(({ label, done }, index) => (
-                <div key={label} className={`flex items-center gap-4 rounded-2xl border p-4 ${done ? 'border-emerald-400/20 bg-emerald-400/[0.06]' : 'border-white/[0.06] bg-white/[0.025]'}`}>
-                  <span className={`grid h-9 w-9 place-items-center rounded-full text-sm font-bold ${done ? 'bg-emerald-400 text-slate-950' : 'bg-white/[0.06] text-slate-500'}`}>
-                    {done ? <Check className="h-4 w-4" /> : index + 1}
-                  </span>
-                  <span className={`text-sm font-semibold ${done ? 'text-slate-200' : 'text-slate-400'}`}>{label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <SectionTitle
-            eyebrow="Explore sem compromisso"
-            title="O que você consegue fazer no teste gratuito"
-          />
-          <div className="mt-12 grid grid-cols-2 gap-3 sm:grid-cols-4 sm:gap-4">
-            {resources.map(({ icon: Icon, label }) => (
-              <div key={label} className="rounded-2xl border border-white/[0.07] bg-white/[0.025] p-4 sm:p-5">
-                <Icon className="h-5 w-5 text-cyan-300" />
-                <p className="mt-4 text-sm font-bold leading-5 text-slate-200">{label}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section id="duvidas" className="scroll-mt-20 bg-[#091526] px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="mx-auto max-w-3xl">
-          <SectionTitle eyebrow="Dúvidas frequentes" title="Tudo o que você precisa saber para começar" />
-          <div className="mt-12 space-y-3">
-            {displayedFaqs.map(({ question, answer }) => (
-              <details key={question} className="group rounded-2xl border border-white/[0.08] bg-[#07101f] open:border-cyan-400/20">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-4 p-5 text-left text-sm font-extrabold text-white sm:p-6 sm:text-base">
-                  {question}
-                  <ChevronDown className="h-5 w-5 shrink-0 text-slate-500 transition group-open:rotate-180 group-open:text-cyan-300" />
-                </summary>
-                <p className="px-5 pb-5 text-sm leading-6 text-slate-400 sm:px-6 sm:pb-6 sm:text-base">{answer}</p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <section className="px-4 py-20 sm:px-6 sm:py-28 lg:px-8">
-        <div className="relative mx-auto max-w-5xl overflow-hidden rounded-[32px] bg-cyan-400 px-5 py-12 text-center text-slate-950 sm:px-10 sm:py-16">
-          <div className="absolute -left-20 -top-20 h-64 w-64 rounded-full bg-white/25 blur-3xl" />
-          <div className="absolute -bottom-32 -right-20 h-72 w-72 rounded-full bg-blue-600/20 blur-3xl" />
-          <div className="relative">
-            <p className="text-xs font-black uppercase tracking-[0.2em] text-slate-700">Sua TV pode começar hoje</p>
-            <h2 className="mx-auto mt-4 max-w-3xl text-3xl font-black tracking-[-0.045em] sm:text-4xl lg:text-5xl">
-              Comece hoje mesmo e coloque sua empresa para aparecer mais.
-            </h2>
-            <p className="mx-auto mt-5 max-w-2xl text-sm font-medium leading-6 text-slate-700 sm:text-base">
-              Cadastre sua empresa, teste grátis por 60 dias e convide parceiros para expandir a rede de mídia da sua cidade.
-            </p>
-            <div className="mx-auto mt-8 flex max-w-2xl flex-col justify-center gap-3 sm:flex-row sm:flex-wrap">
-              <Link href={signupHref} className="inline-flex min-h-14 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-extrabold text-white transition hover:-translate-y-0.5 hover:bg-slate-800">
-                Iniciar grátis agora <ArrowRight className="h-5 w-5" />
-              </Link>
-              <Link href={signupHref} className="inline-flex min-h-14 items-center justify-center rounded-2xl bg-white px-6 font-extrabold text-slate-950 transition hover:-translate-y-0.5 hover:bg-cyan-50">
-                Cadastrar minha empresa
-              </Link>
-              <Link href={signupHref} className="inline-flex min-h-12 items-center justify-center px-4 text-sm font-extrabold underline decoration-slate-700/40 underline-offset-4">
-                Receber 60 dias grátis
-              </Link>
-              <Link href="/login" className="inline-flex min-h-12 items-center justify-center px-4 text-sm font-extrabold underline decoration-slate-700/40 underline-offset-4">
-                Entrar no painel
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section id="contato" className="scroll-mt-20 border-t border-white/[0.07] bg-[#091526] px-4 py-16 sm:px-6 sm:py-20 lg:px-8">
-        <div className="mx-auto max-w-7xl">
-          <div className="grid gap-10 lg:grid-cols-3">
-            <div className="space-y-4">
-              <Logo />
-              <p className="text-xs leading-6 text-slate-400 sm:text-sm">
-                Plataforma de mídia indoor e TV corporativa. Transforme qualquer Smart TV em canal de comunicação local e monetização de publicidade.
-              </p>
-              <div className="inline-flex items-center gap-2 rounded-xl border border-cyan-400/20 bg-cyan-400/10 px-3.5 py-1.5 text-xs font-bold text-cyan-300">
-                <Building2 className="h-4 w-4" /> CNPJ: 10.764.218/0001-76
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-base font-extrabold text-white">
-                <MapPin className="h-5 w-5 text-cyan-400" /> Endereço & Sede
-              </h3>
-              <p className="text-xs leading-6 text-slate-300 sm:text-sm">
-                <strong className="text-white">Av. das Embaúbas, 2114 - Setor Comercial</strong><br />
-                Sinop - MT, CEP 78550-110
-              </p>
-              <p className="text-xs text-slate-500">
-                Atendimento presencial e suporte a empresas parceiras em Sinop-MT e em todo o Brasil.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <h3 className="flex items-center gap-2 text-base font-extrabold text-white">
-                <Phone className="h-5 w-5 text-emerald-400" /> Contato & WhatsApp
-              </h3>
-              <div>
-                <a
-                  href="https://wa.me/5566996086030?text=Ol%C3%A1!%20Vim%20pelo%20site%20da%20M%C3%ADdia%20por%20M%C3%ADdia%20e%20gostaria%20de%20informa%C3%A7%C3%B5es."
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2.5 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-extrabold text-emerald-300 transition hover:border-emerald-400/50 hover:bg-emerald-400/20"
-                >
-                  <Phone className="h-4 w-4" /> Contato: (66) 99608-6030
-                </a>
-              </div>
-              <p className="text-xs text-slate-400">
-                Fale diretamente conosco pelo WhatsApp para esclarecer dúvidas ou ativar seu plano.
-              </p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <footer className="border-t border-white/[0.07] px-4 py-8 sm:px-6">
-        <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-5 text-center sm:flex-row sm:text-left">
-          <Logo />
-          <div className="text-xs leading-5 text-slate-500">
-            <p>© {new Date().getFullYear()} Mídia por Mídia. CNPJ 10.764.218/0001-76 • Av. das Embaúbas, 2114, Sinop-MT.</p>
-            <p className="mt-1 text-slate-400">
-              Um produto <a href="https://msddigital.com.br" target="_blank" rel="noopener noreferrer" className="font-bold text-cyan-400 hover:underline">MSD Digital</a> (<a href="https://msddigital.com.br" target="_blank" rel="noopener noreferrer" className="hover:text-cyan-300">msddigital.com.br</a>)
-            </p>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            <a href="#contato" className="text-slate-400 transition hover:text-white">Contato</a>
-            <Link href="/politica-de-privacidade" className="text-slate-400 transition hover:text-white">Privacidade</Link>
-            <Link href="/exclusao-de-dados" className="text-slate-400 transition hover:text-white">Exclusão de dados</Link>
-            <Link href="/login" className="font-semibold text-slate-400 transition hover:text-white">Acessar painel</Link>
-          </div>
-        </div>
-      </footer>
-      <WhatsAppButton />
-    </main>
-  );
+    <section id="contato" className="border-t border-white/[.07] bg-[#081625] px-4 py-14 sm:px-6 lg:px-8"><div className="mx-auto grid max-w-[1440px] gap-10 lg:grid-cols-[1.2fr_.8fr_.8fr]"><div><Brand/><p className="mt-5 max-w-md text-sm leading-6 text-slate-400">Rede inteligente de mídia que conecta empresas, TVs, creators, agências e canais digitais.</p><p className="mt-4 text-xs font-bold text-slate-600">Tecnologia MSD Digital</p></div><div><h3 className="text-sm font-black">Sede e contato</h3><p className="mt-4 text-sm leading-6 text-slate-400">Av. das Embaúbas, 2114 — Setor Comercial<br/>Sinop — MT, CEP 78550-110</p><a href="tel:+5566996086030" className="mt-3 inline-flex text-sm font-black text-cyan-300">(66) 99608-6030</a></div><div><h3 className="text-sm font-black">Acessos</h3><div className="mt-4 grid gap-2 text-sm font-bold text-slate-400">{[['Onde anunciar','/onde-anunciar'],['Cadastrar empresa',signupHref],['Entrar no painel','/login'],['Privacidade','/politica-de-privacidade'],['Exclusão de dados','/exclusao-de-dados']].map(([l,h]) => <Link key={h} href={h} className="hover:text-white">{l}</Link>)}</div></div></div></section>
+    <footer className="border-t border-white/[.07] px-4 py-7 sm:px-6 lg:px-8"><div className="mx-auto flex max-w-[1440px] flex-col gap-3 text-xs text-slate-600 sm:flex-row sm:justify-between"><p>© {new Date().getFullYear()} Mídia por Mídia • CNPJ 10.764.218/0001-76</p><p className="font-bold text-slate-500">O comércio local fortalecendo o próprio comércio local.</p></div></footer>
+    <WhatsAppButton />
+  </main>;
 }

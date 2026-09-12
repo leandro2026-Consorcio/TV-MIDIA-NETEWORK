@@ -10,11 +10,11 @@ const googleVerification = process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION;
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: {
-    default: 'Mídia por Mídia | Mídia Indoor e TV Corporativa em Sinop-MT e Brasil',
+    default: 'Mídia por Mídia | Rede de TVs, Creators e Mídia Compartilhada',
     template: '%s | Mídia por Mídia',
   },
   description:
-    'Plataforma de mídia indoor e TV corporativa em Sinop-MT. Transforme sua Smart TV em canal de comunicação e propaganda local. Teste grátis por 60 dias sem cartão.',
+    'Conecte sua empresa a uma rede de mídia com TVs, creators, campanhas e distribuição multicanal. Divulgue sua marca, comercialize mídia e amplie seu alcance.',
   applicationName: 'Mídia por Mídia',
   authors: [
     { name: 'MSD Digital', url: 'https://msddigital.com.br' },
@@ -28,6 +28,7 @@ export const metadata: Metadata = {
     'mídia indoor Sinop',
     'mídia indoor MT',
     'mídia indoor Mato Grosso',
+    'rede inteligente de mídia',
     'TV corporativa',
     'publicidade em TV Sinop',
     'propaganda em TV',
@@ -40,6 +41,11 @@ export const metadata: Metadata = {
     'divulgação para empresas Sinop',
     'monetização de TV corporativa',
     'mídia compartilhada',
+    'creators para empresas',
+    'publicidade local',
+    'mídia para agências',
+    'rede de mídia para franquias',
+    'Proof of Play',
   ],
   alternates: {
     canonical: '/',
@@ -52,23 +58,23 @@ export const metadata: Metadata = {
     locale: 'pt_BR',
     url: '/',
     siteName: 'Mídia por Mídia',
-    title: 'Mídia por Mídia | Plataforma de Mídia Indoor em Sinop-MT e Brasil',
+    title: 'Mídia por Mídia | Rede de TVs, Creators e Mídia Compartilhada',
     description:
-      'Cadastre sua empresa, conecte sua Smart TV e publique propagandas em Sinop-MT e em todo o Brasil. 60 dias grátis sem cartão de crédito.',
+      'Conecte sua empresa a uma rede de mídia com TVs, creators, campanhas e distribuição multicanal.',
     images: [
       {
         url: '/og.png',
         width: 1731,
         height: 909,
-        alt: 'Mídia por Mídia — plataforma de mídia indoor e TV corporativa',
+        alt: 'Mídia por Mídia — rede inteligente de TVs, creators e canais digitais',
       },
     ],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'Mídia por Mídia | Mídia Indoor em Sinop-MT',
+    title: 'Mídia por Mídia | Rede inteligente de mídia',
     description:
-      'Conecte sua TV, publique sua propaganda e fortaleça a rede de mídia da sua cidade. Teste grátis por 60 dias.',
+      'TVs, empresas, creators e canais digitais conectados em um único ecossistema de mídia.',
     images: ['/og.png'],
   },
   robots: {
