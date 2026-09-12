@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getPublicShowcaseDataAction } from '@/app/actions/showcase';
+import { getMarketplaceScreensAction } from '@/app/actions/marketplace-omnichannel';
 import {
   MapPin,
   Tv,
@@ -14,10 +15,13 @@ import {
 
 export const revalidate = 60;
 
-export default async function OndeAnunciarPage() {
-  const res = await getPublicShowcaseDataAction();
+export default async function OndeAnunciarPage({ searchParams }: { searchParams?: { city?: string; category?: string } }) {
+  const [res, marketplaceRes] = await Promise.all([
+    getPublicShowcaseDataAction(),
+    getMarketplaceScreensAction({ city: searchParams?.city, venueCategory: searchParams?.category }),
+  ]);
   const data = res.success ? res.data : null;
-  const locations = data?.locations || [];
+  const locations = marketplaceRes.success ? marketplaceRes.screens : [];
   const metrics = data?.metrics || { total_companies: 0, total_public_screens: 0, cities_count: 0, cities: [] };
 
   return (
@@ -98,7 +102,7 @@ export default async function OndeAnunciarPage() {
                   <div className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="text-[11px] font-bold uppercase px-2 py-0.5 rounded bg-purple-500/10 text-purple-400 border border-purple-500/20">
-                        {loc.venue_category || loc.venue_type || 'Comércio'}
+                        {loc.venueCategory || loc.venueType || 'Comércio'}
                       </span>
                       <span className="text-xs font-bold text-emerald-400">● Ativa</span>
                     </div>
@@ -106,11 +110,11 @@ export default async function OndeAnunciarPage() {
                     <h3 className="text-lg font-black text-white line-clamp-1">{loc.name}</h3>
                     <p className="text-xs text-slate-300 font-medium flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-                      {loc.company_name}
+                      {loc.companyName}
                     </p>
                     <p className="text-xs text-slate-400 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      {loc.city}, {loc.state}
+                      {loc.city ? `${loc.city}/${loc.state}` : 'Localização regional'}
                     </p>
                   </div>
 
@@ -118,11 +122,11 @@ export default async function OndeAnunciarPage() {
                     <div>
                       <span className="text-[10px] text-slate-500 block uppercase">Inserção a partir de</span>
                       <span className="text-sm font-black text-purple-400">
-                        {loc.indicative_price_credits} crédito
+                        {loc.indicativePriceCredits} crédito
                       </span>
                     </div>
                     <Link
-                      href={`/marketplace?city=${encodeURIComponent(loc.city)}`}
+                      href={`/marketplace?city=${encodeURIComponent(loc.city || '')}`}
                       className="rounded-xl bg-purple-600/80 hover:bg-purple-600 px-3 py-1.5 text-xs font-bold text-white transition-colors flex items-center gap-1"
                     >
                       Anunciar <ArrowRight className="w-3 h-3" />

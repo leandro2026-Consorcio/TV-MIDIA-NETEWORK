@@ -131,77 +131,34 @@ export interface ScreensMarketplaceFilter {
   search?: string;
   city?: string;
   state?: string;
-  venueType?: string;
+  venueCategory?: string;
   orientation?: 'horizontal' | 'vertical';
   maxPriceCredits?: number;
+  onlineOnly?: boolean;
+  viewerCompanyId?: string;
 }
 
 export async function getMarketplaceScreensAction(filters: ScreensMarketplaceFilter = {}) {
   try {
     const supabase = createClient();
-    let query = (supabase.from('screens') as any)
-      .select(`
-        id, name, orientation, status, venue_type, venue_category,
-        indicative_price_credits, public_address_masked, created_at,
-        companies!screens_company_id_fkey (id, trade_name, city, state, show_in_marketplace, show_on_map)
-      `)
-      .eq('is_public_screen', true)
-      .eq('show_on_map', true)
-      .neq('venue_type', 'residential')
-      .eq('status', 'online');
-
-    if (filters.venueType) {
-      query = query.eq('venue_type', filters.venueType);
-    }
-    if (filters.orientation) {
-      query = query.eq('orientation', filters.orientation);
-    }
-
-    const { data: screens, error } = await query;
-    if (error) return { success: false, error: error.message, screens: [] };
-
-    let results = (screens || []).filter((s: any) => {
-      const comp = Array.isArray(s.companies) ? s.companies[0] : s.companies;
-      return comp && comp.show_in_marketplace;
-    }).map((s: any) => {
-      const comp = Array.isArray(s.companies) ? s.companies[0] : s.companies;
-      return {
-        id: s.id,
-        name: s.name,
-        orientation: s.orientation,
-        venueType: s.venue_type,
-        venueCategory: s.venue_category || 'Comércio Local',
-        indicativePriceCredits: Number(s.indicative_price_credits || 0.25),
-        companyId: comp?.id,
-        companyName: comp?.trade_name || 'Empresa Parceira',
-        city: comp?.city || 'Local',
-        state: comp?.state || '',
-      };
+    const { data, error } = await (supabase.rpc as any)('get_marketplace_screens', {
+      p_viewer_company_id: filters.viewerCompanyId || null,
+      p_search: filters.search || null,
+      p_city: filters.city || null,
+      p_venue_category: filters.venueCategory || null,
+      p_orientation: filters.orientation || null,
+      p_online_only: filters.onlineOnly || false,
     });
+    if (error) return { success: false, error: error.message, screens: [], cities: [], categories: [] };
 
-    if (filters.city) {
-      const c = filters.city.toLowerCase();
-      results = results.filter((s: any) => s.city.toLowerCase().includes(c));
-    }
-    if (filters.state) {
-      results = results.filter((s: any) => s.state === filters.state);
-    }
-    if (filters.search) {
-      const q = filters.search.toLowerCase();
-      results = results.filter((s: any) =>
-        s.name.toLowerCase().includes(q) ||
-        s.companyName.toLowerCase().includes(q) ||
-        s.city.toLowerCase().includes(q) ||
-        s.venueCategory.toLowerCase().includes(q)
-      );
-    }
+    let results = data?.screens || [];
     if (filters.maxPriceCredits) {
       results = results.filter((s: any) => s.indicativePriceCredits <= (filters.maxPriceCredits || 0));
     }
 
-    return { success: true, screens: results };
+    return { success: true, screens: results, cities: data?.cities || [], categories: data?.categories || [] };
   } catch (err: any) {
-    return { success: false, error: err.message || 'Erro ao consultar marketplace de telas.', screens: [] };
+    return { success: false, error: err.message || 'Erro ao consultar marketplace de telas.', screens: [], cities: [], categories: [] };
   }
 }
 

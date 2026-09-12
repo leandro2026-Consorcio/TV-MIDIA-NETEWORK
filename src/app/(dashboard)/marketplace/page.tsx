@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { CompanyAdOffer } from '@/types';
-import { 
+import {
   getMarketplaceOffersAction, 
   getMarketplaceFiltersDataAction,
   requestScreenDistributionAction 
@@ -41,6 +41,7 @@ import {
   Image as ImageIcon,
   X,
 } from 'lucide-react';
+import { useDashboardCompany } from '@/contexts/dashboard-company-context';
 
 export default function MarketplacePage() {
   const searchParams = useSearchParams();
@@ -67,6 +68,10 @@ export default function MarketplacePage() {
   // Creators state
   const [creators, setCreators] = useState<any[]>([]);
   const [screens, setScreens] = useState<any[]>([]);
+  const [screenCities, setScreenCities] = useState<string[]>([]);
+  const [screenCategories, setScreenCategories] = useState<string[]>([]);
+  const [selectedScreenCategory, setSelectedScreenCategory] = useState('');
+  const [detailScreen, setDetailScreen] = useState<any | null>(null);
 
   // Common Filters
   const [search, setSearch] = useState('');
@@ -89,7 +94,8 @@ export default function MarketplacePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
+  const { activeCompany } = useDashboardCompany();
 
   const loadMarketplaceData = async () => {
     try {
@@ -100,8 +106,16 @@ export default function MarketplacePage() {
         const res = await getMarketplaceScreensAction({
           search: search || undefined,
           city: selectedCity || undefined,
+          venueCategory: selectedScreenCategory || undefined,
+          viewerCompanyId: activeCompany?.id,
         });
-        if (res.success) setScreens(res.screens || []);
+        if (res.success) {
+          setScreens(res.screens || []);
+          setScreenCities(res.cities || []);
+          setScreenCategories(res.categories || []);
+        } else {
+          setError(res.error || 'Não foi possível carregar as TVs do Marketplace.');
+        }
       } else if (activeTab === 'creators') {
         const res = await getMarketplaceCreatorsAction({
           search: search || undefined,
@@ -139,7 +153,7 @@ export default function MarketplacePage() {
 
   useEffect(() => {
     loadMarketplaceData();
-  }, [activeTab, selectedCity, selectedCompanyId, selectedSegmentId, selectedNiche, selectedFormat, verifiedOnly]);
+  }, [activeTab, selectedCity, selectedCompanyId, selectedSegmentId, selectedNiche, selectedFormat, selectedScreenCategory, verifiedOnly, activeCompany?.id]);
 
   useEffect(() => {
     if (!campaignId) return;
@@ -475,7 +489,7 @@ export default function MarketplacePage() {
         </div>
 
         {/* Barra de Pesquisa */}
-        <form onSubmit={handleSearchSubmit} className="flex gap-2 pt-2">
+        <form onSubmit={handleSearchSubmit} className="flex min-w-0 flex-col gap-2 pt-2 sm:flex-row">
           <div className="relative flex-1">
             <Search className="w-4 h-4 absolute left-3.5 top-3 text-slate-500" />
             <input
@@ -494,7 +508,7 @@ export default function MarketplacePage() {
           </div>
           <button
             type="submit"
-            className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-lg shadow-purple-600/20"
+            className="w-full bg-purple-600 hover:bg-purple-500 text-white font-bold px-5 py-2.5 rounded-xl text-xs transition shadow-lg shadow-purple-600/20 sm:w-auto"
           >
             Buscar
           </button>
@@ -511,14 +525,29 @@ export default function MarketplacePage() {
       {/* TAB 1: TVs & Telas Indoor */}
       {activeTab === 'tvs' && (
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-black text-white">Telas Comerciais Disponíveis</h2>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h2 className="text-xl font-black text-white">Telas Comerciais Disponíveis</h2>
+                <p className="mt-1 text-xs font-semibold text-purple-300">{screens.length} {screens.length === 1 ? 'TV disponível' : 'TVs disponíveis'}</p>
+              </div>
             <Link
-              href="/onde-anunciar"
+              href={`/onde-anunciar?city=${encodeURIComponent(selectedCity)}&category=${encodeURIComponent(selectedScreenCategory)}`}
               className="text-xs font-bold text-purple-400 hover:underline flex items-center gap-1"
             >
               Ver mapa completo de locais →
             </Link>
+            </div>
+            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 lg:max-w-2xl">
+              <select value={selectedCity} onChange={(event) => setSelectedCity(event.target.value)} className="min-w-0 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-xs text-white">
+                <option value="">Todas as cidades</option>
+                {screenCities.map((city) => <option key={city} value={city}>{city}</option>)}
+              </select>
+              <select value={selectedScreenCategory} onChange={(event) => setSelectedScreenCategory(event.target.value)} className="min-w-0 w-full rounded-xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-xs text-white">
+                <option value="">Todos os ramos de atividade</option>
+                {screenCategories.map((category) => <option key={category} value={category}>{category}</option>)}
+              </select>
+            </div>
           </div>
 
           {loading ? (
@@ -536,7 +565,7 @@ export default function MarketplacePage() {
               {screens.map((screen) => (
                 <div
                   key={screen.id}
-                  className="bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-purple-500/40 transition"
+                  className="min-w-0 bg-slate-900 border border-slate-800 rounded-2xl p-5 flex flex-col justify-between space-y-4 hover:border-purple-500/40 transition"
                 >
                   <div className="space-y-3">
                     <div className="flex justify-between items-start">
@@ -546,7 +575,7 @@ export default function MarketplacePage() {
                       <span className="text-[10px] font-bold text-emerald-400">● Online</span>
                     </div>
 
-                    <h3 className="text-base font-bold text-white line-clamp-1">{screen.name}</h3>
+                    <h3 className="break-words text-base font-bold text-white" title={screen.name}>{screen.name}</h3>
 
                     <p className="text-xs text-slate-300 flex items-center gap-1.5">
                       <Building2 className="w-3.5 h-3.5 text-purple-400 shrink-0" />
@@ -555,8 +584,10 @@ export default function MarketplacePage() {
 
                     <p className="text-xs text-slate-400 flex items-center gap-1.5">
                       <MapPin className="w-3.5 h-3.5 text-slate-500 shrink-0" />
-                      {screen.city}, {screen.state}
+                      {screen.city ? `${screen.city}/${screen.state}` : 'Localização regional'}
                     </p>
+                    {screen.isOwn && <span className="inline-flex rounded-lg border border-sky-500/30 bg-sky-500/10 px-2 py-1 text-[10px] font-bold uppercase text-sky-300">Sua TV</span>}
+                    {screen.availability === 'temporarily_unavailable' && <p className="text-xs font-semibold text-amber-400">Indisponível temporariamente</p>}
                   </div>
 
                   <div className="pt-3 border-t border-slate-800 flex justify-between items-center">
@@ -567,6 +598,8 @@ export default function MarketplacePage() {
                       </span>
                     </div>
 
+                      <div className="flex flex-col items-end gap-2">
+                      <button type="button" onClick={() => setDetailScreen(screen)} className="text-[11px] font-bold text-slate-300 hover:text-white">VER DETALHES</button>
                       {selectedCampaign ? (
                         <button
                           type="button"
@@ -575,27 +608,47 @@ export default function MarketplacePage() {
                             setHiringFeedback(null);
                             setHiringMessage('');
                           }}
-                          className={`font-bold px-3 py-1.5 rounded-xl text-xs transition ${
+                          disabled={screen.availability === 'temporarily_unavailable'}
+                          className={`font-bold px-3 py-1.5 rounded-xl text-xs transition disabled:cursor-not-allowed disabled:opacity-50 ${
                             screen.companyId === selectedCampaign.company_id
                               ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
                               : 'bg-purple-600 hover:bg-purple-500 text-white'
                           }`}
                         >
-                          {screen.companyId === selectedCampaign.company_id ? 'Vincular Minha TV' : 'Contratar TV'}
+                          {screen.companyId === selectedCampaign.company_id ? 'USAR NA MINHA CAMPANHA' : 'ANUNCIAR AQUI'}
                         </button>
                       ) : (
                         <Link
                           href={`/campaigns/new?screen=${screen.id}`}
                           className="bg-purple-600 hover:bg-purple-500 text-white font-bold px-3 py-1.5 rounded-xl text-xs transition"
                         >
-                          Contratar TV
+                          {screen.isOwn ? 'USAR NA MINHA CAMPANHA' : 'ANUNCIAR AQUI'}
                         </Link>
                       )}
+                      </div>
                     </div>
                   </div>
               ))}
             </div>
           )}
+        </div>
+      )}
+
+      {detailScreen && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/85 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-labelledby="screen-detail-title">
+          <div className="relative w-full max-w-lg rounded-3xl border border-slate-700 bg-slate-900 p-5 sm:p-7">
+            <button type="button" onClick={() => setDetailScreen(null)} className="absolute right-4 top-4 rounded-lg p-2 text-slate-400 hover:bg-slate-800 hover:text-white" aria-label="Fechar detalhes"><X className="h-5 w-5" /></button>
+            <p className="text-xs font-bold uppercase text-purple-400">{detailScreen.venueCategory}</p>
+            <h2 id="screen-detail-title" className="mt-1 pr-10 text-xl font-bold text-white">{detailScreen.name}</h2>
+            <dl className="mt-5 grid grid-cols-2 gap-4 text-sm">
+              <div><dt className="text-xs text-slate-500">Estabelecimento</dt><dd className="break-words text-slate-200">{detailScreen.companyName}</dd></div>
+              <div><dt className="text-xs text-slate-500">Cidade/UF</dt><dd className="text-slate-200">{detailScreen.city ? `${detailScreen.city}/${detailScreen.state}` : 'Região não divulgada'}</dd></div>
+              <div><dt className="text-xs text-slate-500">Orientação</dt><dd className="capitalize text-slate-200">{detailScreen.orientation}</dd></div>
+              <div><dt className="text-xs text-slate-500">Disponibilidade</dt><dd className={detailScreen.availability === 'available' ? 'text-emerald-400' : 'text-amber-400'}>{detailScreen.availability === 'available' ? 'Disponível' : 'Indisponível temporariamente'}</dd></div>
+              <div className="col-span-2"><dt className="text-xs text-slate-500">Local público</dt><dd className="text-slate-200">{detailScreen.publicAddressMasked || 'Localização detalhada não divulgada'}</dd></div>
+              <div className="col-span-2"><dt className="text-xs text-slate-500">Inserção a partir de</dt><dd className="font-bold text-purple-300">{detailScreen.indicativePriceCredits} Crédito MPM</dd></div>
+            </dl>
+          </div>
         </div>
       )}
 
