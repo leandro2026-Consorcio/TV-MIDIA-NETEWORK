@@ -160,7 +160,7 @@ export default function MarketplacePage() {
     async function loadCampaign() {
       try {
         const { data: camp } = await (supabase.from('campaigns') as any)
-          .select('id, name, description, start_date, end_date, company_id, companies:companies!campaigns_company_id_fkey(trade_name)')
+          .select('id, name, description, start_date, end_date, company_id, campaign_type, companies:companies!campaigns_company_id_fkey(trade_name)')
           .eq('id', campaignId)
           .maybeSingle();
 
@@ -323,10 +323,10 @@ export default function MarketplacePage() {
               </div>
             </div>
             <Link
-              href={`/campaigns/${selectedCampaign.id}`}
+              href={selectedCampaign.campaign_type === 'collaborative' ? `/collaborative-network?draft=${selectedCampaign.id}` : `/campaigns/${selectedCampaign.id}`}
               className="px-3 py-1.5 rounded-xl bg-slate-900 border border-slate-700 hover:border-slate-600 text-xs font-bold text-slate-200 transition shrink-0"
             >
-              Voltar para a Campanha
+              Voltar sem perder o rascunho
             </Link>
           </div>
 

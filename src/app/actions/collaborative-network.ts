@@ -27,7 +27,7 @@ export async function getCollaborativeNetworkDashboardAction() {
   const companyIds = (companies || []).map((company: any) => company.id);
   const [{ data: campaigns }, { data: channels }, { data: acceptances }, { data: channelSettings }] = await Promise.all([
     companyIds.length
-      ? (supabase.from('campaigns') as any).select('*,collaborative_campaign_budget_summary(*)').in('company_id', companyIds).eq('campaign_type', 'collaborative').order('created_at', { ascending: false })
+      ? (supabase.from('campaigns') as any).select('*,collaborative_campaign_budget_summary(*),campaign_distribution_rules(*)').in('company_id', companyIds).eq('campaign_type', 'collaborative').order('created_at', { ascending: false })
       : Promise.resolve({ data: [] }),
     (supabase.from('social_channels') as any).select('id,owner_type,owner_id,provider,display_name,status,publication_mode,participation_enabled,allowed_formats'),
     creator
@@ -57,6 +57,8 @@ export async function getCollaborativeNetworkDashboardAction() {
 }
 
 export async function createCollaborativeCampaignAction(input: {
+  campaignId?: string;
+  idempotencyKey?: string;
   companyId: string; name: string; description?: string; startsOn?: string; endsOn?: string;
   rewardMode: 'mpm_credits' | 'media_rights'; budgetTotal: number;
   ownTvs: boolean; ownInstagram: boolean; ownFacebook: boolean; ownTikTok: boolean;
@@ -75,6 +77,50 @@ export async function createCollaborativeCampaignAction(input: {
   if (input.collaborativeBusinesses) distributions.push({ destination_type: 'business_social', provider: 'instagram', format: 'story', publication_mode: 'manual', recurrence_type: input.recurrence, budget_limit: input.budgetTotal, reward_per_delivery: 1 });
   if (input.collaborativeCreators) distributions.push({ destination_type: 'creator_social', provider: 'instagram', format: 'story', publication_mode: 'manual', recurrence_type: input.recurrence, budget_limit: input.budgetTotal, reward_per_delivery: 1 });
   if (!distributions.length) return { success: false as const, error: 'Selecione ao menos um destino.' };
+  if (!input.name.trim()) return { success: false as const, error: 'Informe o nome da campanha.' };
+  if (input.budgetTotal < 0) return { success: false as const, error: 'O orçamento total não pode ser negativo.' };
+  if (input.startsOn && input.endsOn && input.endsOn < input.startsOn) {
+    return { success: false as const, error: 'A data de término não pode ser anterior à data de início.' };
+  }
+
+  if (input.campaignId) {
+    const { data: campaign } = await (supabase.from('campaigns') as any)
+      .select('id,company_id,status')
+      .eq('id', input.campaignId)
+      .eq('company_id', input.companyId)
+      .eq('campaign_type', 'collaborative')
+      .maybeSingle();
+    if (!campaign) return { success: false as const, error: 'Campanha não encontrada ou acesso negado.' };
+    if (campaign.status !== 'draft') return { success: false as const, error: 'Somente campanhas em rascunho podem ser alteradas.' };
+
+    const { error: updateError } = await (supabase.from('campaigns') as any).update({
+      name: input.name.trim(), description: input.description?.trim() || null,
+      start_date: input.startsOn || null, end_date: input.endsOn || null,
+      reward_mode: input.rewardMode, budget_total: input.budgetTotal,
+      own_tvs: input.ownTvs, own_social: input.ownInstagram || input.ownFacebook || input.ownTikTok,
+      collaborative_tvs: input.collaborativeTvs, collaborative_businesses: input.collaborativeBusinesses,
+      collaborative_creators: input.collaborativeCreators, updated_at: new Date().toISOString(),
+    }).eq('id', input.campaignId);
+    if (updateError) return { success: false as const, error: updateError.message };
+
+    const { error: deleteError } = await (supabase.from('campaign_distribution_rules') as any)
+      .delete().eq('campaign_id', input.campaignId).eq('status', 'draft');
+    if (deleteError) return { success: false as const, error: deleteError.message };
+    const rows = distributions.map((item) => ({
+      campaign_id: input.campaignId, destination_type: item.destination_type,
+      provider: item.provider || null, format: item.format,
+      publication_mode: item.publication_mode, recurrence_type: item.recurrence_type,
+      budget_limit: item.budget_limit || 0,
+      reward_per_validated_delivery: item.reward_per_delivery || 0,
+      starts_at: input.startsOn ? `${input.startsOn}T00:00:00.000Z` : null,
+      ends_at: input.endsOn ? `${input.endsOn}T23:59:59.999Z` : null,
+      status: 'draft', metadata: { created_from: 'multichannel_wizard' },
+    }));
+    const { error: rulesError } = await (supabase.from('campaign_distribution_rules') as any).insert(rows);
+    if (rulesError) return { success: false as const, error: rulesError.message };
+    revalidatePath('/collaborative-network'); revalidatePath('/campaigns');
+    return { success: true as const, campaignId: input.campaignId, created: false };
+  }
   const { data, error } = await (supabase.rpc as any)('create_collaborative_campaign', {
     p_company_id: input.companyId, p_name: input.name, p_description: input.description || '',
     p_start_date: input.startsOn || null, p_end_date: input.endsOn || null,
@@ -84,11 +130,11 @@ export async function createCollaborativeCampaignAction(input: {
       collaborative_tvs: input.collaborativeTvs, collaborative_businesses: input.collaborativeBusinesses,
       collaborative_creators: input.collaborativeCreators, distributions,
     },
-    p_idempotency_key: crypto.randomUUID(),
+    p_idempotency_key: input.idempotencyKey || crypto.randomUUID(),
   });
   if (error) return { success: false as const, error: error.message };
   revalidatePath('/collaborative-network'); revalidatePath('/campaigns');
-  return { success: true as const, campaignId: data as string };
+  return { success: true as const, campaignId: data as string, created: true };
 }
 
 export async function acceptCollaborativeOfferAction(offerId: string, participantType: 'creator' | 'company', participantId: string, channelId?: string) {
