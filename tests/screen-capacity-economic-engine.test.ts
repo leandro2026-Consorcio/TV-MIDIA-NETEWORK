@@ -6,6 +6,7 @@ import { capacitySummary, certifiedCapacity, commercialSplit, equivalentSlots, m
 
 const migration=fs.readFileSync(path.join(process.cwd(),'supabase/migrations/20260912000389_screen_capacity_economic_engine.sql'),'utf8');
 const rollback=fs.readFileSync(path.join(process.cwd(),'supabase/rollbacks/20260912000389_screen_capacity_economic_engine_rollback.sql'),'utf8');
+const operations=fs.readFileSync(path.join(process.cwd(),'supabase/migrations/20260912000390_screen_capacity_cycle_operations.sql'),'utf8');
 const weekdays=(hours:number)=>[1,2,3,4,5].map(weekday=>({weekday,startMinute:8*60,endMinute:(8+hours)*60}));
 
 test('15 segundos equivalem a uma unidade',()=>assert.equal(equivalentSlots(.25),1));
@@ -40,3 +41,8 @@ test('flags econômicas e cobrança real começam desligadas',()=>{assert.match(
 test('agenda, exceções, diário e certificação existem',()=>{for(const table of ['screen_operating_schedules','screen_schedule_exceptions','screen_capacity_daily','screen_capacity_certifications'])assert.match(migration,new RegExp(`CREATE TABLE public\\.${table}`));});
 test('RLS mantém isolamento por empresa',()=>assert.match(migration,/get_user_company_ids\(\)/));
 test('rollback acompanha a migration',()=>assert.match(rollback,/screen_capacity_plan_versions/));
+test('abertura do ciclo congela snapshot e é idempotente',()=>{assert.match(operations,/initialize_screen_capacity_cycle/);assert.match(operations,/plan_snapshot/);assert.match(operations,/pg_advisory_xact_lock/);});
+test('agenda insuficiente bloqueia oversell do plano',()=>assert.match(operations,/Agenda não comporta os compromissos do plano/));
+test('primeiro ciclo e híbrido posterior são operacionais no ledger de Direito de Mídia',()=>{assert.match(operations,/cycle_number=1/);assert.match(operations,/_post_media_right_entry/);});
+test('liberação por disponibilidade independe de demanda da Rede',()=>assert.match(operations,/demand_independent/));
+test('certificação exige 30 dias estáveis e Master',()=>{assert.match(operations,/samples<30/);assert.match(operations,/Somente Master pode certificar/);});
