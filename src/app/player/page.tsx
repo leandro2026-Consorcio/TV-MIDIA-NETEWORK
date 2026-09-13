@@ -11,6 +11,7 @@ import { getPlayerPlaylistAction, PlayerPlaylistItem } from '@/app/actions/playl
 import { recordPlaybackLogAction, PlaybackLogIngestPayload } from '@/app/actions/playback-logs';
 import { recordInformativeContentLogAction } from '@/app/actions/informative-playback-logs';
 import { InformativeContentCard } from '@/components/informative-content-card';
+import { createClientHeartbeatMetadata } from '@/lib/mpm/player-heartbeat';
 import { Tv, Clock, RefreshCw, AlertCircle, ListVideo, Maximize2 } from 'lucide-react';
 
 interface ScreenInfo {
@@ -180,7 +181,6 @@ export default function PlayerPage() {
 
   const pairingPollInFlightRef = useRef(false);
   const sessionIdRef = useRef<string>('');
-  const buildVersionRef = useRef<string | null>(null);
 
   const statusRef = useRef(status);
   const itemsRef = useRef<PlayerPlaylistItem[]>([]);
@@ -324,8 +324,12 @@ export default function PlayerPage() {
 
   const startDeviceServices = (token: string) => {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
-    heartbeatRef.current = setInterval(async () => {
-      const hb = await heartbeatAction(token);
+    const sendHeartbeat = async () => {
+      const heartbeatId = window.crypto.randomUUID();
+      const hb = await heartbeatAction(
+        token,
+        createClientHeartbeatMetadata(sessionIdRef.current, heartbeatId)
+      );
       if (!hb.success) {
         if (isPermanentDeviceError(hb.error)) {
           clearAllTimers();
@@ -338,15 +342,10 @@ export default function PlayerPage() {
         }
         return;
       }
-
-      const reportedBuildVersion = hb.buildVersion || null;
-      if (reportedBuildVersion) {
-        if (buildVersionRef.current && buildVersionRef.current !== reportedBuildVersion) {
-          window.location.reload();
-          return;
-        }
-        buildVersionRef.current = reportedBuildVersion;
-      }
+    };
+    void sendHeartbeat();
+    heartbeatRef.current = setInterval(() => {
+      void sendHeartbeat();
     }, 30000);
 
     if (flushQueueRef.current) clearInterval(flushQueueRef.current);

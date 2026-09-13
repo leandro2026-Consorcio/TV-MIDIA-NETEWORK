@@ -217,7 +217,7 @@ export default function DashboardLayout({
                 <div>
                   <h3 className="text-sm font-bold text-white">Segurança da Conta: Troca de Senha Recomendada</h3>
                   <p className="text-xs text-slate-300 mt-0.5">
-                    Sua conta está utilizando a senha inicial padrão (<code className="bg-amber-950/60 px-1.5 py-0.5 rounded font-mono text-amber-200">midiapormidia@123</code>). Crie uma senha pessoal exclusiva para proteger seus acessos.
+                    Sua conta ainda está marcada para troca de senha. Crie uma senha pessoal exclusiva para proteger seus acessos.
                   </p>
                 </div>
               </div>

@@ -3,8 +3,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import crypto from 'crypto';
+import type { PlayerHeartbeatMetadata } from '@/lib/mpm/player-heartbeat';
 
-const PLAYER_BUILD_VERSION = process.env.VERCEL_GIT_COMMIT_SHA || process.env.VERCEL_URL || 'development';
+function optionalHeartbeatText(value: unknown, maxLength: number): string | null {
+  if (typeof value !== 'string') return null;
+  const clean = value.trim();
+  return clean ? clean.slice(0, maxLength) : null;
+}
 
 // Helper: Hash SHA-256
 function hashToken(token: string): string {
@@ -358,7 +363,7 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
 /**
  * 4. PLAYER: Heartbeat contínuo enviado com o device_token
  */
-export async function heartbeatAction(deviceToken: string) {
+export async function heartbeatAction(deviceToken: string, clientMetadata?: PlayerHeartbeatMetadata) {
   // Validação estrita contra tokens vazios, nulos ou malformados
   if (!deviceToken || typeof deviceToken !== 'string' || deviceToken.trim().length < 20 || !deviceToken.startsWith('sk_device_')) {
     return { success: false, error: 'Token de dispositivo inválido ou malformado.' };
@@ -373,6 +378,15 @@ export async function heartbeatAction(deviceToken: string) {
   }
   const tokenHash = hashToken(deviceToken);
   const now = new Date().toISOString();
+  const heartbeat = {
+    heartbeatId: optionalHeartbeatText(clientMetadata?.heartbeat_id, 128),
+    sessionId: optionalHeartbeatText(clientMetadata?.player_session_id, 128),
+    playerVersion: optionalHeartbeatText(clientMetadata?.player_version, 64),
+    playerBuild: optionalHeartbeatText(clientMetadata?.player_build, 128),
+    playerCommit: optionalHeartbeatText(clientMetadata?.player_commit, 64),
+    platform: optionalHeartbeatText(clientMetadata?.platform, 128),
+    runtimeVersion: optionalHeartbeatText(clientMetadata?.runtime_version, 128),
+  };
 
   // Localizar a tela pelo Hash SHA-256 do token
   const { data: screen, error } = await (supabase.from('screens') as any)
@@ -401,14 +415,31 @@ export async function heartbeatAction(deviceToken: string) {
   // Falha de agregacao nao pode derrubar o Player nem marcar a TV offline.
   const { error: capacityHeartbeatError } = await (supabase.rpc as any)('record_screen_capacity_heartbeat', {
     p_screen_id: screen.id,
+    p_player_session_id: heartbeat.sessionId,
+    p_heartbeat_id: heartbeat.heartbeatId,
+    p_player_metadata: {
+      player_version: heartbeat.playerVersion,
+      player_build: heartbeat.playerBuild,
+      player_commit: heartbeat.playerCommit,
+      platform: heartbeat.platform,
+      runtime_version: heartbeat.runtimeVersion,
+    },
   });
-  if (capacityHeartbeatError && capacityHeartbeatError.code !== '42883') {
+  if (capacityHeartbeatError?.code === '42883') {
+    // Janela de deploy compatível: enquanto a migration nova ainda não existir,
+    // o heartbeat legado continua alimentando capacidade sem metadata.
+    const { error: legacyHeartbeatError } = await (supabase.rpc as any)('record_screen_capacity_heartbeat', {
+      p_screen_id: screen.id,
+    });
+    if (legacyHeartbeatError && legacyHeartbeatError.code !== '42883') {
+      console.warn('Agregacao de capacidade legada indisponivel:', legacyHeartbeatError.message);
+    }
+  } else if (capacityHeartbeatError) {
     console.warn('Agregacao de capacidade indisponivel:', capacityHeartbeatError.message);
   }
 
   return {
     success: true,
-    buildVersion: PLAYER_BUILD_VERSION,
     screen: {
       id: screen.id,
       name: screen.name,

@@ -16,6 +16,10 @@ const HOMOLOG_EMAILS = {
 export async function GET(request: NextRequest) {
   const stepsDone: Record<string, any> = {};
   try {
+    const homologationPassword = process.env.MPM_HOMOLOGATION_INITIAL_PASSWORD || '';
+    if (homologationPassword.length < 12) {
+      return NextResponse.json({ success: false, error: 'Credencial temporária de homologação não configurada.' }, { status: 503 });
+    }
     const admin = createAdminClient();
     const db: any = admin;
 
@@ -35,7 +39,7 @@ export async function GET(request: NextRequest) {
       if (!found) {
         const { data: newUser, error: createError } = await admin.auth.admin.createUser({
           email,
-          password: 'midiapormidia@123',
+          password: homologationPassword,
           email_confirm: true,
           user_metadata: {
             full_name: `HOMOLOGAÇÃO MPM — ${key.toUpperCase()}`,
@@ -54,9 +58,9 @@ export async function GET(request: NextRequest) {
       if (found) {
         userIds[key] = found.id;
 
-        // Garante que a senha inicial padrão midiapormidia@123 esteja definida e e-mail confirmado
+        // Garante uma credencial temporária exclusiva do ambiente e e-mail confirmado.
         await admin.auth.admin.updateUserById(found.id, {
-          password: 'midiapormidia@123',
+          password: homologationPassword,
           email_confirm: true,
           user_metadata: {
             ...(found.user_metadata || {}),
@@ -467,7 +471,7 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Validação real de login com midiapormidia@123 para os 5 perfis
+    // Validação de login com a credencial temporária exclusiva do ambiente.
     const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
     const loginsValidated: Record<string, { ok: boolean; error?: string }> = {};
@@ -479,7 +483,7 @@ export async function GET(request: NextRequest) {
       for (const [key, email] of Object.entries(HOMOLOG_EMAILS)) {
         const { error: signErr } = await testClient.auth.signInWithPassword({
           email,
-          password: 'midiapormidia@123',
+          password: homologationPassword,
         });
         loginsValidated[key] = { ok: !signErr, error: signErr?.message };
       }
@@ -489,7 +493,6 @@ export async function GET(request: NextRequest) {
       success: true,
       message: 'Homologação provisionada com sucesso.',
       users: userIds,
-      password: 'midiapormidia@123',
       loginsValidated,
       links: {
         leaderToCreator: Boolean(leaderAffiliateId && creatorAffiliateId),

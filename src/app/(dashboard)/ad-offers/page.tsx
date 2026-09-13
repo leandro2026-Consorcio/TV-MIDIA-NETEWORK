@@ -173,7 +173,7 @@ export default function AdOffersPage() {
             </div>
             <h3 className="text-lg font-bold text-white">Nenhum plano de mídia cadastrado ainda</h3>
             <p className="text-slate-400 text-xs max-w-md mx-auto">
-              Sua empresa pode criar planos como "Giro Local 100 CR por R$ 150,00" para vender exposição para anunciantes da região.
+              Sua empresa pode criar planos como &ldquo;Giro Local 100 CR por R$ 150,00&rdquo; para vender exposição para anunciantes da região.
             </p>
             <Link
               href="/ad-offers/new"

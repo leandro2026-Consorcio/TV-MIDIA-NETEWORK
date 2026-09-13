@@ -4,7 +4,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { createClient } from '@/lib/supabase/server';
 import { getPlatformCivilDate, getTrialDaysRemaining } from '@/lib/trial-days';
 import { DEFAULT_PLAN_PRICES, normalizePlanPrices, type PlanPrices } from '@/lib/platform-pricing';
-import { DEFAULT_INITIAL_PASSWORD } from '@/lib/auth-constants';
+import { validatePassword } from '@/lib/auth-constants';
 
 export interface PublicSignupSettings {
   enabled: boolean;
@@ -140,7 +140,7 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
   const payload = {
     fullName: cleanText(input.fullName),
     email: cleanText(input.email, 254).toLowerCase(),
-    password: String(input.password || '').trim() || DEFAULT_INITIAL_PASSWORD,
+    password: String(input.password || '').trim(),
     phone: cleanText(input.phone, 30),
     tradeName: cleanText(input.tradeName),
     corporateName: cleanText(input.corporateName),
@@ -158,7 +158,8 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(payload.email)) {
     return { success: false as const, error: 'Informe um e-mail válido.' };
   }
-  if (payload.password.length < 6) payload.password = DEFAULT_INITIAL_PASSWORD;
+  const passwordCheck = validatePassword(payload.password);
+  if (!passwordCheck.valid) return { success: false as const, error: passwordCheck.error || 'Crie uma senha pessoal válida.' };
   if (!/^[A-Z]{2}$/.test(payload.state)) return { success: false as const, error: 'Informe a UF com duas letras.' };
 
   const rawPhoneDigits = payload.phone.replace(/\D/g, '');
@@ -225,8 +226,8 @@ export async function registerCompanyWithTrialAction(input: CompanySignupInput) 
         full_name: payload.fullName,
         phone: payload.phone,
         signup_origin: 'public_trial',
-        initial_password: payload.password === DEFAULT_INITIAL_PASSWORD,
-        must_change_password: payload.password === DEFAULT_INITIAL_PASSWORD,
+        initial_password: false,
+        must_change_password: false,
       },
     });
     if (error || !data.user) {

@@ -288,7 +288,7 @@ export default function AdminSellerPayoutTransfersPage() {
 
         {batches.length === 0 ? (
           <p className="text-xs text-slate-500 italic py-6 text-center">
-            Nenhum lote de repasse criado até o momento. Clique em "Criar Lote de Repasse" para começar.
+            Nenhum lote de repasse criado até o momento. Clique em &ldquo;Criar Lote de Repasse&rdquo; para começar.
           </p>
         ) : (
           <div className="overflow-x-auto">

@@ -3,7 +3,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import {
-  DEFAULT_INITIAL_PASSWORD,
   validatePassword,
   validateResetEmail,
 } from '@/lib/auth-constants';

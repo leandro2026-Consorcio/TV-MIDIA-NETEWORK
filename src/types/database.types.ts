@@ -5714,11 +5714,17 @@ export type Database = {
           device_token_hash: string | null
           device_type: string
           id: string
+          last_player_session_id: string | null
           last_ping_at: string | null
           location_description: string | null
           name: string
           orientation: string
           paired_at: string | null
+          player_build: string | null
+          player_commit: string | null
+          player_platform: string | null
+          player_runtime_version: string | null
+          player_version: string | null
           resolution: string | null
           status: string
           updated_at: string | null
@@ -5730,11 +5736,17 @@ export type Database = {
           device_token_hash?: string | null
           device_type?: string
           id?: string
+          last_player_session_id?: string | null
           last_ping_at?: string | null
           location_description?: string | null
           name: string
           orientation: string
           paired_at?: string | null
+          player_build?: string | null
+          player_commit?: string | null
+          player_platform?: string | null
+          player_runtime_version?: string | null
+          player_version?: string | null
           resolution?: string | null
           status?: string
           updated_at?: string | null
@@ -5746,11 +5758,17 @@ export type Database = {
           device_token_hash?: string | null
           device_type?: string
           id?: string
+          last_player_session_id?: string | null
           last_ping_at?: string | null
           location_description?: string | null
           name?: string
           orientation?: string
           paired_at?: string | null
+          player_build?: string | null
+          player_commit?: string | null
+          player_platform?: string | null
+          player_runtime_version?: string | null
+          player_version?: string | null
           resolution?: string | null
           status?: string
           updated_at?: string | null

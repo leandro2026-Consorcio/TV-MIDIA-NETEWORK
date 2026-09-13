@@ -2,8 +2,6 @@
  * Constantes e validadores centrais de Autenticação MPM.
  */
 
-export const DEFAULT_INITIAL_PASSWORD = 'midiapormidia@123';
-
 export function validatePassword(password: string): { valid: boolean; error?: string } {
   if (!password || String(password).length < 6) {
     return { valid: false, error: 'A senha deve ter no mínimo 6 caracteres.' };

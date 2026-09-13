@@ -271,7 +271,7 @@ export default function MediaRequestsPage() {
               {req.request_message && (
                 <div className="p-3.5 bg-slate-950 rounded-xl border border-slate-800 text-xs text-slate-300 space-y-1">
                   <span className="text-[10px] text-slate-500 font-bold block">MENSAGEM DA SOLICITAÇÃO:</span>
-                  <p className="italic">"{req.request_message}"</p>
+                  <p className="italic">&ldquo;{req.request_message}&rdquo;</p>
                 </div>
               )}
 

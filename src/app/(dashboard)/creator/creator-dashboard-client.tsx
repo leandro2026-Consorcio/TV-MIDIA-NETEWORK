@@ -1018,7 +1018,7 @@ export function CreatorDashboardClient({
                   className="rounded border-slate-700 text-fuchsia-500 focus:ring-0"
                 />
                 <div>
-                  <div className="text-xs font-bold text-white">Exibir Preço 'A partir de'</div>
+                  <div className="text-xs font-bold text-white">Exibir Preço &lsquo;A partir de&rsquo;</div>
                   <div className="text-[11px] text-slate-400">Exibe os valores no card público e no catálogo.</div>
                 </div>
               </label>

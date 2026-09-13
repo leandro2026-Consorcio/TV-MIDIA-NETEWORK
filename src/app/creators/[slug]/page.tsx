@@ -290,7 +290,7 @@ export default async function CreatorPublicProfilePage({ params }: { params: { s
                       <span className="text-xs font-bold">{rev.rating}/5</span>
                     </div>
                   </div>
-                  {rev.comment && <p className="text-xs text-slate-300 italic">"{rev.comment}"</p>}
+                  {rev.comment && <p className="text-xs text-slate-300 italic">&ldquo;{rev.comment}&rdquo;</p>}
                 </div>
               ))}
             </div>

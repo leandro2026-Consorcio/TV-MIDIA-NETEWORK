@@ -142,7 +142,7 @@ export default function ResetPasswordPage() {
               )}
 
               <div className="mb-6 p-4 bg-sky-500/10 border border-sky-500/20 rounded-xl text-sky-300 text-xs leading-relaxed">
-                <strong>Segurança:</strong> Digite sua nova senha pessoal. Se você utilizava a senha inicial temporária <code className="text-sky-200 bg-sky-950/60 px-1 py-0.5 rounded font-mono">midiapormidia@123</code>, escolha agora uma senha forte e de seu uso exclusivo.
+                <strong>Segurança:</strong> Digite uma senha forte, pessoal e de seu uso exclusivo.
               </div>
 
               <form onSubmit={handleResetPassword} className="space-y-5">
