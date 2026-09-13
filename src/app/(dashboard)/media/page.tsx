@@ -6,8 +6,53 @@ import { createClient } from '@/lib/supabase/client';
 import { Company, MediaAsset } from '@/types';
 import { Image as ImageIcon, Video, Plus, Eye, Clock, Loader2, CheckCircle2, XCircle, Archive, Building2 } from 'lucide-react';
 
+type MediaAssetWithPreview = MediaAsset & {
+  preview_url?: string | null;
+};
+
+function MediaCardPreview({ media }: { media: MediaAssetWithPreview }) {
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const previewUrl = media.preview_url || media.file_url;
+
+  useEffect(() => {
+    setPreviewFailed(false);
+  }, [previewUrl]);
+
+  if (!previewUrl || previewFailed) {
+    return (
+      <div className="text-slate-600 flex flex-col items-center gap-1" role="status">
+        {media.media_type === 'image' ? <ImageIcon className="w-8 h-8" /> : <Video className="w-8 h-8" />}
+        <span className="text-[10px]">Prévia indisponível</span>
+      </div>
+    );
+  }
+
+  if (media.media_type === 'image') {
+    return (
+      <img
+        src={previewUrl}
+        alt=""
+        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+        onError={() => setPreviewFailed(true)}
+      />
+    );
+  }
+
+  return (
+    <video
+      src={previewUrl}
+      className="w-full h-full object-cover"
+      muted
+      aria-label={`Prévia de ${media.title}`}
+      onError={() => setPreviewFailed(true)}
+      onMouseOver={(event) => event.currentTarget.play()}
+      onMouseOut={(event) => event.currentTarget.pause()}
+    />
+  );
+}
+
 export default function MediaListPage() {
-  const [mediaList, setMediaList] = useState<MediaAsset[]>([]);
+  const [mediaList, setMediaList] = useState<MediaAssetWithPreview[]>([]);
   const [filterType, setFilterType] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<string>('all');
   const [filterCompany, setFilterCompany] = useState<string>('all');
@@ -102,7 +147,29 @@ export default function MediaListPage() {
         if (error) {
           console.error('Erro ao buscar mídias:', error);
         } else {
-          setMediaList((data || []) as MediaAsset[]);
+          const mediaAssets = (data || []) as MediaAsset[];
+          const mediaWithSignedPreviews = await Promise.all(
+            mediaAssets.map(async (media) => {
+              if (!media.file_path) {
+                return { ...media, preview_url: media.file_url };
+              }
+
+              const { data: signedPreview, error: signedPreviewError } = await supabase.storage
+                .from('media-assets')
+                .createSignedUrl(media.file_path, 60 * 60);
+
+              if (signedPreviewError) {
+                console.warn(`Não foi possível gerar a prévia da mídia ${media.id}.`);
+              }
+
+              return {
+                ...media,
+                preview_url: signedPreview?.signedUrl || media.file_url,
+              };
+            })
+          );
+
+          setMediaList(mediaWithSignedPreviews);
         }
       } catch (err) {
         console.error('Erro inesperado ao carregar biblioteca:', err);
@@ -264,28 +331,7 @@ export default function MediaListPage() {
             >
               {/* Media Preview Box */}
               <div className="relative aspect-video bg-slate-950 flex items-center justify-center overflow-hidden border-b border-slate-800">
-                {media.file_url ? (
-                  media.media_type === 'image' ? (
-                    <img
-                      src={media.file_url}
-                      alt={media.title}
-                      className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
-                    />
-                  ) : (
-                    <video
-                      src={media.file_url}
-                      className="w-full h-full object-cover"
-                      muted
-                      onMouseOver={(e) => e.currentTarget.play()}
-                      onMouseOut={(e) => e.currentTarget.pause()}
-                    />
-                  )
-                ) : (
-                  <div className="text-slate-600 flex flex-col items-center gap-1">
-                    {media.media_type === 'image' ? <ImageIcon className="w-8 h-8" /> : <Video className="w-8 h-8" />}
-                    <span className="text-[10px]">Sem Preview</span>
-                  </div>
-                )}
+                <MediaCardPreview media={media} />
 
                 {/* Badge Top Left */}
                 <div className="absolute top-2 left-2 flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-950/80 backdrop-blur text-[10px] font-bold text-slate-300 border border-slate-700">
