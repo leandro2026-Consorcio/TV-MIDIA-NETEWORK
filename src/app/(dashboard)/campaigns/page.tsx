@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { formatDateOnlyPtBr } from '@/lib/date-only';
 import { Campaign } from '@/types';
 import { Megaphone, Plus, Eye, CheckCircle2, Clock, PauseCircle, Archive, AlertCircle, Loader2, Store, ArrowRight } from 'lucide-react';
 
@@ -189,8 +190,8 @@ export default function CampaignsPage() {
                     <div className="flex justify-between">
                       <span>Período:</span>
                       <span className="text-slate-300">
-                        {c.start_date ? new Date(c.start_date).toLocaleDateString('pt-BR') : 'Livre'} à{' '}
-                        {c.end_date ? new Date(c.end_date).toLocaleDateString('pt-BR') : 'Livre'}
+                        {c.start_date ? formatDateOnlyPtBr(c.start_date) : 'Livre'} à{' '}
+                        {c.end_date ? formatDateOnlyPtBr(c.end_date) : 'Livre'}
                       </span>
                     </div>
                   </div>

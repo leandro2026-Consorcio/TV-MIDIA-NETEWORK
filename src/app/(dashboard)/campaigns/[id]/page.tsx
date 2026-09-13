@@ -7,6 +7,7 @@ import InternalCampaignEditor from '@/components/internal-campaign-editor';
 import { AdDistributionView } from '@/components/ad-distribution-view';
 import { CampaignResultsTab } from '@/components/campaign-results-tab';
 import { getCampaignDetailsAction } from '@/app/actions/campaigns';
+import { formatDateOnlyPtBr } from '@/lib/date-only';
 import { 
   getCommercialCampaignDetailsAction, 
   processCommercialCampaignDeliveryAction 
@@ -275,7 +276,7 @@ export default function CampaignDetailPage() {
                   <div>
                     <span className="text-slate-500 block">Período Contratado</span>
                     <strong className="text-slate-300 font-mono">
-                      {campaign.start_date || 'Imediato'} a {campaign.end_date || 'A definir'}
+                      {campaign.start_date ? formatDateOnlyPtBr(campaign.start_date) : 'Imediato'} a {campaign.end_date ? formatDateOnlyPtBr(campaign.end_date) : 'A definir'}
                     </strong>
                   </div>
                 </div>

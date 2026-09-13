@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { formatDateOnlyPtBr } from '@/lib/date-only';
 import { Company } from '@/types';
 import { 
   getReceivedMediaRequestsAction, 
@@ -303,7 +304,7 @@ export default function MediaRequestsPage() {
                 <div>
                   <span className="text-[10px] text-slate-500 block font-sans">Período Solicitado</span>
                   <span className="text-slate-300 text-[11px] block">
-                    {req.requested_start_date ? `${req.requested_start_date} a ${req.requested_end_date || 'A combinar'}` : 'A combinar'}
+                    {req.requested_start_date ? `${formatDateOnlyPtBr(req.requested_start_date)} a ${req.requested_end_date ? formatDateOnlyPtBr(req.requested_end_date) : 'A combinar'}` : 'A combinar'}
                   </span>
                 </div>
               </div>

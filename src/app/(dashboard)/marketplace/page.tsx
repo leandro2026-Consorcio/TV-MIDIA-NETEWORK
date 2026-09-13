@@ -42,6 +42,7 @@ import {
   X,
 } from 'lucide-react';
 import { useDashboardCompany } from '@/contexts/dashboard-company-context';
+import { formatDateOnlyPtBr } from '@/lib/date-only';
 
 export default function MarketplacePage() {
   const searchParams = useSearchParams();
@@ -342,7 +343,7 @@ export default function MarketplacePage() {
             {selectedCampaign.start_date && selectedCampaign.end_date && (
               <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-900/80 border border-slate-700 text-slate-300">
                 <Calendar className="w-3.5 h-3.5 text-sky-400" />
-                Período: {new Date(selectedCampaign.start_date).toLocaleDateString('pt-BR')} até {new Date(selectedCampaign.end_date).toLocaleDateString('pt-BR')}
+                Período: {formatDateOnlyPtBr(selectedCampaign.start_date)} até {formatDateOnlyPtBr(selectedCampaign.end_date)}
               </span>
             )}
 
@@ -972,7 +973,7 @@ export default function MarketplacePage() {
                 <div className="flex justify-between">
                   <span className="text-slate-400">Período:</span>
                   <span className="text-slate-200 font-mono">
-                    {new Date(selectedCampaign.start_date).toLocaleDateString('pt-BR')} até {new Date(selectedCampaign.end_date).toLocaleDateString('pt-BR')}
+                    {formatDateOnlyPtBr(selectedCampaign.start_date)} até {formatDateOnlyPtBr(selectedCampaign.end_date)}
                   </span>
                 </div>
               )}
