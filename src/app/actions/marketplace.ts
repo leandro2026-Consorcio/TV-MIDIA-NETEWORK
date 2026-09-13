@@ -450,32 +450,22 @@ export async function requestScreenDistributionAction(input: {
     };
   }
 
-  // Criar Pedido / Solicitação de Veiculação preservando dados da campanha
-  const res = await createMarketplaceRequestAction({
-    offer_id: offerId,
-    buyer_company_id: campaign.company_id,
-    request_message: input.message || `Distribuição da campanha: ${campaign.name}`,
-    requested_start_date: campaign.start_date || undefined,
-    requested_end_date: campaign.end_date || undefined,
-    requested_media_asset_id: mediaId,
-    notes: `Solicitação originada da campanha ID: ${campaign.id} para exibição na tela "${screen.name}" (${screen.id}).`,
+  // Criar a solicitação com campanha + TV na mesma transação e chave idempotente.
+  const { data: result, error: requestError } = await (supabase.rpc as any)('create_campaign_screen_marketplace_request', {
+    p_offer_id: offerId,
+    p_campaign_id: campaign.id,
+    p_screen_id: screen.id,
+    p_media_asset_id: mediaId,
+    p_request_message: input.message || `Distribuição da campanha: ${campaign.name}`,
   });
 
-  if (!res.success) {
-    return { success: false, error: res.error };
-  }
-
-  // Vincular campaign_id no ad_offer_orders recém-criado
-  const orderId = res.result?.order_id || res.result?.id;
-  if (orderId) {
-    await (supabase.from('ad_offer_orders') as any)
-      .update({ campaign_id: campaign.id })
-      .eq('id', orderId);
-  }
+  if (requestError) return { success: false, error: requestError.message };
+  if (!result?.success) return { success: false, error: result?.error || 'Não foi possível criar a solicitação.' };
 
   return {
     success: true,
     mode: 'network_request' as const,
-    message: `Solicitação de veiculação enviada com sucesso para "${screen.company?.trade_name || 'a empresa parceira'}"! Sua campanha "${campaign.name}" e criativo foram vinculados automaticamente sem exigir recriar a campanha do zero.`,
+    duplicate: result.duplicate === true,
+    message: result.message || `Solicitação de veiculação enviada com sucesso para "${screen.company?.trade_name || 'a empresa parceira'}"!`,
   };
 }

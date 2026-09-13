@@ -156,7 +156,12 @@ export default function MarketplacePage() {
   }, [activeTab, selectedCity, selectedCompanyId, selectedSegmentId, selectedNiche, selectedFormat, selectedScreenCategory, verifiedOnly, activeCompany?.id]);
 
   useEffect(() => {
-    if (!campaignId) return;
+    let cancelled = false;
+    setSelectedCampaign(null);
+    setSelectedMediaAssetId('');
+    setHiringScreen(null);
+    setHiringFeedback(null);
+    if (!campaignId) return () => { cancelled = true; };
     async function loadCampaign() {
       try {
         const { data: camp } = await (supabase.from('campaigns') as any)
@@ -164,7 +169,7 @@ export default function MarketplacePage() {
           .eq('id', campaignId)
           .maybeSingle();
 
-        if (!camp) return;
+        if (!camp || cancelled) return;
 
         const { data: cMedia } = await (supabase.from('campaign_media') as any)
           .select('id, media_asset_id, playback_duration_seconds, media_assets(*)')
@@ -175,6 +180,7 @@ export default function MarketplacePage() {
           company: camp.companies,
           campaign_media: cMedia || [],
         };
+        if (cancelled) return;
         setSelectedCampaign(fullCampaign);
         if (cMedia && cMedia.length > 0) {
           const firstId = cMedia[0]?.media_assets?.id || cMedia[0]?.media_asset_id;
@@ -185,6 +191,7 @@ export default function MarketplacePage() {
       }
     }
     loadCampaign();
+    return () => { cancelled = true; };
   }, [campaignId, supabase]);
 
   useEffect(() => {
