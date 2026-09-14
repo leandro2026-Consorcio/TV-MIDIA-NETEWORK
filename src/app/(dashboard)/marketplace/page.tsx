@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -12,7 +12,6 @@ import {
 } from '@/app/actions/marketplace';
 import {
   getMarketplaceCreatorsAction,
-  getMarketplaceScreensAction,
   quoteCreatorMediaAction,
 } from '@/app/actions/marketplace-omnichannel';
 import {
@@ -97,6 +96,7 @@ export default function MarketplacePage() {
 
   const supabase = useMemo(() => createClient(), []);
   const { activeCompany } = useDashboardCompany();
+  const marketplaceRequestSequence = useRef(0);
 
   const loadMarketplaceData = async () => {
     try {
@@ -104,19 +104,40 @@ export default function MarketplacePage() {
       setError(null);
 
       if (activeTab === 'tvs') {
-        const res = await getMarketplaceScreensAction({
-          search: search || undefined,
-          city: selectedCity || undefined,
-          venueCategory: selectedScreenCategory || undefined,
-          viewerCompanyId: activeCompany?.id,
+        // This is a deliberately public, commercial projection. Calling the RPC
+        // through the authenticated browser keeps it on the same Supabase project
+        // as the campaign context instead of relying on an unrelated Server Action
+        // runtime configuration.
+        const requestSequence = ++marketplaceRequestSequence.current;
+        const { data, error: screensError } = await (supabase.rpc as any)('get_marketplace_screens', {
+          p_viewer_company_id: activeCompany?.id || null,
+          p_search: search || null,
+          p_city: selectedCity || null,
+          p_venue_category: selectedScreenCategory || null,
+          p_orientation: null,
+          p_online_only: false,
         });
-        if (res.success) {
-          setScreens(res.screens || []);
-          setScreenCities(res.cities || []);
-          setScreenCategories(res.categories || []);
-        } else {
-          setError(res.error || 'Não foi possível carregar as TVs do Marketplace.');
+        if (requestSequence !== marketplaceRequestSequence.current) return;
+
+        if (screensError) {
+          setScreens([]);
+          setScreenCities([]);
+          setScreenCategories([]);
+          setError(`Não foi possível carregar o Marketplace: ${screensError.message}`);
+          return;
         }
+
+        if (!data || !Array.isArray(data.screens) || !Array.isArray(data.cities) || !Array.isArray(data.categories)) {
+          setScreens([]);
+          setScreenCities([]);
+          setScreenCategories([]);
+          setError('Não foi possível carregar o Marketplace: resposta inválida da projeção de TVs.');
+          return;
+        }
+
+        setScreens(data.screens);
+        setScreenCities(data.cities);
+        setScreenCategories(data.categories);
       } else if (activeTab === 'creators') {
         const res = await getMarketplaceCreatorsAction({
           search: search || undefined,

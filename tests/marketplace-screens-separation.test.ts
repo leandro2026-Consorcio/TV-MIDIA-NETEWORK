@@ -25,6 +25,23 @@ test('Marketplace usa projeção dedicada e não reutiliza a consulta de Minhas 
   assert.doesNotMatch(marketplaceAction, /getMyCompanyScreensAction/);
 });
 
+test('vitrine consome a mesma projeção comercial no cliente autenticado', () => {
+  assert.match(page, /supabase\.rpc as any\)\('get_marketplace_screens'/);
+  assert.match(page, /setScreens\(data\.screens\)/);
+  assert.match(page, /\{screens\.length\}[\s\S]*TVs disponíveis/);
+});
+
+test('resposta inválida ou erro não é apresentada como zero real', () => {
+  assert.match(page, /Não foi possível carregar o Marketplace:/);
+  assert.match(page, /resposta inválida da projeção de TVs/);
+  assert.match(page, /if \(screensError\)/);
+});
+
+test('uma resposta antiga não sobrescreve a consulta mais recente', () => {
+  assert.match(page, /marketplaceRequestSequence/);
+  assert.match(page, /requestSequence !== marketplaceRequestSequence\.current/);
+});
+
 test('projeção inclui A1 e B1 públicas, excluindo C1 privada e P1 residencial', () => {
   assert.match(migration, /s\.is_public_screen = TRUE/);
   assert.match(migration, /s\.venue_type <> 'residential'/);
