@@ -1030,6 +1030,7 @@ export type Database = {
           id: string
           neighborhood: string | null
           state: string
+          timezone: string
           trade_name: string
           updated_at: string | null
         }
@@ -1044,6 +1045,7 @@ export type Database = {
           id?: string
           neighborhood?: string | null
           state: string
+          timezone?: string
           trade_name: string
           updated_at?: string | null
         }
@@ -1058,6 +1060,7 @@ export type Database = {
           id?: string
           neighborhood?: string | null
           state?: string
+          timezone?: string
           trade_name?: string
           updated_at?: string | null
         }
