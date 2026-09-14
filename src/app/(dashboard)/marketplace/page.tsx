@@ -110,7 +110,9 @@ export default function MarketplacePage() {
         // runtime configuration.
         const requestSequence = ++marketplaceRequestSequence.current;
         const { data, error: screensError } = await (supabase.rpc as any)('get_marketplace_screens', {
-          p_viewer_company_id: activeCompany?.id || null,
+          // Viewer identity is not an eligibility filter. Passing it made a later
+          // authenticated refresh replace the public projection with an empty list.
+          p_viewer_company_id: null,
           p_search: search || null,
           p_city: selectedCity || null,
           p_venue_category: selectedScreenCategory || null,
@@ -135,7 +137,10 @@ export default function MarketplacePage() {
           return;
         }
 
-        setScreens(data.screens);
+        setScreens(data.screens.map((screen: any) => ({
+          ...screen,
+          isOwn: Boolean(activeCompany?.id && screen.companyId === activeCompany.id),
+        })));
         setScreenCities(data.cities);
         setScreenCategories(data.categories);
       } else if (activeTab === 'creators') {

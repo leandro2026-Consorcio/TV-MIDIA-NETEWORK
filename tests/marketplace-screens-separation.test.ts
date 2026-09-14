@@ -27,8 +27,14 @@ test('Marketplace usa projeção dedicada e não reutiliza a consulta de Minhas 
 
 test('vitrine consome a mesma projeção comercial no cliente autenticado', () => {
   assert.match(page, /supabase\.rpc as any\)\('get_marketplace_screens'/);
-  assert.match(page, /setScreens\(data\.screens\)/);
+  assert.match(page, /p_viewer_company_id: null/);
+  assert.match(page, /setScreens\(data\.screens\.map/);
   assert.match(page, /\{screens\.length\}[\s\S]*TVs disponíveis/);
+});
+
+test('TV própria é marcada no cliente sem participar do filtro de elegibilidade', () => {
+  assert.match(page, /screen\.companyId === activeCompany\.id/);
+  assert.match(page, /isOwn: Boolean/);
 });
 
 test('resposta inválida ou erro não é apresentada como zero real', () => {
