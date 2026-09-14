@@ -8,6 +8,7 @@ const page = readFileSync(join(root, 'src/app/(dashboard)/marketplace/page.tsx')
 const action = readFileSync(join(root, 'src/app/actions/marketplace.ts'), 'utf8');
 const migration = readFileSync(join(root, 'supabase/migrations/20260913000394_campaign_screen_marketplace_request.sql'), 'utf8');
 const offerResolution = readFileSync(join(root, 'supabase/migrations/20260913000395_marketplace_request_offer_resolution.sql'), 'utf8');
+const civilDateFix = readFileSync(join(root, 'supabase/migrations/20260913000396_marketplace_request_civil_date.sql'), 'utf8');
 
 test('troca de campanha limpa contexto e ignora respostas assíncronas antigas', () => {
   assert.match(page, /setSelectedCampaign\(null\)/);
@@ -44,4 +45,9 @@ test('oferta operacional é reutilizada ou criada atomicamente sem duplicidade c
 test('TV própria preserva vínculo interno e não cria solicitação de Marketplace', () => {
   assert.match(page, /hiringScreen\.companyId === selectedCampaign\.company_id/);
   assert.match(page, /from\('campaign_screens'\)/);
+});
+
+test('fim da campanha respeita a data civil de Cuiabá em vez da data UTC do banco', () => {
+  assert.match(civilDateFix, /now\(\) AT TIME ZONE 'America\/Cuiaba'/);
+  assert.doesNotMatch(civilDateFix, /end_date\s*<\s*CURRENT_DATE/i);
 });
