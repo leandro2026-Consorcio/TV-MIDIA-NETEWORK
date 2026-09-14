@@ -7,8 +7,7 @@ import { createClient } from '@/lib/supabase/client';
 import { CompanyAdOffer } from '@/types';
 import {
   getMarketplaceOffersAction, 
-  getMarketplaceFiltersDataAction,
-  requestScreenDistributionAction 
+  getMarketplaceFiltersDataAction
 } from '@/app/actions/marketplace';
 import {
   getMarketplaceCreatorsAction,
@@ -313,15 +312,32 @@ export default function MarketplacePage() {
     setHiringFeedback(null);
     try {
       const mediaId = selectedMediaAssetId || selectedCampaign.campaign_media?.[0]?.media_assets?.id || selectedCampaign.campaign_media?.[0]?.media_asset_id;
-      const res = await requestScreenDistributionAction({
-        screenId: hiringScreen.id,
-        campaignId: selectedCampaign.id,
-        mediaAssetId: mediaId,
-        message: hiringMessage || undefined,
+
+      if (hiringScreen.companyId === selectedCampaign.company_id) {
+        const { error: linkError } = await (supabase.from('campaign_screens') as any).upsert({
+          campaign_id: selectedCampaign.id,
+          screen_id: hiringScreen.id,
+          is_active: true,
+        }, { onConflict: 'campaign_id,screen_id' });
+
+        if (linkError) {
+          setHiringFeedback({ success: false, message: linkError.message });
+        } else {
+          setHiringFeedback({ success: true, message: `A tela "${hiringScreen.name}" foi vinculada à campanha.` });
+        }
+        return;
+      }
+
+      const { data: res, error: requestError } = await (supabase.rpc as any)('create_campaign_screen_marketplace_request', {
+        p_offer_id: null,
+        p_campaign_id: selectedCampaign.id,
+        p_screen_id: hiringScreen.id,
+        p_media_asset_id: mediaId || null,
+        p_request_message: hiringMessage || null,
       });
 
-      if (!res.success) {
-        setHiringFeedback({ success: false, message: res.error || 'Erro ao processar contratação da tela.' });
+      if (requestError || !res?.success) {
+        setHiringFeedback({ success: false, message: requestError?.message || res?.error || 'Erro ao processar contratação da tela.' });
       } else {
         setHiringFeedback({ success: true, message: res.message || 'Solicitação concluída com sucesso!' });
       }
