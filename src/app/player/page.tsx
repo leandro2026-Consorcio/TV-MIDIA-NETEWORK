@@ -13,6 +13,16 @@ import { recordInformativeContentLogAction } from '@/app/actions/informative-pla
 import { InformativeContentCard } from '@/components/informative-content-card';
 import { ConditionalPwaInstall } from '@/components/conditional-pwa-install';
 import { createClientHeartbeatMetadata } from '@/lib/mpm/player-heartbeat';
+import {
+  PLAYER_ASSET_COOLDOWN_MS,
+  PLAYER_STALL_THRESHOLD_MS,
+  PLAYER_WATCHDOG_INTERVAL_MS,
+  nextPlayableIndex,
+  pendingQueueStartIndex,
+  playableQueueItems,
+  playbackAssetKey,
+  recoveryStepForAttempt,
+} from '@/lib/mpm/player-continuity';
 import { Tv, Clock, RefreshCw, AlertCircle, ListVideo, Maximize2 } from 'lucide-react';
 
 interface ScreenInfo {
@@ -226,6 +236,11 @@ export default function PlayerPage() {
   const slideLogContextRef = useRef<SlideLogContext | null>(null);
   const slideCompletionRef = useRef(false);
   const flushInFlightRef = useRef(false);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const videoRecoveryInFlightRef = useRef(false);
+  const videoRecoveryAttemptsRef = useRef(0);
+  const lastVideoProgressRef = useRef({ currentTime: 0, observedAt: Date.now() });
+  const blockedAssetsUntilRef = useRef<Map<string, number>>(new Map());
 
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatRef = useRef<NodeJS.Timeout | null>(null);
@@ -233,6 +248,8 @@ export default function PlayerPage() {
   const slideTimerRef = useRef<NodeJS.Timeout | null>(null);
   const flushQueueRef = useRef<NodeJS.Timeout | null>(null);
   const programmingRefreshRef = useRef<NodeJS.Timeout | null>(null);
+  const watchdogRef = useRef<NodeJS.Timeout | null>(null);
+  const recoveryReloadRef = useRef<NodeJS.Timeout | null>(null);
 
   const enterPresentationMode = async () => {
     const root = document.documentElement as FullscreenElement;
@@ -324,6 +341,8 @@ export default function PlayerPage() {
     if (slideTimerRef.current) clearTimeout(slideTimerRef.current);
     if (flushQueueRef.current) clearInterval(flushQueueRef.current);
     if (programmingRefreshRef.current) clearInterval(programmingRefreshRef.current);
+    if (watchdogRef.current) clearInterval(watchdogRef.current);
+    if (recoveryReloadRef.current) clearTimeout(recoveryReloadRef.current);
   };
 
   // 2. Fila de Contingência de Logs no localStorage
@@ -426,6 +445,8 @@ export default function PlayerPage() {
     setItems(nextItems);
     setCurrentIndex(safeStartIndex);
     setPlaybackCycle((cycle) => cycle + 1);
+    videoRecoveryAttemptsRef.current = 0;
+    lastVideoProgressRef.current = { currentTime: 0, observedAt: Date.now() };
 
     if (nextItems.length > 0) {
       setStatus('playing');
@@ -479,7 +500,9 @@ export default function PlayerPage() {
       setPlaylistInfo(null);
     }
 
-    const nextItems = res.hasItems && res.items ? res.items : [];
+    const fetchedItems = res.hasItems && res.items ? res.items : [];
+    const nextItems = playableQueueItems(fetchedItems, blockedAssetsUntilRef.current);
+    const everyFetchedItemIsCoolingDown = fetchedItems.length > 0 && nextItems.length === 0;
     const emptyState: PendingEmptyState = !res.hasPlaylist
       ? {
           status: 'no_playlist',
@@ -487,7 +510,9 @@ export default function PlayerPage() {
         }
       : {
           status: 'no_items',
-          message: res.message || 'Programação ativa sem mídias aprovadas.',
+          message: everyFetchedItemIsCoolingDown
+            ? 'A mídia está temporariamente indisponível. O Player tentará recuperar a programação automaticamente.'
+            : res.message || 'Programação ativa sem mídias aprovadas.',
         };
 
     if (background && statusRef.current === 'playing' && itemsRef.current.length > 0) {
@@ -502,6 +527,7 @@ export default function PlayerPage() {
     }
 
     applyProgrammingQueue(nextItems, emptyState);
+    if (everyFetchedItemIsCoolingDown) scheduleProgrammingRecovery();
   };
 
   // 4. Registrar Término da Mídia e Avançar Slide
@@ -573,27 +599,86 @@ export default function PlayerPage() {
         message: 'Aguardando conteúdo programado.',
       };
       const currentItem = currentQueue[currentIndexRef.current];
-      const currentItemIndex = currentItem
-        ? nextQueue.findIndex((item) => item.id === currentItem.id)
-        : -1;
-      const startIndex = currentItemIndex >= 0 && nextQueue.length > 0
-        ? (currentItemIndex + 1) % nextQueue.length
-        : 0;
+      const startIndex = pendingQueueStartIndex(
+        nextQueue,
+        currentItem,
+        blockedAssetsUntilRef.current
+      );
+      if (startIndex === null) {
+        applyProgrammingQueue([], emptyState);
+        scheduleProgrammingRecovery();
+        return;
+      }
       applyProgrammingQueue(nextQueue, emptyState, startIndex);
       return;
     }
 
-    const nextIndex = currentIndexRef.current + 1;
-    if (nextIndex < currentQueue.length) {
-      currentIndexRef.current = nextIndex;
-      setCurrentIndex(nextIndex);
+    const transition = nextPlayableIndex(
+      currentQueue,
+      currentIndexRef.current,
+      blockedAssetsUntilRef.current
+    );
+    if (transition.index !== null) {
+      currentIndexRef.current = transition.index;
+      setCurrentIndex(transition.index);
+      // Repetir o mesmo item ou fazer wrap precisa criar uma execução nova,
+      // ainda que o índice React continue em zero.
+      if (transition.wrapped) setPlaybackCycle((cycle) => cycle + 1);
       return;
     }
 
-    // Fim da última mídia: reinicia deterministicamente na primeira.
-    currentIndexRef.current = 0;
-    setCurrentIndex(0);
-    setPlaybackCycle((cycle) => cycle + 1);
+    setStatus('no_items');
+    setMessage('A mídia está temporariamente indisponível. O Player tentará recuperar a programação automaticamente.');
+    scheduleProgrammingRecovery();
+  };
+
+  const scheduleProgrammingRecovery = () => {
+    if (!deviceToken || recoveryReloadRef.current) return;
+    recoveryReloadRef.current = setTimeout(() => {
+      recoveryReloadRef.current = null;
+      void loadPlaylistAndStartPlayer(deviceToken);
+    }, PLAYER_STALL_THRESHOLD_MS);
+  };
+
+  const recoverVideoPlayback = async (reason: string) => {
+    const video = videoRef.current;
+    const item = itemsRef.current[currentIndexRef.current];
+    if (!video || !item || item.media_type !== 'video' || statusRef.current !== 'playing') return;
+    if (videoRecoveryInFlightRef.current || slideCompletionRef.current) return;
+
+    videoRecoveryInFlightRef.current = true;
+    videoRecoveryAttemptsRef.current += 1;
+    const step = recoveryStepForAttempt(videoRecoveryAttemptsRef.current);
+
+    try {
+      if (step === 'play') {
+        await video.play();
+        lastVideoProgressRef.current = { currentTime: video.currentTime, observedAt: Date.now() };
+        return;
+      }
+
+      if (step === 'reload') {
+        video.load();
+        await video.play();
+        lastVideoProgressRef.current = { currentTime: video.currentTime, observedAt: Date.now() };
+        return;
+      }
+
+      blockedAssetsUntilRef.current.set(
+        playbackAssetKey(item),
+        Date.now() + PLAYER_ASSET_COOLDOWN_MS
+      );
+      console.error('Player colocou mídia em cooldown após falhas de recuperação:', {
+        itemId: item.id,
+        mediaId: item.media_id,
+        reason,
+      });
+      finishCurrentSlideAndLog('failed', reason);
+    } catch (error) {
+      console.warn(`Tentativa de recuperação do vídeo falhou (${step}):`, error);
+    } finally {
+      videoRecoveryInFlightRef.current = false;
+    }
   };
 
   // 5. Início do Slide Atual (Geração de Idempotency Key)
@@ -622,6 +707,28 @@ export default function PlayerPage() {
 
     return () => {
       if (slideTimerRef.current) clearTimeout(slideTimerRef.current);
+    };
+  }, [currentIndex, playbackCycle, status, activeItem]);
+
+  // Watchdog independente do heartbeat: recupera somente vídeo pausado ou sem
+  // progresso anormal, sem tocar em reprodução saudável e sem recarregar a página.
+  useEffect(() => {
+    if (watchdogRef.current) clearInterval(watchdogRef.current);
+    if (status !== 'playing' || activeItem?.media_type !== 'video') return;
+
+    watchdogRef.current = setInterval(() => {
+      const video = videoRef.current;
+      if (!video || video.ended || slideCompletionRef.current) return;
+      const progress = lastVideoProgressRef.current;
+      const stalled = Date.now() - progress.observedAt >= PLAYER_STALL_THRESHOLD_MS;
+      if (video.paused || stalled) {
+        void recoverVideoPlayback(video.paused ? 'Vídeo pausado sem solicitação do usuário' : 'Vídeo sem progresso');
+      }
+    }, PLAYER_WATCHDOG_INTERVAL_MS);
+
+    return () => {
+      if (watchdogRef.current) clearInterval(watchdogRef.current);
+      watchdogRef.current = null;
     };
   }, [currentIndex, playbackCycle, status, activeItem]);
 
@@ -835,13 +942,26 @@ export default function PlayerPage() {
           ) : (
             <video
               key={`${activeItem.id}:${playbackCycle}`}
+              ref={videoRef}
               src={activeItem.signed_url || undefined}
               autoPlay
               muted
               playsInline
               className="w-full h-full object-contain animate-in fade-in duration-500"
               onEnded={() => finishCurrentSlideAndLog('completed')}
-              onError={() => finishCurrentSlideAndLog('failed', 'Erro no codec ou player de vídeo')}
+              onLoadedData={() => void recoverVideoPlayback('Autoplay não iniciou após carregar a mídia')}
+              onPlaying={() => {
+                videoRecoveryAttemptsRef.current = 0;
+                const video = videoRef.current;
+                lastVideoProgressRef.current = { currentTime: video?.currentTime || 0, observedAt: Date.now() };
+              }}
+              onTimeUpdate={(event) => {
+                const currentTime = event.currentTarget.currentTime;
+                if (currentTime > lastVideoProgressRef.current.currentTime) {
+                  lastVideoProgressRef.current = { currentTime, observedAt: Date.now() };
+                }
+              }}
+              onError={() => void recoverVideoPlayback('Erro no codec ou arquivo de vídeo')}
             />
           )}
 
