@@ -35,7 +35,8 @@ export default function LoginPage() {
         return;
       }
 
-      router.push('/dashboard');
+      const nextPath = new URLSearchParams(window.location.search).get('next');
+      router.push(nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//') ? nextPath : '/dashboard');
       router.refresh();
     } catch (err: any) {
       setError(err.message || 'Ocorreu um erro ao realizar login.');

@@ -9,6 +9,7 @@ interface HeaderProps {
   companies: Company[];
   activeCompany: Company | null;
   onSelectCompany: (company: Company) => void;
+  activeRole: string | null;
   onOpenMobileMenu?: () => void;
 }
 
@@ -17,6 +18,7 @@ export function Header({
   companies,
   activeCompany,
   onSelectCompany,
+  activeRole,
   onOpenMobileMenu,
 }: HeaderProps) {
   return (
@@ -52,6 +54,9 @@ export function Header({
             )}
           </p>
           <p className="text-xs text-slate-400 truncate">{profile.email}</p>
+          <p className="text-[10px] font-bold uppercase tracking-wider text-purple-400">
+            Perfil: {profile.is_master_admin ? 'MASTER' : (activeRole || 'SEM ACESSO')}
+          </p>
         </div>
 
         <div className="w-9 h-9 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-sky-400 font-bold text-sm">

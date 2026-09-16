@@ -83,6 +83,7 @@ interface SidebarProps {
   isLeader?: boolean;
   isOrganicOnly?: boolean;
   onClose?: () => void;
+  companyRole?: string | null;
 }
 
 export function Sidebar({
@@ -92,7 +93,8 @@ export function Sidebar({
   isCreator = false,
   isLeader = false,
   isOrganicOnly = false,
-  onClose
+  onClose,
+  companyRole = null,
 }: SidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
@@ -355,9 +357,24 @@ export function Sidebar({
         },
         { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
         { name: 'Segurança da Conta', href: '/admin/account-security', icon: KeyRound },
+        ...(companyRole === 'admin' ? [{ name: 'Usuários e Acessos', href: '/company/users', icon: Users }] : []),
       ]
     }
-  ], []);
+  ], [companyRole]);
+
+  const marketingGroups: NavGroup[] = useMemo(() => [{
+    id: 'midia-marketing',
+    title: 'MÍDIA & CAMPANHAS',
+    items: [
+      { name: 'Início', href: '/dashboard', icon: LayoutDashboard },
+      { name: 'TVs para Planejamento', href: '/screens', icon: Tv },
+      { name: 'Minha Mídia', href: '/media', icon: ImageIcon, subItems: [{ name: 'Playlists', href: '/playlists' }] },
+      { name: 'Marketplace', href: '/marketplace', icon: Store },
+      { name: 'Minhas Campanhas', href: '/campaigns', icon: Megaphone },
+      { name: 'Comprovantes de Exibição', href: '/playback-logs', icon: Play },
+      { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
+    ],
+  }], []);
 
   // 3. Definição para CREATOR
   const creatorGroups: NavGroup[] = useMemo(() => [
@@ -415,7 +432,7 @@ export function Sidebar({
       case 'master':
         return masterGroups;
       case 'company':
-        return companyGroups;
+        return companyRole === 'marketing' ? marketingGroups : companyGroups;
       case 'creator':
         return creatorGroups;
       case 'leader':
@@ -425,7 +442,7 @@ export function Sidebar({
       default:
         return masterGroups;
     }
-  }, [activePerspective, masterGroups, companyGroups, creatorGroups, leaderGroups, organicGroups]);
+  }, [activePerspective, masterGroups, companyGroups, marketingGroups, companyRole, creatorGroups, leaderGroups, organicGroups]);
 
   // Expandir automaticamente o grupo que contém a rota atual
   useEffect(() => {
@@ -543,7 +560,7 @@ export function Sidebar({
           <div className="px-4 py-2.5 bg-slate-950/40 border-b border-slate-800 flex items-center justify-between text-xs font-semibold">
             <span className="text-slate-400 text-[11px]">Perfil:</span>
             <span className="bg-purple-500/10 text-purple-400 border border-purple-500/20 px-2 py-0.5 rounded text-[11px] font-bold capitalize">
-              {activePerspective === 'company' ? 'Empresa Anunciante' : activePerspective === 'creator' ? 'Creator' : activePerspective === 'leader' ? 'Líder MPM' : 'Rede Orgânica'}
+              {activePerspective === 'company' ? (companyRole === 'marketing' ? 'MARKETING' : 'ADMIN') : activePerspective === 'creator' ? 'Creator' : activePerspective === 'leader' ? 'Líder MPM' : 'Rede Orgânica'}
             </span>
           </div>
         )}

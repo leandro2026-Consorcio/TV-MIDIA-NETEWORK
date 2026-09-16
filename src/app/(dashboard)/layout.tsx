@@ -19,6 +19,7 @@ export default function DashboardLayout({
   const [profile, setProfile] = useState<Profile | null>(null);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompany, setActiveCompany] = useState<Company | null>(null);
+  const [companyRoles, setCompanyRoles] = useState<Record<string, string>>({});
   const [isTrial, setIsTrial] = useState(false);
   const [isCreator, setIsCreator] = useState(false);
   const [isLeader, setIsLeader] = useState(false);
@@ -78,11 +79,12 @@ export default function DashboardLayout({
         } else {
           // Busca IDs das empresas do usuário via company_users
           const { data: companyUserRows } = await (supabase.from('company_users') as any)
-            .select('company_id')
+            .select('company_id, role')
             .eq('user_id', user.id)
             .eq('is_active', true);
 
           const companyIds = ((companyUserRows || []) as any[]).map((r) => r.company_id);
+          setCompanyRoles(Object.fromEntries(((companyUserRows || []) as any[]).map((row) => [row.company_id, row.role])));
 
           if (companyIds.length > 0) {
             companiesQuery = (supabase.from('companies') as any)
@@ -157,6 +159,18 @@ export default function DashboardLayout({
     return null;
   }
 
+  const storedCompanyRole = activeCompany ? companyRoles[activeCompany.id] || null : null;
+  const activeRole = profile.is_master_admin
+    ? 'master'
+    : storedCompanyRole === 'admin' ? 'admin' : storedCompanyRole ? 'marketing' : null;
+  const marketingAllowedRoutes = [
+    '/dashboard', '/screens', '/media', '/playlists', '/campaigns', '/marketplace',
+    '/playback-logs', '/help/getting-started', '/reset-password',
+  ];
+  const marketingRouteAllowed = activeRole !== 'marketing' || marketingAllowedRoutes.some(
+    (route) => pathname === route || pathname.startsWith(`${route}/`)
+  );
+
   return (
     <div className="min-h-screen max-w-full bg-slate-950 text-slate-100 flex">
       {/* Mobile Drawer Overlay */}
@@ -175,6 +189,7 @@ export default function DashboardLayout({
               isCreator={isCreator}
               isLeader={isLeader}
               isOrganicOnly={isOrganicOnly && companies.length === 0}
+              companyRole={activeRole}
               onClose={() => setIsMobileMenuOpen(false)}
             />
           </div>
@@ -190,6 +205,7 @@ export default function DashboardLayout({
           isCreator={isCreator}
           isLeader={isLeader}
           isOrganicOnly={isOrganicOnly && companies.length === 0}
+          companyRole={activeRole}
         />
       </div>
 
@@ -199,6 +215,7 @@ export default function DashboardLayout({
           profile={profile}
           companies={companies}
           activeCompany={activeCompany}
+          activeRole={activeRole}
           onSelectCompany={(company) => {
             setActiveCompany(company);
             window.sessionStorage.setItem('mpm.activeCompanyId', company.id);
@@ -238,8 +255,12 @@ export default function DashboardLayout({
               </div>
             </div>
           )}
-          <DashboardCompanyProvider activeCompany={activeCompany}>
-            {children}
+          <DashboardCompanyProvider activeCompany={activeCompany} key={activeCompany?.id || 'no-company'} activeRole={activeRole} isMasterAdmin={Boolean(profile.is_master_admin)}>
+            {marketingRouteAllowed ? children : (
+              <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
+                O perfil MARKETING não possui acesso a esta área administrativa.
+              </div>
+            )}
           </DashboardCompanyProvider>
         </main>
       </div>

@@ -18,6 +18,7 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith('/auth/') ||
     pathname.startsWith('/verify-coupon') ||
     pathname.startsWith('/invite/') ||
+    pathname.startsWith('/company-invite/') ||
     pathname.startsWith('/player') ||
     pathname.startsWith('/tv') ||
     pathname.startsWith('/organic-tv') ||

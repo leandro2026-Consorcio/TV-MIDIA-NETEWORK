@@ -55,7 +55,7 @@ export type SellerPayoutBatch = Database['public']['Tables']['seller_payout_batc
 export type SellerPayoutBatchItem = Database['public']['Tables']['seller_payout_batch_items']['Row'];
 export type SellerPayoutTransfer = Database['public']['Tables']['seller_payout_transfers']['Row'];
 
-export type UserRole = 'admin' | 'operator' | 'external';
+export type UserRole = 'admin' | 'marketing' | 'operator' | 'external';
 export type ScreenOrientation = 'horizontal' | 'vertical';
 export type ScreenDeviceType = 'tv' | 'windows_monitor';
 export type ScreenStatus = 'pending_pairing' | 'online' | 'offline' | 'inactive';
