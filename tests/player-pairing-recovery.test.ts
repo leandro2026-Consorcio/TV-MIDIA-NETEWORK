@@ -14,6 +14,10 @@ test('TV sem vínculo possui recuperação explícita e URL para forçar novo pa
   assert.match(player, /clearStoredDeviceToken\(\)/);
   assert.match(player, /Gerar código de pareamento/);
   assert.match(player, /midiapormidia\.com\.br\/tv\?parear=1/);
+  assert.match(player, /createCompatiblePlayerId\('sess'\)/);
+  assert.match(player, /createCompatiblePlayerId\('pair'\)/);
+  assert.doesNotMatch(player, /window\.crypto\.randomUUID\(\)/);
+  assert.match(player, /gere um novo código abaixo/);
 });
 
 test('chamadas iniciais do Player não deixam a TV presa eternamente em loading', () => {

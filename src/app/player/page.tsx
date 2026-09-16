@@ -58,6 +58,23 @@ const DEVICE_TOKEN_KEY = 'rede_indoor_device_token';
 const PENDING_PAIRING_KEY = 'rede_indoor_pending_pairing';
 const PLAYER_REQUEST_TIMEOUT_MS = 15000;
 
+function createCompatiblePlayerId(prefix: string): string {
+  if (typeof window !== 'undefined' && window.crypto) {
+    const cryptoApi = window.crypto as Crypto & { randomUUID?: () => string };
+    if (typeof cryptoApi.randomUUID === 'function') {
+      return cryptoApi.randomUUID();
+    }
+    if (typeof cryptoApi.getRandomValues === 'function') {
+      const bytes = new Uint8Array(16);
+      cryptoApi.getRandomValues(bytes);
+      const randomHex = Array.from(bytes, (byte) => (`0${byte.toString(16)}`).slice(-2)).join('');
+      return `${prefix}_${randomHex}`;
+    }
+  }
+
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}_${Math.random().toString(36).slice(2)}`;
+}
+
 async function withPlayerTimeout<T>(request: Promise<T>, operation: string): Promise<T> {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   try {
@@ -275,7 +292,7 @@ export default function PlayerPage() {
 
   // 1. Inicialização do Player e Session ID
   useEffect(() => {
-    sessionIdRef.current = typeof window !== 'undefined' ? window.crypto.randomUUID() : 'sess_' + Date.now();
+    sessionIdRef.current = createCompatiblePlayerId('sess');
     const forcePairing = typeof window !== 'undefined'
       && new URLSearchParams(window.location.search).get('parear') === '1';
 
@@ -359,7 +376,7 @@ export default function PlayerPage() {
   const startDeviceServices = (token: string) => {
     if (heartbeatRef.current) clearInterval(heartbeatRef.current);
     const sendHeartbeat = async () => {
-      const heartbeatId = window.crypto.randomUUID();
+      const heartbeatId = createCompatiblePlayerId('heartbeat');
       const hb = await heartbeatAction(
         token,
         createClientHeartbeatMetadata(sessionIdRef.current, heartbeatId)
@@ -696,7 +713,7 @@ export default function PlayerPage() {
       clearPendingPairing();
     }
 
-    const secret = `${window.crypto.randomUUID()}_${Math.random().toString(36).substring(2)}`;
+    const secret = `${createCompatiblePlayerId('pair')}_${Math.random().toString(36).substring(2)}`;
     let res;
     try {
       res = await withPlayerTimeout(
@@ -906,8 +923,15 @@ export default function PlayerPage() {
           <RefreshCw className="w-12 h-12 animate-spin text-sky-400" />
           <p className="text-slate-400 text-lg font-medium">Verificando o vínculo desta TV...</p>
           <p className="max-w-md text-xs leading-relaxed text-slate-500">
-            Se esta TV nunca foi pareada ou o código não aparecer, use <strong className="text-slate-300">Gerar código de pareamento</strong> no canto superior direito.
+            Se esta TV nunca foi pareada ou o código não aparecer, gere um novo código abaixo.
           </p>
+          <button
+            type="button"
+            onClick={() => void forgetDeviceAndPairAgain()}
+            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-7 py-4 text-base font-bold text-white shadow-xl transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+          >
+            <RefreshCw className="h-5 w-5" /> Gerar código de pareamento
+          </button>
         </div>
       )}
 
