@@ -27,6 +27,7 @@ export async function updateSession(request: NextRequest) {
     pathname === '/exclusao-de-dados' ||
     pathname.startsWith('/downloads/') ||
     pathname === '/manifest.webmanifest' ||
+    pathname === '/mpm-tv-sw.js' ||
     pathname.startsWith('/api/');
 
   // Rotas públicas precisam funcionar mesmo quando o provedor de autenticação

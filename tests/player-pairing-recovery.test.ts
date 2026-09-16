@@ -7,6 +7,7 @@ const root = process.cwd();
 const player = fs.readFileSync(path.join(root, 'src/app/player/page.tsx'), 'utf8');
 const screen = fs.readFileSync(path.join(root, 'src/app/(dashboard)/screens/[id]/page.tsx'), 'utf8');
 const serviceWorker = fs.readFileSync(path.join(root, 'public/mpm-tv-sw.js'), 'utf8');
+const middleware = fs.readFileSync(path.join(root, 'src/lib/supabase/middleware.ts'), 'utf8');
 
 test('TV sem vínculo possui recuperação explícita e URL para forçar novo pareamento', () => {
   assert.match(player, /get\('parear'\) === '1'/);
@@ -36,4 +37,5 @@ test('Player oferece instalação como app quando o navegador da TV suporta PWA'
   assert.match(screen, /modo quiosque\/inicialização do aparelho/);
   assert.match(screen, /instalador nativo abaixo, que já prepara a autoexecução/);
   assert.match(serviceWorker, /network-first/);
+  assert.match(middleware, /pathname === '\/mpm-tv-sw\.js'/);
 });
