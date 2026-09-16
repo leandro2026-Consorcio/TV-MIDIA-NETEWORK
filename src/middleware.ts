@@ -1,7 +1,12 @@
-import { type NextRequest } from 'next/server';
+import { NextResponse, type NextRequest } from 'next/server';
 import { updateSession } from '@/lib/supabase/middleware';
 
 export async function middleware(request: NextRequest) {
+  if (request.nextUrl.pathname === '/player') {
+    const url = request.nextUrl.clone();
+    url.pathname = '/tv';
+    return NextResponse.redirect(url, 308);
+  }
   return await updateSession(request);
 }
 

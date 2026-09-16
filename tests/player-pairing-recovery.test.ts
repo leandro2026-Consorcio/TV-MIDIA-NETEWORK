@@ -8,10 +8,12 @@ const player = fs.readFileSync(path.join(root, 'src/app/player/page.tsx'), 'utf8
 const screen = fs.readFileSync(path.join(root, 'src/app/(dashboard)/screens/[id]/page.tsx'), 'utf8');
 const serviceWorker = fs.readFileSync(path.join(root, 'public/mpm-tv-sw.js'), 'utf8');
 const middleware = fs.readFileSync(path.join(root, 'src/lib/supabase/middleware.ts'), 'utf8');
+const rootMiddleware = fs.readFileSync(path.join(root, 'src/middleware.ts'), 'utf8');
 const tvPage = fs.readFileSync(path.join(root, 'src/app/tv/page.tsx'), 'utf8');
 const nativePairingStart = fs.readFileSync(path.join(root, 'src/app/api/tv/pairing/start/route.ts'), 'utf8');
 const nativePairingStatus = fs.readFileSync(path.join(root, 'src/app/api/tv/pairing/status/route.ts'), 'utf8');
 const legacyTvPage = fs.readFileSync(path.join(root, 'src/app/tv-legado/page.tsx'), 'utf8');
+const pairingActions = fs.readFileSync(path.join(root, 'src/app/actions/pairing.ts'), 'utf8');
 
 test('TV sem vínculo possui recuperação explícita e URL para forçar novo pareamento', () => {
   assert.match(player, /get\('parear'\) === '1'/);
@@ -35,6 +37,12 @@ test('rota /tv sem token usa pareamento nativo independente de JavaScript', () =
   assert.match(legacyTvPage, /redirect\('\/api\/tv\/pairing\/start'\)/);
   assert.match(screen, /midiapormidia\.com\.br\/tv-legado/);
   assert.match(screen, /sem depender de JavaScript/);
+  assert.match(legacyTvPage, /novo === '1'/);
+  assert.match(nativePairingStatus, /result\.status === 'decryption_failed'/);
+  assert.match(pairingActions, /\.eq\('status', 'pending'\)/);
+  assert.match(pairingActions, /O painel não pode deixar a tela falsamente online/);
+  assert.match(rootMiddleware, /pathname === '\/player'/);
+  assert.match(rootMiddleware, /url\.pathname = '\/tv'/);
 });
 
 test('chamadas iniciais do Player não deixam a TV presa eternamente em loading', () => {

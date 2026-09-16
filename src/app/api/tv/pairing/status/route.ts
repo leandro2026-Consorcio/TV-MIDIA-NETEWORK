@@ -36,7 +36,13 @@ export async function GET(request: NextRequest) {
     return response;
   }
 
-  if (result.status === 'not_found' || result.status === 'invalid_secret' || result.status === 'server_error' || result.status === 'paired') {
+  if (
+    result.status === 'not_found' ||
+    result.status === 'invalid_secret' ||
+    result.status === 'server_error' ||
+    result.status === 'decryption_failed' ||
+    result.status === 'paired'
+  ) {
     const response = new NextResponse(statusHtml({ code, state: 'error' }), {
       status: 503,
       headers: htmlHeaders(),

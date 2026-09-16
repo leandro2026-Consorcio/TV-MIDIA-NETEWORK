@@ -320,7 +320,7 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
   const encryptedPayload = encryptToken(rawDeviceToken, pairingSecretHash);
 
   // 7. Atualizar a Tabela Screens (Salva APENAS o HASH SHA-256 do token)
-  const { error: screenUpdateErr } = await (supabaseAdmin.from('screens') as any)
+  const { data: updatedScreen, error: screenUpdateErr } = await (supabaseAdmin.from('screens') as any)
     .update({
       device_token_hash: tokenHash,
       status: 'online',
@@ -328,14 +328,16 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
       last_ping_at: now,
       updated_at: now,
     })
-    .eq('id', screenId);
+    .eq('id', screenId)
+    .select('id')
+    .single();
 
-  if (screenUpdateErr) {
+  if (screenUpdateErr || !updatedScreen) {
     return { success: false, error: 'Erro ao vincular dispositivo à tela.' };
   }
 
   // 8. Atualizar screen_pairing_codes (Armazena APENAS o payload CRIPTOGRAFADO em AES-256-GCM)
-  await (supabaseAdmin.from('screen_pairing_codes') as any)
+  const { data: pairedCode, error: pairingUpdateErr } = await (supabaseAdmin.from('screen_pairing_codes') as any)
     .update({
       status: 'paired',
       screen_id: screenId,
@@ -343,7 +345,33 @@ export async function pairScreenAction(screenId: string, pairingCode: string) {
       encrypted_device_token: encryptedPayload,
       paired_at: now,
     })
-    .eq('id', codeRow.id);
+    .eq('id', codeRow.id)
+    .eq('status', 'pending')
+    .select('id, status, screen_id, encrypted_device_token')
+    .single();
+
+  if (
+    pairingUpdateErr ||
+    !pairedCode ||
+    pairedCode.status !== 'paired' ||
+    pairedCode.screen_id !== screenId ||
+    !pairedCode.encrypted_device_token
+  ) {
+    // O painel não pode deixar a tela falsamente online se o token não ficou
+    // disponível para retirada pelo dispositivo.
+    await (supabaseAdmin.from('screens') as any)
+      .update({
+        device_token_hash: screen.device_token_hash || null,
+        status: screen.status || 'pending_pairing',
+        paired_at: screen.paired_at || null,
+        last_ping_at: screen.last_ping_at || null,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', screenId);
+
+    console.error('Falha ao concluir entrega do token de pareamento:', pairingUpdateErr);
+    return { success: false, error: 'O código não pôde ser entregue à TV. Gere um novo código e tente novamente.' };
+  }
 
   // 9. Log de Auditoria
   await (supabase.from('audit_logs') as any).insert({
