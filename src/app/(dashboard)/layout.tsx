@@ -255,7 +255,7 @@ export default function DashboardLayout({
               </div>
             </div>
           )}
-          <DashboardCompanyProvider activeCompany={activeCompany} key={activeCompany?.id || 'no-company'} activeRole={activeRole} isMasterAdmin={Boolean(profile.is_master_admin)}>
+          <DashboardCompanyProvider activeCompany={activeCompany} companies={companies} key={activeCompany?.id || 'no-company'} activeRole={activeRole} isMasterAdmin={Boolean(profile.is_master_admin)}>
             {marketingRouteAllowed ? children : (
               <div className="rounded-2xl border border-rose-500/20 bg-rose-500/10 p-6 text-sm text-rose-300">
                 O perfil MARKETING não possui acesso a esta área administrativa.

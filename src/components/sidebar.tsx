@@ -357,7 +357,7 @@ export function Sidebar({
         },
         { name: 'Ajuda', href: '/help/getting-started', icon: CircleHelp },
         { name: 'Segurança da Conta', href: '/admin/account-security', icon: KeyRound },
-        ...(companyRole === 'admin' ? [{ name: 'Usuários e Acessos', href: '/company/users', icon: Users }] : []),
+        ...((companyRole === 'admin' || isMasterAdmin) ? [{ name: 'Usuários e Acessos', href: '/company/users', icon: Users }] : []),
       ]
     }
   ], [companyRole]);

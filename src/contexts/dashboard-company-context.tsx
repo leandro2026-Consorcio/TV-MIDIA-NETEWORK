@@ -5,20 +5,22 @@ import { Company } from '@/types';
 
 type DashboardCompanyContextValue = {
   activeCompany: Company | null;
+  companies: Company[];
   activeRole: string | null;
   isMasterAdmin: boolean;
 };
 
-const DashboardCompanyContext = createContext<DashboardCompanyContextValue>({ activeCompany: null, activeRole: null, isMasterAdmin: false });
+const DashboardCompanyContext = createContext<DashboardCompanyContextValue>({ activeCompany: null, companies: [], activeRole: null, isMasterAdmin: false });
 
 export function DashboardCompanyProvider({
   activeCompany,
+  companies,
   activeRole,
   isMasterAdmin,
   children,
 }: DashboardCompanyContextValue & { children: React.ReactNode }) {
   return (
-    <DashboardCompanyContext.Provider value={{ activeCompany, activeRole, isMasterAdmin }}>
+    <DashboardCompanyContext.Provider value={{ activeCompany, companies, activeRole, isMasterAdmin }}>
       {children}
     </DashboardCompanyContext.Provider>
   );

@@ -1,13 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Copy, Loader2, Plus, ShieldCheck, Trash2, UserCog, X } from 'lucide-react';
+import { Copy, KeyRound, Loader2, Plus, ShieldCheck, Trash2, UserCog, X } from 'lucide-react';
 import { useDashboardCompany } from '@/contexts/dashboard-company-context';
 import {
   changeCompanyUserRoleAction,
   inviteCompanyUserAction,
   listCompanyAccessAction,
   removeCompanyUserAction,
+  resetCompanyUserPasswordAction,
   type CompanyAccessRole,
 } from '@/app/actions/company-users';
 
@@ -19,7 +20,7 @@ type Member = {
 type Invite = { id: string; email: string; role: string; status: string; invited_at: string; expires_at: string; accepted_at: string | null };
 
 export default function CompanyUsersPage() {
-  const { activeCompany, activeRole, isMasterAdmin } = useDashboardCompany();
+  const { activeCompany, companies, activeRole, isMasterAdmin } = useDashboardCompany();
   const [members, setMembers] = useState<Member[]>([]);
   const [invites, setInvites] = useState<Invite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,7 @@ export default function CompanyUsersPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div><p className="text-xs font-bold uppercase tracking-wider text-sky-400">Configurações</p><h1 className="text-2xl font-black text-white">Usuários e Acessos</h1><p className="text-sm text-slate-400">{activeCompany.trade_name}</p></div>
+        <div><p className="text-xs font-bold uppercase tracking-wider text-sky-400">Configurações</p><h1 className="text-2xl font-black text-white">Usuários e Acessos</h1><label className="mt-2 flex items-center gap-2 text-xs text-slate-400">Empresa ativa<select value={activeCompany.id} onChange={(event) => { window.sessionStorage.setItem('mpm.activeCompanyId', event.target.value); window.location.reload(); }} className="rounded-lg border border-slate-700 bg-slate-950 px-2 py-1 text-xs font-bold text-white">{companies.map((company) => <option key={company.id} value={company.id}>{company.trade_name}</option>)}</select></label></div>
         <button onClick={() => { setShowInvite(true); setInviteUrl(''); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-sky-500 px-4 py-3 text-sm font-bold text-white hover:bg-sky-600"><Plus className="h-4 w-4" /> ADICIONAR USUÁRIO</button>
       </div>
 
@@ -83,7 +84,7 @@ export default function CompanyUsersPage() {
       <div className="overflow-hidden rounded-2xl border border-slate-800 bg-slate-900">
         {loading ? <div className="flex justify-center p-12"><Loader2 className="h-6 w-6 animate-spin text-sky-400" /></div> : (
           <div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left text-sm"><thead className="bg-slate-950 text-xs uppercase text-slate-500"><tr><th className="p-4">Nome</th><th className="p-4">E-mail</th><th className="p-4">Perfil</th><th className="p-4">Status</th><th className="p-4">Último acesso</th><th className="p-4">Ações</th></tr></thead><tbody className="divide-y divide-slate-800">
-            {members.map((member) => <tr key={member.membership_id} className={!member.is_active ? 'opacity-50' : ''}><td className="p-4 font-semibold text-white">{member.full_name || 'Sem nome'}</td><td className="p-4 text-slate-300">{member.email}</td><td className="p-4"><select disabled={busy || !member.is_active} value={member.role === 'admin' ? 'admin' : 'marketing'} onChange={(e) => void changeRole(member.user_id, e.target.value as CompanyAccessRole)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-200"><option value="admin">ADMIN</option><option value="marketing">MARKETING</option></select></td><td className="p-4"><span className={`rounded-full px-2 py-1 text-xs font-bold ${member.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>{member.is_active ? 'ATIVO' : 'REMOVIDO'}</span></td><td className="p-4 text-xs text-slate-400">{member.last_access_at ? new Date(member.last_access_at).toLocaleString('pt-BR') : 'Não disponível'}</td><td className="p-4"><button disabled={busy || !member.is_active} onClick={() => void remove(member.user_id)} className="rounded-lg p-2 text-rose-400 hover:bg-rose-500/10" title="Remover acesso"><Trash2 className="h-4 w-4" /></button></td></tr>)}
+            {members.map((member) => <tr key={member.membership_id} className={!member.is_active ? 'opacity-50' : ''}><td className="p-4 font-semibold text-white">{member.full_name || 'Sem nome'}</td><td className="p-4 text-slate-300">{member.email}</td><td className="p-4"><select disabled={busy || !member.is_active} value={member.role === 'admin' ? 'admin' : 'marketing'} onChange={(e) => void changeRole(member.user_id, e.target.value as CompanyAccessRole)} className="rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs font-bold text-slate-200"><option value="admin">ADMIN</option><option value="marketing">MARKETING</option></select></td><td className="p-4"><span className={`rounded-full px-2 py-1 text-xs font-bold ${member.is_active ? 'bg-emerald-500/10 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>{member.is_active ? 'ATIVO' : 'REMOVIDO'}</span></td><td className="p-4 text-xs text-slate-400">{member.last_access_at ? new Date(member.last_access_at).toLocaleString('pt-BR') : 'Não disponível'}</td><td className="p-4"><div className="flex items-center gap-1"><button disabled={busy || !member.is_active} onClick={async () => { if (!activeCompany || !window.confirm('Enviar e-mail de redefinição para este usuário?')) return; setBusy(true); setError(null); const result = await resetCompanyUserPasswordAction(activeCompany.id, member.user_id); if (!result.success) setError(result.error); else window.alert('E-mail de redefinição enviado.'); setBusy(false); }} className="rounded-lg p-2 text-sky-400 hover:bg-sky-500/10" title="Resetar senha"><KeyRound className="h-4 w-4" /></button><button disabled={busy || !member.is_active} onClick={() => void remove(member.user_id)} className="rounded-lg p-2 text-rose-400 hover:bg-rose-500/10" title="Remover acesso"><Trash2 className="h-4 w-4" /></button></div></td></tr>)}
           </tbody></table></div>
         )}
       </div>

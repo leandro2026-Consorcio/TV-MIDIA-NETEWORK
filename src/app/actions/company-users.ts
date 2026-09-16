@@ -69,6 +69,20 @@ export async function removeCompanyUserAction(companyId: string, userId: string)
   return error ? { success: false as const, error: error.message } : { success: true as const };
 }
 
+export async function resetCompanyUserPasswordAction(companyId: string, userId: string) {
+  const supabase = createClient();
+  const { data: allowed, error: allowedError } = await (supabase.rpc as any)('is_company_admin', { p_company_id: companyId });
+  if (allowedError || !allowed) return { success: false as const, error: 'Apenas ADMIN da empresa ou MASTER pode resetar senhas.' };
+  const { data: profile, error: profileError } = await (supabase.from('profiles') as any).select('email').eq('id', userId).maybeSingle();
+  if (profileError || !profile?.email) return { success: false as const, error: 'Usuário não encontrado.' };
+  const configuredUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+  const baseUrl = configuredUrl || (vercelUrl ? `https://${vercelUrl}` : 'https://midiapormidia.com.br');
+  const admin = createAdminClient();
+  const { error } = await admin.auth.resetPasswordForEmail(profile.email, { redirectTo: `${baseUrl.replace(/\/$/, '')}/auth/callback?next=/reset-password` });
+  return error ? { success: false as const, error: 'Não foi possível enviar o e-mail de redefinição.' } : { success: true as const };
+}
+
 export async function getPublicCompanyInviteAction(token: string) {
   if (!/^[a-f0-9]{48}$/i.test(token)) return { success: false as const, error: 'Convite inválido.' };
   const admin = createAdminClient();
