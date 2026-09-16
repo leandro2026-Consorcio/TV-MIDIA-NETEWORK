@@ -11,6 +11,7 @@ import { getPlayerPlaylistAction, PlayerPlaylistItem } from '@/app/actions/playl
 import { recordPlaybackLogAction, PlaybackLogIngestPayload } from '@/app/actions/playback-logs';
 import { recordInformativeContentLogAction } from '@/app/actions/informative-playback-logs';
 import { InformativeContentCard } from '@/components/informative-content-card';
+import { ConditionalPwaInstall } from '@/components/conditional-pwa-install';
 import { createClientHeartbeatMetadata } from '@/lib/mpm/player-heartbeat';
 import { Tv, Clock, RefreshCw, AlertCircle, ListVideo, Maximize2 } from 'lucide-react';
 
@@ -55,6 +56,24 @@ type FullscreenElement = HTMLElement & {
 
 const DEVICE_TOKEN_KEY = 'rede_indoor_device_token';
 const PENDING_PAIRING_KEY = 'rede_indoor_pending_pairing';
+const PLAYER_REQUEST_TIMEOUT_MS = 15000;
+
+async function withPlayerTimeout<T>(request: Promise<T>, operation: string): Promise<T> {
+  let timeout: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      request,
+      new Promise<T>((_, reject) => {
+        timeout = setTimeout(
+          () => reject(new Error(`${operation} excedeu o tempo de resposta.`)),
+          PLAYER_REQUEST_TIMEOUT_MS
+        );
+      }),
+    ]);
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
+}
 
 function readCookie(name: string): string | null {
   const prefix = `${name}=`;
@@ -223,6 +242,12 @@ export default function PlayerPage() {
     document.documentElement.classList.add('tv-presentation-root');
     document.body.classList.add('tv-presentation-root');
 
+    if ('serviceWorker' in navigator && window.location.pathname === '/tv') {
+      void navigator.serviceWorker.register('/mpm-tv-sw.js', { scope: '/tv' }).catch((error) => {
+        console.warn('Instalação do app da TV indisponível neste navegador:', error);
+      });
+    }
+
     const syncFullscreenState = () => {
       const fullscreenDocument = document as FullscreenDocument;
       setIsFullscreen(!!(document.fullscreenElement || fullscreenDocument.webkitFullscreenElement));
@@ -251,7 +276,16 @@ export default function PlayerPage() {
   // 1. Inicialização do Player e Session ID
   useEffect(() => {
     sessionIdRef.current = typeof window !== 'undefined' ? window.crypto.randomUUID() : 'sess_' + Date.now();
-    const savedToken = typeof window !== 'undefined' ? readStoredDeviceToken() : null;
+    const forcePairing = typeof window !== 'undefined'
+      && new URLSearchParams(window.location.search).get('parear') === '1';
+
+    if (forcePairing) {
+      clearStoredDeviceToken();
+      clearPendingPairing();
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+
+    const savedToken = !forcePairing && typeof window !== 'undefined' ? readStoredDeviceToken() : null;
 
     if (savedToken) {
       setDeviceToken(savedToken);
@@ -387,7 +421,21 @@ export default function PlayerPage() {
 
   // 3. Carregar a programação sem interromper a mídia atualmente em exibição.
   const loadPlaylistAndStartPlayer = async (token: string, background = false) => {
-    const res = await getPlayerPlaylistAction(token);
+    let res;
+    try {
+      res = await withPlayerTimeout(
+        getPlayerPlaylistAction(token),
+        'A verificação do vínculo da TV'
+      );
+    } catch (error) {
+      if (background && statusRef.current === 'playing') {
+        console.warn('Atualização temporariamente indisponível:', error);
+        return;
+      }
+      setStatus('error');
+      setMessage('Não foi possível confirmar o vínculo desta TV. Gere um novo código de pareamento abaixo.');
+      return;
+    }
 
     if (!res.success) {
       if (isPermanentDeviceError(res.error)) {
@@ -649,7 +697,17 @@ export default function PlayerPage() {
     }
 
     const secret = `${window.crypto.randomUUID()}_${Math.random().toString(36).substring(2)}`;
-    const res = await requestPairingCodeAction(secret);
+    let res;
+    try {
+      res = await withPlayerTimeout(
+        requestPairingCodeAction(secret),
+        'A geração do código de pareamento'
+      );
+    } catch {
+      setStatus('error');
+      setMessage('O servidor demorou para gerar o código. Verifique a internet e tente novamente.');
+      return;
+    }
 
     if (!res.success || !res.code || !res.expiresAt) {
       setStatus('error');
@@ -679,11 +737,42 @@ export default function PlayerPage() {
     }
   };
 
+  const forgetDeviceAndPairAgain = async () => {
+    clearAllTimers();
+    clearStoredDeviceToken();
+    clearPendingPairing();
+    setDeviceToken(null);
+    setScreenInfo(null);
+    setPlaylistInfo(null);
+    setItems([]);
+    await initNewPairing(true);
+  };
+
+  const pairingRecovery = status !== 'playing' && status !== 'unpaired' && (
+    <div className="absolute right-3 top-3 z-50 max-w-[min(92vw,31rem)] rounded-2xl border border-sky-500/25 bg-slate-950/90 p-4 text-left shadow-2xl backdrop-blur">
+      <p className="text-sm font-bold text-white">Esta TV ainda não foi vinculada?</p>
+      <p className="mt-1 text-xs leading-relaxed text-slate-400">
+        Gere o código de 6 caracteres nesta tela e digite-o no cadastro da TV no painel.
+      </p>
+      <button
+        type="button"
+        onClick={() => void forgetDeviceAndPairAgain()}
+        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+      >
+        <RefreshCw className="h-4 w-4" /> Gerar código de pareamento
+      </button>
+      <p className="mt-2 text-[10px] text-slate-500">
+        Alternativa: acesse <strong className="text-slate-300">midiapormidia.com.br/tv?parear=1</strong>
+      </p>
+    </div>
+  );
+
   return (
     <div
       data-tv-player
       className="fixed inset-0 w-screen h-[100dvh] bg-black text-white flex flex-col justify-between font-sans select-none overflow-hidden"
     >
+      {pairingRecovery}
       {!isFullscreen && (
         <div className="absolute left-3 bottom-3 z-50 flex max-w-[min(92vw,36rem)] flex-col items-start gap-2">
           <button
@@ -701,6 +790,12 @@ export default function PlayerPage() {
               {presentationNotice}
             </p>
           )}
+        </div>
+      )}
+
+      {status !== 'playing' && (
+        <div className="absolute bottom-3 right-3 z-50 rounded-xl bg-black/75 px-3 pb-3 backdrop-blur">
+          <ConditionalPwaInstall />
         </div>
       )}
 
@@ -791,8 +886,11 @@ export default function PlayerPage() {
             <ol className="text-sm text-slate-400 text-left space-y-1.5 list-decimal list-inside">
               <li>Acesse o painel no computador ou celular em <strong className="text-slate-200">/screens</strong>.</li>
               <li>Cadastre ou selecione a tela desejada nesta empresa.</li>
-              <li>Digite o código de 6 dígitos acima no campo de pareamento.</li>
+              <li>Digite o código de 6 caracteres acima no campo de pareamento.</li>
             </ol>
+            <p className="border-t border-slate-800 pt-3 text-left text-xs leading-relaxed text-slate-500">
+              Se aparecer <strong className="text-sky-300">Instalar MPM nesta TV</strong>, o aparelho suporta instalar o Player como app. A abertura automática ao ligar depende do modo quiosque ou da configuração de inicialização do próprio aparelho.
+            </p>
           </div>
 
           <div className="flex items-center justify-center gap-2 text-slate-500 text-sm font-mono">
@@ -806,7 +904,10 @@ export default function PlayerPage() {
       {status === 'loading' && (
         <div className="flex-1 flex flex-col items-center justify-center text-center p-8 gap-4">
           <RefreshCw className="w-12 h-12 animate-spin text-sky-400" />
-          <p className="text-slate-400 text-lg font-medium">Inicializando player e obtendo playlist...</p>
+          <p className="text-slate-400 text-lg font-medium">Verificando o vínculo desta TV...</p>
+          <p className="max-w-md text-xs leading-relaxed text-slate-500">
+            Se esta TV nunca foi pareada ou o código não aparecer, use <strong className="text-slate-300">Gerar código de pareamento</strong> no canto superior direito.
+          </p>
         </div>
       )}
 
@@ -816,7 +917,7 @@ export default function PlayerPage() {
           <Clock className="w-16 h-16 text-amber-400 mx-auto" />
           <h2 className="text-2xl font-bold text-white">Código de Pareamento Expirado</h2>
           <p className="text-slate-400 text-sm max-w-md mx-auto">
-            O código de 6 dígitos expira após 10 minutos por razões de segurança.
+            O código de 6 caracteres expira após 10 minutos por razões de segurança.
           </p>
           <button
             onClick={() => initNewPairing(true)}
@@ -838,6 +939,12 @@ export default function PlayerPage() {
             className="bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold px-6 py-3 rounded-xl text-sm transition"
           >
             Tentar Novamente
+          </button>
+          <button
+            onClick={() => void forgetDeviceAndPairAgain()}
+            className="bg-sky-500 hover:bg-sky-600 text-white font-semibold px-6 py-3 rounded-xl text-sm transition inline-flex items-center gap-2"
+          >
+            <RefreshCw className="h-4 w-4" /> Esquecer vínculo local e gerar código
           </button>
         </div>
       )}

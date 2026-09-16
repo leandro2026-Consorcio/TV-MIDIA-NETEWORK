@@ -157,7 +157,7 @@ export default function ScreenDetailPage() {
     setPairingSuccess(false);
 
     if (!pairingCodeInput || pairingCodeInput.trim().length !== 6) {
-      setPairingError('Por favor, informe o código de 6 dígitos exibido na TV.');
+      setPairingError('Por favor, informe o código de 6 caracteres exibido na TV.');
       setPairingLoading(false);
       return;
     }
@@ -527,10 +527,26 @@ export default function ScreenDetailPage() {
           <div>
             <h2 className="font-bold text-white text-base">Pareamento de Dispositivo (TV)</h2>
             <p className="text-xs text-slate-400">
-              Digite o código de 6 dígitos exibido no aplicativo do player em <strong className="text-slate-200">/player</strong>
+              Na TV, acesse <strong className="text-sky-300">midiapormidia.com.br/tv</strong> e digite aqui o código de 6 caracteres exibido.
             </p>
           </div>
         </div>
+
+        {!screen.paired_at && (
+          <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">
+            <p className="font-bold text-amber-300">Como obter o código</p>
+            <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-slate-300">
+              <li>Abra <strong className="text-white">midiapormidia.com.br/tv</strong> no navegador da TV.</li>
+              <li>A TV deve mostrar automaticamente um código de 6 caracteres, válido por 10 minutos.</li>
+              <li>Se aparecer “Verificando vínculo” ou “Procurando mídia”, selecione <strong className="text-white">Gerar código de pareamento</strong>.</li>
+              <li>Como recuperação direta, acesse <strong className="text-white">midiapormidia.com.br/tv?parear=1</strong>.</li>
+            </ol>
+            <p className="mt-2 text-slate-400">O código nasce na TV; este painel apenas vincula o código ao cadastro selecionado.</p>
+            <p className="mt-2 border-t border-amber-500/15 pt-2 text-slate-400">
+              Se a TV oferecer <strong className="text-white">Instalar MPM nesta TV</strong>, instale o app. A abertura automática ao ligar depende do modo quiosque/inicialização do aparelho; em Windows, use o instalador nativo abaixo, que já prepara a autoexecução.
+            </p>
+          </div>
+        )}
 
         {pairingError && (
           <div className="p-3 bg-rose-500/10 border border-rose-500/20 rounded-xl text-rose-400 text-xs flex items-center gap-2">
