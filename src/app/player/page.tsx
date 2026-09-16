@@ -705,12 +705,13 @@ export default function PlayerPage() {
     slideTimerRef.current = setTimeout(() => {
       if (activeItem.media_type === 'video') {
         const video = videoRef.current;
-        if (!video || video.currentTime < 0.5) {
+        if (!video || video.currentTime < 0.5 ||
+            Date.now() - lastVideoProgressRef.current.observedAt >= PLAYER_WATCHDOG_INTERVAL_MS) {
           blockedAssetsUntilRef.current.set(
             playbackAssetKey(activeItem),
             Date.now() + PLAYER_ASSET_COOLDOWN_MS
           );
-          finishCurrentSlideAndLog('failed', 'Vídeo não iniciou ou não apresentou progresso');
+          finishCurrentSlideAndLog('failed', 'Vídeo não iniciou ou parou de apresentar progresso');
           return;
         }
       }
