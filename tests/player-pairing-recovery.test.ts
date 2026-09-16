@@ -13,6 +13,8 @@ const tvPage = fs.readFileSync(path.join(root, 'src/app/tv/page.tsx'), 'utf8');
 const nativePairingStart = fs.readFileSync(path.join(root, 'src/app/api/tv/pairing/start/route.ts'), 'utf8');
 const nativePairingStatus = fs.readFileSync(path.join(root, 'src/app/api/tv/pairing/status/route.ts'), 'utf8');
 const legacyTvPage = fs.readFileSync(path.join(root, 'src/app/tv-legado/page.tsx'), 'utf8');
+const shortLegacyTvPage = fs.readFileSync(path.join(root, 'src/app/tva/page.tsx'), 'utf8');
+const alternateLegacyTvPage = fs.readFileSync(path.join(root, 'src/app/tv2/page.tsx'), 'utf8');
 const pairingActions = fs.readFileSync(path.join(root, 'src/app/actions/pairing.ts'), 'utf8');
 
 test('TV sem vínculo possui recuperação explícita e URL para forçar novo pareamento', () => {
@@ -35,8 +37,10 @@ test('rota /tv sem token usa pareamento nativo independente de JavaScript', () =
   assert.match(nativePairingStatus, /http-equiv="refresh"/);
   assert.match(nativePairingStatus, /response\.cookies\.set\('rede_indoor_device_token'/);
   assert.match(legacyTvPage, /redirect\('\/api\/tv\/pairing\/start'\)/);
-  assert.match(screen, /midiapormidia\.com\.br\/tv-legado/);
+  assert.match(screen, /midiapormidia\.com\.br\/tva/);
   assert.match(screen, /sem depender de JavaScript/);
+  assert.match(shortLegacyTvPage, /tv-legado\/page/);
+  assert.match(alternateLegacyTvPage, /tv-legado\/page/);
   assert.match(legacyTvPage, /novo === '1'/);
   assert.match(nativePairingStatus, /result\.status === 'decryption_failed'/);
   assert.match(pairingActions, /\.eq\('status', 'pending'\)/);
