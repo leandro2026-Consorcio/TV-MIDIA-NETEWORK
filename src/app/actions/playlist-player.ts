@@ -13,9 +13,9 @@ function hashToken(token: string): string {
   return crypto.createHash('sha256').update(token).digest('hex');
 }
 
-function currentBusinessDate(): string {
+function currentBusinessDate(timeZone = 'America/Cuiaba'): string {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'America/Cuiaba',
+    timeZone,
     year: 'numeric',
     month: '2-digit',
     day: '2-digit',
@@ -128,7 +128,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
 
   // 1. Localizar a TV pareada pelo Hash SHA-256
   const { data: screen, error: screenErr } = await (supabase.from('screens') as any)
-    .select('id, company_id, name, orientation, resolution, status, companies(city, state)')
+    .select('id, company_id, name, orientation, resolution, status, companies(city, state, timezone)')
     .eq('device_token_hash', tokenHash)
     .single();
 
@@ -209,18 +209,21 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
 
   const campaignIds = (campaignScreenLinks || []).map((link: any) => link.campaign_id);
   if (campaignIds.length > 0) {
-    const today = currentBusinessDate();
     const { data: campaigns } = await (supabase.from('campaigns') as any)
-      .select('id, company_id, seller_company_id, campaign_type, start_date, end_date, status')
+      .select('id, company_id, seller_company_id, campaign_type, start_date, end_date, status, companies(timezone)')
       .in('id', campaignIds)
       .eq('status', 'active');
 
     const activeCampaignIds = (campaigns || [])
-      .filter((campaign: any) =>
-        (!campaign.start_date || campaign.start_date <= today) &&
-        (!campaign.end_date || campaign.end_date >= today) &&
+      .filter((campaign: any) => {
+        const campaignTimezone = campaign.companies?.timezone || (screen.companies as any)?.timezone || 'America/Cuiaba';
+        const campaignToday = currentBusinessDate(campaignTimezone);
+        return (
+        (!campaign.start_date || campaign.start_date <= campaignToday) &&
+        (!campaign.end_date || campaign.end_date >= campaignToday) &&
         (campaign.company_id === screen.company_id || campaign.seller_company_id === screen.company_id)
-      )
+        );
+      })
       .map((campaign: any) => campaign.id);
 
     if (activeCampaignIds.length > 0) {
@@ -324,7 +327,7 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
       .order('published_at', { ascending: false, nullsFirst: false })
       .limit(50);
 
-    const today = currentBusinessDate();
+    const today = currentBusinessDate((screen.companies as any)?.timezone || 'America/Cuiaba');
     const nowMs = Date.now();
     const allowedCategories = (contentSettings.allowed_categories || []).map(normalizeContentLocation);
     const company = screen.companies as any;
@@ -400,8 +403,8 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     const { data: capacityPeriod } = await (supabase.from('inventory_capacity_periods') as any)
       .select('id,period_start,period_end,network_capacity,own_inventory,mpm_reserve,sponsor_reserve,commercial_inventory,sold_inventory,delivered_capacity')
       .eq('status', 'active')
-      .lte('period_start', currentBusinessDate())
-      .gte('period_end', currentBusinessDate())
+      .lte('period_start', currentBusinessDate((screen.companies as any)?.timezone || 'America/Cuiaba'))
+      .gte('period_end', currentBusinessDate((screen.companies as any)?.timezone || 'America/Cuiaba'))
       .in('media_inventory_id', (
         await (supabase.from('media_inventory') as any)
           .select('id')

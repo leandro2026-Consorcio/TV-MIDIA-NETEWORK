@@ -2,6 +2,17 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+
+const root = process.cwd();
+
+const playlistPlayer = fs.readFileSync(path.join(root, 'src/app/actions/playlist-player.ts'), 'utf8');
+
+test('Player usa timezone civil canônico da empresa para campanhas e conteúdo', () => {
+  assert.match(playlistPlayer, /companies\(city, state, timezone\)/);
+  assert.match(playlistPlayer, /campaign\.companies\?\.timezone/);
+  assert.match(playlistPlayer, /currentBusinessDate\(campaignTimezone\)/);
+  assert.match(playlistPlayer, /currentBusinessDate\(\(screen\.companies as any\)\?\.timezone/);
+});
 import {
   nextPlayableIndex,
   pendingQueueStartIndex,
@@ -10,7 +21,6 @@ import {
   recoveryStepForAttempt,
 } from '../src/lib/mpm/player-continuity.ts';
 
-const root = process.cwd();
 const player = fs.readFileSync(path.join(root, 'src/app/player/page.tsx'), 'utf8');
 const heartbeat = fs.readFileSync(path.join(root, 'src/app/actions/pairing.ts'), 'utf8');
 const queue = (...ids: string[]) => ids.map((id) => ({ id, media_id: id, content_id: null }));
