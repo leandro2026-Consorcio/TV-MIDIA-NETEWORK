@@ -527,7 +527,7 @@ export default function ScreenDetailPage() {
           <div>
             <h2 className="font-bold text-white text-base">Pareamento de Dispositivo (TV)</h2>
             <p className="text-xs text-slate-400">
-              Na TV, acesse <strong className="text-sky-300">midiapormidia.com.br/tv</strong> e digite aqui o código de 6 caracteres exibido.
+              TV nova: <strong className="text-sky-300">midiapormidia.com.br/tv</strong>. TV antiga: <strong className="text-amber-300">midiapormidia.com.br/tv-legado</strong>. Digite aqui o código de 6 caracteres exibido.
             </p>
           </div>
         </div>
@@ -536,10 +536,10 @@ export default function ScreenDetailPage() {
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/10 p-4 text-xs leading-relaxed text-amber-100">
             <p className="font-bold text-amber-300">Como obter o código</p>
             <ol className="mt-2 list-decimal space-y-1.5 pl-4 text-slate-300">
-              <li>Abra <strong className="text-white">midiapormidia.com.br/tv</strong> no navegador da TV.</li>
+              <li>Em TVs novas, abra <strong className="text-white">midiapormidia.com.br/tv</strong>.</li>
+              <li>Em TVs antigas ou se o botão não responder, abra <strong className="text-white">midiapormidia.com.br/tv-legado</strong>. Essa versão gera o código sem depender de JavaScript.</li>
               <li>A TV deve mostrar automaticamente um código de 6 caracteres, válido por 10 minutos.</li>
-              <li>Se aparecer “Verificando vínculo” ou “Procurando mídia”, selecione <strong className="text-white">Gerar código de pareamento</strong>.</li>
-              <li>Como recuperação direta, acesse <strong className="text-white">midiapormidia.com.br/tv?parear=1</strong>.</li>
+              <li>Se aparecer “Verificando vínculo” ou “Procurando mídia”, use diretamente o endereço <strong className="text-white">/tv-legado</strong>.</li>
             </ol>
             <p className="mt-2 text-slate-400">O código nasce na TV; este painel apenas vincula o código ao cadastro selecionado.</p>
             <p className="mt-2 border-t border-amber-500/15 pt-2 text-slate-400">

@@ -771,13 +771,14 @@ export default function PlayerPage() {
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
         Gere o código de 6 caracteres nesta tela e digite-o no cadastro da TV no painel.
       </p>
-      <button
-        type="button"
-        onClick={() => void forgetDeviceAndPairAgain()}
-        className="mt-3 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
-      >
-        <RefreshCw className="h-4 w-4" /> Gerar código de pareamento
-      </button>
+      <form action="/api/tv/pairing/start" method="get">
+        <button
+          type="submit"
+          className="mt-3 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+        >
+          <RefreshCw className="h-4 w-4" /> Gerar código de pareamento
+        </button>
+      </form>
       <p className="mt-2 text-[10px] text-slate-500">
         Alternativa: acesse <strong className="text-slate-300">midiapormidia.com.br/tv?parear=1</strong>
       </p>
@@ -925,13 +926,14 @@ export default function PlayerPage() {
           <p className="max-w-md text-xs leading-relaxed text-slate-500">
             Se esta TV nunca foi pareada ou o código não aparecer, gere um novo código abaixo.
           </p>
-          <button
-            type="button"
-            onClick={() => void forgetDeviceAndPairAgain()}
-            className="mt-2 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-7 py-4 text-base font-bold text-white shadow-xl transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
-          >
-            <RefreshCw className="h-5 w-5" /> Gerar código de pareamento
-          </button>
+          <form action="/api/tv/pairing/start" method="get">
+            <button
+              type="submit"
+              className="mt-2 inline-flex items-center gap-2 rounded-xl bg-sky-500 px-7 py-4 text-base font-bold text-white shadow-xl transition hover:bg-sky-600 focus:outline-none focus:ring-2 focus:ring-sky-300"
+            >
+              <RefreshCw className="h-5 w-5" /> Gerar código de pareamento
+            </button>
+          </form>
         </div>
       )}
 

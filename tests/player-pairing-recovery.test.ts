@@ -8,6 +8,10 @@ const player = fs.readFileSync(path.join(root, 'src/app/player/page.tsx'), 'utf8
 const screen = fs.readFileSync(path.join(root, 'src/app/(dashboard)/screens/[id]/page.tsx'), 'utf8');
 const serviceWorker = fs.readFileSync(path.join(root, 'public/mpm-tv-sw.js'), 'utf8');
 const middleware = fs.readFileSync(path.join(root, 'src/lib/supabase/middleware.ts'), 'utf8');
+const tvPage = fs.readFileSync(path.join(root, 'src/app/tv/page.tsx'), 'utf8');
+const nativePairingStart = fs.readFileSync(path.join(root, 'src/app/api/tv/pairing/start/route.ts'), 'utf8');
+const nativePairingStatus = fs.readFileSync(path.join(root, 'src/app/api/tv/pairing/status/route.ts'), 'utf8');
+const legacyTvPage = fs.readFileSync(path.join(root, 'src/app/tv-legado/page.tsx'), 'utf8');
 
 test('TV sem vínculo possui recuperação explícita e URL para forçar novo pareamento', () => {
   assert.match(player, /get\('parear'\) === '1'/);
@@ -18,6 +22,19 @@ test('TV sem vínculo possui recuperação explícita e URL para forçar novo pa
   assert.match(player, /createCompatiblePlayerId\('pair'\)/);
   assert.doesNotMatch(player, /window\.crypto\.randomUUID\(\)/);
   assert.match(player, /gere um novo código abaixo/);
+  assert.match(player, /action="\/api\/tv\/pairing\/start" method="get"/);
+});
+
+test('rota /tv sem token usa pareamento nativo independente de JavaScript', () => {
+  assert.match(tvPage, /cookieStore\.get\('rede_indoor_device_token'\)/);
+  assert.match(tvPage, /redirect\('\/api\/tv\/pairing\/start'\)/);
+  assert.match(nativePairingStart, /requestPairingCodeAction\(secret, fingerprint\)/);
+  assert.match(nativePairingStatus, /checkPairingStatusAction\(code, secret\)/);
+  assert.match(nativePairingStatus, /http-equiv="refresh"/);
+  assert.match(nativePairingStatus, /response\.cookies\.set\('rede_indoor_device_token'/);
+  assert.match(legacyTvPage, /redirect\('\/api\/tv\/pairing\/start'\)/);
+  assert.match(screen, /midiapormidia\.com\.br\/tv-legado/);
+  assert.match(screen, /sem depender de JavaScript/);
 });
 
 test('chamadas iniciais do Player não deixam a TV presa eternamente em loading', () => {
