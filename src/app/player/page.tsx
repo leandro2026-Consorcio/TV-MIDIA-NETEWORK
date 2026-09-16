@@ -887,7 +887,10 @@ export default function PlayerPage() {
 
   // Se o servidor já devolveu a tela, o vínculo foi confirmado. Não ofereça
   // novo pareamento em estados operacionais como playlist ausente ou vazia.
-  const pairingRecovery = !screenInfo && status !== 'playing' && status !== 'unpaired' && (
+  // Um token local já representa um vínculo válido, mesmo durante uma falha
+  // temporária ao carregar a programação. Não exibir o código de pareamento
+  // novamente em TVs antigas/TV2 nesse intervalo.
+  const pairingRecovery = !deviceToken && !screenInfo && status !== 'playing' && status !== 'unpaired' && (
     <div className="absolute right-3 top-3 z-50 max-w-[min(92vw,31rem)] rounded-2xl border border-sky-500/25 bg-slate-950/90 p-4 text-left shadow-2xl backdrop-blur">
       <p className="text-sm font-bold text-white">Esta TV ainda não foi vinculada?</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">
@@ -960,7 +963,11 @@ export default function PlayerPage() {
               autoPlay
               muted
               playsInline
-              className="w-full h-full object-contain animate-in fade-in duration-500"
+              controls={false}
+              disablePictureInPicture
+              disableRemotePlayback
+              controlsList="nodownload noplaybackrate noremoteplayback"
+              className="pointer-events-none block w-full h-full object-contain animate-in fade-in duration-500"
               onEnded={() => finishCurrentSlideAndLog('completed')}
               onLoadedData={() => void recoverVideoPlayback('Autoplay não iniciou após carregar a mídia')}
               onPlaying={() => {

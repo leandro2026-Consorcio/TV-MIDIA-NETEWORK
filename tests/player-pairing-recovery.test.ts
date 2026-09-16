@@ -75,7 +75,9 @@ test('Player oferece instalação como app quando o navegador da TV suporta PWA'
 });
 
 test('TV vinculada não oferece novo pareamento e reproduz playlist draft explicitamente vinculada', () => {
-  assert.match(player, /const pairingRecovery = !screenInfo/);
+  assert.match(player, /const pairingRecovery = !deviceToken && !screenInfo/);
+  assert.match(player, /controls=\{false\}/);
+  assert.match(player, /disablePictureInPicture/);
   assert.match(playlistPlayerAction, /\['active', 'draft'\]\.includes\(linkedPlaylist\.status\)/);
   assert.match(playlistPlayerAction, /\.eq\('is_active', true\)[\s\S]*\.maybeSingle\(\)/);
 });
