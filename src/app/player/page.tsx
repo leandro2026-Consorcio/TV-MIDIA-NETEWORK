@@ -645,6 +645,7 @@ export default function PlayerPage() {
     const item = itemsRef.current[currentIndexRef.current];
     if (!video || !item || item.media_type !== 'video' || statusRef.current !== 'playing') return;
     if (videoRecoveryInFlightRef.current || slideCompletionRef.current) return;
+    if (!video.paused && Date.now() - lastVideoProgressRef.current.observedAt < PLAYER_STALL_THRESHOLD_MS) return;
 
     videoRecoveryInFlightRef.current = true;
     videoRecoveryAttemptsRef.current += 1;
@@ -702,6 +703,17 @@ export default function PlayerPage() {
 
     // Timer de segurança para transição da imagem ou de vídeo que exceda o tempo
     slideTimerRef.current = setTimeout(() => {
+      if (activeItem.media_type === 'video') {
+        const video = videoRef.current;
+        if (!video || video.currentTime < 0.5) {
+          blockedAssetsUntilRef.current.set(
+            playbackAssetKey(activeItem),
+            Date.now() + PLAYER_ASSET_COOLDOWN_MS
+          );
+          finishCurrentSlideAndLog('failed', 'Vídeo não iniciou ou não apresentou progresso');
+          return;
+        }
+      }
       finishCurrentSlideAndLog('completed');
     }, durationMs);
 
@@ -951,17 +963,23 @@ export default function PlayerPage() {
               onEnded={() => finishCurrentSlideAndLog('completed')}
               onLoadedData={() => void recoverVideoPlayback('Autoplay não iniciou após carregar a mídia')}
               onPlaying={() => {
-                videoRecoveryAttemptsRef.current = 0;
                 const video = videoRef.current;
                 lastVideoProgressRef.current = { currentTime: video?.currentTime || 0, observedAt: Date.now() };
               }}
               onTimeUpdate={(event) => {
                 const currentTime = event.currentTarget.currentTime;
                 if (currentTime > lastVideoProgressRef.current.currentTime) {
+                  videoRecoveryAttemptsRef.current = 0;
                   lastVideoProgressRef.current = { currentTime, observedAt: Date.now() };
                 }
               }}
-              onError={() => void recoverVideoPlayback('Erro no codec ou arquivo de vídeo')}
+              onError={() => {
+                blockedAssetsUntilRef.current.set(
+                  playbackAssetKey(activeItem),
+                  Date.now() + PLAYER_ASSET_COOLDOWN_MS
+                );
+                finishCurrentSlideAndLog('failed', 'Erro no codec ou arquivo de vídeo');
+              }}
             />
           )}
 
