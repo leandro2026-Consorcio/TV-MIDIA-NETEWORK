@@ -765,7 +765,9 @@ export default function PlayerPage() {
     await initNewPairing(true);
   };
 
-  const pairingRecovery = status !== 'playing' && status !== 'unpaired' && (
+  // Se o servidor já devolveu a tela, o vínculo foi confirmado. Não ofereça
+  // novo pareamento em estados operacionais como playlist ausente ou vazia.
+  const pairingRecovery = !screenInfo && status !== 'playing' && status !== 'unpaired' && (
     <div className="absolute right-3 top-3 z-50 max-w-[min(92vw,31rem)] rounded-2xl border border-sky-500/25 bg-slate-950/90 p-4 text-left shadow-2xl backdrop-blur">
       <p className="text-sm font-bold text-white">Esta TV ainda não foi vinculada?</p>
       <p className="mt-1 text-xs leading-relaxed text-slate-400">

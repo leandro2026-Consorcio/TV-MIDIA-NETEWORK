@@ -16,6 +16,7 @@ const legacyTvPage = fs.readFileSync(path.join(root, 'src/app/tv-legado/page.tsx
 const shortLegacyTvPage = fs.readFileSync(path.join(root, 'src/app/tva/page.tsx'), 'utf8');
 const alternateLegacyTvPage = fs.readFileSync(path.join(root, 'src/app/tv2/page.tsx'), 'utf8');
 const pairingActions = fs.readFileSync(path.join(root, 'src/app/actions/pairing.ts'), 'utf8');
+const playlistPlayerAction = fs.readFileSync(path.join(root, 'src/app/actions/playlist-player.ts'), 'utf8');
 
 test('TV sem vínculo possui recuperação explícita e URL para forçar novo pareamento', () => {
   assert.match(player, /get\('parear'\) === '1'/);
@@ -71,4 +72,10 @@ test('Player oferece instalação como app quando o navegador da TV suporta PWA'
   assert.match(screen, /instalador nativo abaixo, que já prepara a autoexecução/);
   assert.match(serviceWorker, /network-first/);
   assert.match(middleware, /pathname === '\/mpm-tv-sw\.js'/);
+});
+
+test('TV vinculada não oferece novo pareamento e reproduz playlist draft explicitamente vinculada', () => {
+  assert.match(player, /const pairingRecovery = !screenInfo/);
+  assert.match(playlistPlayerAction, /\['active', 'draft'\]\.includes\(linkedPlaylist\.status\)/);
+  assert.match(playlistPlayerAction, /\.eq\('is_active', true\)[\s\S]*\.maybeSingle\(\)/);
 });

@@ -153,9 +153,13 @@ export async function getPlayerPlaylistAction(deviceToken: string) {
     .maybeSingle();
 
   const linkedPlaylist = screenLink?.playlists as any;
+  // O vínculo ativo da TV é a intenção explícita de publicação. Playlists
+  // recém-criadas nascem como draft; se foram vinculadas à TV, seus itens
+  // aprovados já podem ser exibidos. Estados inactive/archived continuam
+  // bloqueados e não voltam ao ar por causa de um vínculo antigo.
   const playlist = linkedPlaylist &&
     linkedPlaylist.company_id === screen.company_id &&
-    linkedPlaylist.status === 'active'
+    ['active', 'draft'].includes(linkedPlaylist.status)
     ? linkedPlaylist
     : null;
 
